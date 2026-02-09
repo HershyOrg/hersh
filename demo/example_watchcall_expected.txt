@@ -1,0 +1,84 @@
+=== Expected Output for example_watchcall.go ===
+
+DESCRIPTION:
+  Advanced example demonstrating WatchCall reactive mechanism.
+  Tests automatic re-execution triggered by watched variable changes.
+
+EXECUTION FLOW:
+  1. Watcher initialization (InitRun phase)
+     - Execution 1: InitRun phase 1 (msg=nil)
+     - WatchCall registered with varName="externalCounter"
+     - Watch loop starts with 300ms polling interval
+     - First execution returns nil (not initialized yet)
+
+  2. Ready state reached
+     - Watcher.Start() returns
+
+  3. WatchCall automatic triggers (VarSig-driven)
+     - Every 300ms, compute function polls externalCounter
+     - When value changes, VarSig sent to Manager
+     - Manager transitions Ready → Running → Ready
+     - Managed function re-executes
+
+  4. Execution sequence (VarSig-triggered):
+     - Poll #1 (300ms): prev=nil, current=0 → VarSig → Execution 2
+       - watchedValue = 1 (VarState updated)
+
+     - Poll #2 (600ms): prev=1, current=2 → VarSig → Execution 3
+       - watchedValue = 2
+
+     - Poll #3 (900ms): prev=2, current=3 → VarSig → Execution 4
+       - watchedValue = 3
+       - Milestone detected (3 % 3 == 0)
+
+     - Poll #4 (1200ms): prev=3, current=4 → VarSig → Execution 5
+       - watchedValue = 4
+
+     - Poll #5 (1500ms): prev=4, current=5 → VarSig → Execution 6
+       - watchedValue = 5
+       - Stop condition met (>= 5)
+       - StopError returned
+
+  5. Cleanup and Stop
+     - Watch loop continues in background (shows polling)
+     - Watcher transitions to Stopped state
+     - Cleanup function executed
+
+EXPECTED OUTPUT PATTERN:
+  ✓ 6-7 total executions (1 InitRun + 5-6 VarSig triggers)
+  ✓ WatchCall polls every 300ms
+  ✓ Each poll increments externalCounter
+  ✓ Watched value progression: nil → 1 → 2 → 3 → 4 → 5
+  ✓ Milestone at counter=3 (divisible by 3)
+  ✓ Stop condition triggered at counter=5
+  ✓ 13+ Reduce log entries (multiple state transitions)
+  ✓ 7 Effect results (1 InitRun + 5 Run + 1 ClearRun)
+  ✓ No errors
+
+KEY VERIFICATION POINTS:
+  1. WatchCall reactivity: Automatic re-execution on value change
+  2. Polling mechanism: 300ms interval observed
+  3. First execution: watchedValue is nil (not yet initialized)
+  4. Subsequent executions: watchedValue increments 1 → 2 → 3 → 4 → 5
+  5. VarSig batching: Multiple polls may occur between executions
+  6. Stop condition: Gracefully stops at counter=5
+  7. Background watch loop: Continues polling even after stop (normal behavior)
+
+CRITICAL SUCCESS CRITERIA:
+  - Milestone message appears exactly once at counter=3
+  - Stop message appears exactly once at counter=5
+  - No counter values skipped (1, 2, 3, 4, 5 all appear)
+  - Final state is "Stopped"
+  - Cleanup executed successfully
+
+TIMING ANALYSIS:
+  - 3 second sleep allows ~10 polls (3000ms / 300ms = 10)
+  - However, stop condition at counter=5 terminates early (~1500ms)
+  - Background watch loop continues after stop (shows extra polls)
+  - This is expected behavior - watch goroutine cleanup is async
+
+REACTIVE BEHAVIOR VERIFICATION:
+  - NO user messages sent in this demo
+  - ALL executions (after InitRun) are VarSig-triggered
+  - Demonstrates pure reactive programming model
+  - Watch variable changes automatically propagate to managed function

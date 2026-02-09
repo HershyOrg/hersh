@@ -1,0 +1,58 @@
+=== Expected Output for example_simple.go ===
+
+DESCRIPTION:
+  Simple counter example demonstrating hersh reactive framework.
+  Tests basic message handling, Memo caching, and context state management.
+
+EXECUTION FLOW:
+  1. Watcher initialization (InitRun phase)
+     - Execution 1: InitRun phase 1 (msg=nil)
+     - Memo computes expensive value (first time only)
+     - Context state "totalRuns" initialized to 1
+
+  2. Ready state reached
+     - Watcher.Start() returns
+
+  3. Message 1: "Hello from main!"
+     - Execution 2 triggered
+     - Memo returns cached value (no recomputation)
+     - totalRuns updated to 2
+     - Message content displayed
+
+  4. Message 2: "Another message"
+     - Execution 3 triggered
+     - Memo returns cached value
+     - totalRuns updated to 3
+     - Message content displayed
+
+  5. Message 3: "stop"
+     - Execution 4 triggered
+     - Memo returns cached value
+     - totalRuns updated to 4
+     - StopError returned
+     - Cleanup function executed
+
+  6. Watcher.Stop() completes
+
+EXPECTED OUTPUT PATTERN:
+  ✓ 4 total executions (1 InitRun + 3 messages)
+  ✓ Memo computed only once (InitRun phase)
+  ✓ All 3 messages processed successfully
+  ✓ totalRuns increments: 1 → 2 → 3 → 4
+  ✓ Cleanup executed with final counter = 4
+  ✓ 8 Reduce log entries (state transitions)
+  ✓ 5 Effect results (1 InitRun + 3 Run + 1 ClearRun)
+  ✓ No errors
+
+KEY VERIFICATION POINTS:
+  1. Memo caching works: "Computing expensive value..." appears only once
+  2. Context state persistence: totalRuns correctly increments across executions
+  3. Message delivery: All 3 messages received and processed in order
+  4. Graceful shutdown: Stop message triggers cleanup
+  5. No signal loss: All messages preserved and processed
+
+CRITICAL SUCCESS CRITERIA:
+  - Counter reaches 4 (not 3 or 5)
+  - Memo computation happens exactly once
+  - Context value changes show proper increment sequence
+  - Cleanup shows final counter = 4

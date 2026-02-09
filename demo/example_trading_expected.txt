@@ -1,0 +1,152 @@
+=== Expected Output for example_trading.go ===
+
+DESCRIPTION:
+  Complex trading bot example demonstrating:
+  - WatchCall for Bitcoin price monitoring (500ms polling)
+  - Memo caching for expensive MarketClient initialization
+  - Context state management for trading state
+  - User message handling for bot control (status, pause, resume, stop)
+  - Reactive trading logic based on price thresholds
+
+CONFIGURATION:
+  - Buy Threshold: $44,500 (buy when price drops below)
+  - Sell Threshold: $45,500 (sell when price rises above)
+  - Max Position: $10,000
+  - Poll Interval: 500ms
+  - Monitoring: Enabled by default
+
+EXECUTION FLOW:
+  1. Watcher initialization (InitRun phase)
+     - Execution 1: InitRun phase 1
+     - Memo creates MarketClient (one-time expensive operation)
+     - Context state "state" initialized to {Position: 0, TotalTrades: 0, LastPrice: 0}
+     - WatchCall registered for "btcPrice"
+     - Watch loop starts polling every 500ms
+
+  2. Ready state reached
+     - Watcher.Start() returns after first VarSig received
+     - Background price monitoring active
+
+  3. Automatic price-driven executions (VarSig-triggered)
+     - Every 500ms, WatchCall polls Bitcoin price
+     - When price changes >$100, VarSig sent
+     - Managed function executes with new price
+     - Trading logic evaluates buy/sell conditions
+
+  4. User message handling (UserSig-triggered)
+     - Demo sends 4 messages with delays:
+       - status (after 2s)
+       - pause (after 4s total)
+       - resume (after 5s total)
+       - stop (after 7s total)
+
+  5. Trading logic behavior
+     - Buy signal: price < $44,500 AND position < $10,000
+       - Buy $1,000 worth
+       - Update position via UpdateValue
+
+     - Sell signal: price > $45,500 AND position > 0
+       - Sell min($1,000, current position)
+       - Update position via UpdateValue
+
+     - Market depth: Show every 3 trades (totalTrades % 3 == 0)
+
+  6. Message-driven state changes
+     - status: Display current trading state
+     - pause: Set MonitoringEnabled = false (stops trading logic)
+     - resume: Set MonitoringEnabled = true (resumes trading)
+     - stop: Return StopError (triggers cleanup)
+
+EXPECTED OUTPUT PATTERN:
+  ✓ InitRun execution shows MarketClient creation
+  ✓ Multiple VarSig-triggered executions (price monitoring)
+  ✓ Buy/Sell signals based on price thresholds
+  ✓ Position updates reflected in subsequent executions
+  ✓ Market depth displayed every 3 trades
+  ✓ All 4 user messages processed in order:
+    - status message processed and status displayed
+    - pause message processed and monitoring paused
+    - resume message processed and monitoring resumed
+    - stop message processed and shutdown initiated
+  ✓ Cleanup shows final trading statistics
+  ✓ Final state: "Stopped"
+
+KEY VERIFICATION POINTS:
+  1. Signal preservation: ALL messages processed (status, pause, resume, stop)
+     - CRITICAL: In broken implementation, messages during InitRun were dropped
+     - FIXED: Start() now waits for Ready state before returning
+
+  2. Memo caching: MarketClient creation happens exactly once
+     - "[MEMO] Creating MarketClient..." appears only in first execution
+
+  3. Context state persistence: Position accumulates across executions
+     - Position changes: 0 → 1000 → 2000 → 3000 → ... (based on trades)
+     - UpdateValue ensures thread-safe state mutations
+
+  4. WatchCall reactivity: Automatic re-execution on price changes
+     - "[Watch] Price changed" messages show background monitoring
+     - Each significant price change triggers new execution
+
+  5. Trading logic correctness:
+     - Buy signals only when price < $44,500
+     - Sell signals only when price > $45,500
+     - Position never exceeds $10,000 (max position limit)
+
+  6. Message timing:
+     - Messages arrive while WatchCall is active
+     - Both VarSig and UserSig handled correctly
+     - No signal loss or race conditions
+
+  7. Pause/Resume behavior:
+     - When paused: Price still monitored but trading logic disabled
+     - When resumed: Trading logic re-enabled
+     - Price monitoring continues throughout
+
+CRITICAL SUCCESS CRITERIA:
+  ✓ MarketClient memo appears exactly once
+  ✓ All 4 messages appear in output (status, pause, resume, stop)
+  ✓ "📊 Trading Bot Status" appears after status message
+  ✓ "⏸️ Monitoring paused" appears after pause message
+  ✓ "▶️ Monitoring resumed" appears after resume message
+  ✓ "🛑 Stop signal received" appears after stop message
+  ✓ Position values are consistent and logical
+  ✓ Buy signals only at prices < $44,500
+  ✓ Sell signals only at prices > $45,500
+  ✓ Final cleanup displays trading statistics
+  ✓ No "panic" or "error" messages
+
+SIGNAL HANDLING VERIFICATION (PRIMARY FIX):
+  PROBLEM (Original):
+    - Start() returned immediately after sending InitRun signal
+    - Demo waited 800ms but InitRun took ~3s to complete
+    - Messages sent during InitRun were DROPPED (StateInitRun ignored UserSig)
+    - Result: Only "stop" message processed, status/pause/resume lost
+
+  SOLUTION (Fixed):
+    - Start() now waits for Ready state (blocks until InitRun complete)
+    - All messages sent after Start() returns
+    - All messages guaranteed to arrive in Ready state
+    - Result: All 4 messages processed successfully in order
+
+  VERIFICATION:
+    - Count message receipts in output
+    - MUST see exactly 4 "💬 Message received" lines
+    - status → pause → resume → stop (in that order)
+    - Each message triggers expected response
+
+TIMING ANALYSIS:
+  - Total runtime: ~7-10 seconds
+  - InitRun: ~500-1000ms (first VarSig arrival)
+  - Active trading: ~7 seconds with user interactions
+  - Price polls: ~14-20 polls total (500ms interval)
+  - Executions: Variable (depends on price changes and messages)
+    - Estimate: 1 InitRun + 10-15 VarSig + 4 UserSig = 15-20 total
+  - Reduce log entries: ~30-40 (state transitions)
+  - Effect results: Similar to execution count
+
+PERFORMANCE EXPECTATIONS:
+  - No significant delays or hangs
+  - Responsive to user messages (<100ms from send to process)
+  - Price monitoring maintains 500ms interval
+  - Context state updates are immediate
+  - Cleanup completes within 1 second
