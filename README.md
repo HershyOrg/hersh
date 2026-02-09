@@ -3,7 +3,6 @@
 **Reactive framework for Go with managed execution and monitoring**
 
 [![Go Version](https://img.shields.io/badge/Go-%3E%3D1.21-blue)](https://go.dev/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 Hersh is a lightweight reactive framework that provides deterministic state management through a managed execution model.
 
