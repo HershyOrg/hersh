@@ -2,28 +2,33 @@
 
 **Reactive framework for Go with managed execution and monitoring**
 
-Hersh is a lightweight reactive framework that provides deterministic state management through a managed execution model. It features reactive variables (polling and channel-based), session-scoped caching, persistent context storage, and HTTP API control.
+[![Go Version](https://img.shields.io/badge/Go-%3E%3D1.21-blue)](https://go.dev/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+Hersh is a lightweight reactive framework that provides deterministic state management through a managed execution model.
 
 ## Features
 
-- 🎯 **Managed Execution**: Single managed function triggered by messages or reactive changes
-- 🔄 **WatchCall**: Polling-based reactive variables that trigger re-execution on changes
-- 📡 **WatchFlow**: Channel-based reactive variables for event-driven patterns
+- 🎯 **Managed Execution**: Single function triggered by messages or reactive changes
+- 🔄 **WatchCall**: Polling-based reactive variables (tick-based with change detection)
+- 📡 **WatchFlow**: Channel-based reactive variables (event streams)
 - 💾 **Memo**: Session-scoped caching for expensive computations
-- 📦 **HershContext**: Persistent key-value storage across executions
-- 🌐 **WatcherAPI**: HTTP server for external control and state inspection
-- 🛡️ **Fault Tolerance**: Built-in recovery policies and graceful error handling
-- 📊 **Execution Logging**: Track execution count, errors, and performance metrics
+- 📦 **HershContext**: Persistent key-value storage with atomic updates
+- 🌐 **WatcherAPI**: HTTP server for external control and monitoring
+- 🛡️ **Fault Tolerance**: Built-in recovery policies with exponential backoff
+- 📊 **Execution Logging**: Track state transitions, errors, and context changes
 
-## Installation
+## Quick Start
+
+### Installation
 
 ```bash
 go get github.com/HershyOrg/hersh@v0.2.0
 ```
 
-## Quick Start
+### Complete Example
 
-### 1. Basic Example: Managed Function
+This example demonstrates all core features in one place:
 
 ```go
 package main
@@ -32,641 +37,594 @@ import (
     "fmt"
     "time"
     "github.com/HershyOrg/hersh"
+    "github.com/HershyOrg/hersh/manager"
 )
 
 func main() {
-    // Create Watcher with default config
+    // 1. Create Watcher with environment variables
     config := hersh.DefaultWatcherConfig()
-    watcher := hersh.NewWatcher(config, nil, nil)
+    watcher := hersh.NewWatcher(config, map[string]string{
+        "API_KEY": "secret",
+    }, nil)
 
-    // Define managed function (executes on Start + each message/reactive trigger)
-    counter := 0
-    managedFunc := func(msg *hersh.Message, ctx hersh.HershContext) error {
-        counter++
-        fmt.Printf("[Execution %d]\n", counter)
+    // External data sources
+    externalCounter := 0
+    eventChan := make(chan any, 10)
 
-        // Handle messages
-        if msg != nil {
-            fmt.Printf("Received: %s\n", msg.Content)
-            if msg.Content == "stop" {
-                return hersh.NewStopErr("user requested stop")
+    // Managed function with all features
+    watcher.Manage(func(msg *hersh.Message, ctx hersh.HershContext) error {
+        // 2. WatchCall: Polling-based reactive (checks every 500ms)
+        counter := hersh.WatchCall(
+            func() (manager.VarUpdateFunc, error) {
+                // 함수 본문에선 네트워크 호출 등 가능.
+                time.Sleep(20*time.Millisecond) 
+                //return 함수 내부엔 가능한 외부효과 없는 계산만 이용
+                return func(prev any) (any, bool, error) {
+                    current := externalCounter
+                    externalCounter++
+                    if prev == nil {
+                        return current, true, nil
+                    }
+                    return current, prev.(int) != current, nil
+                }, nil
+            },
+            "counter", 500*time.Millisecond, ctx,
+        )
+
+        // 3. WatchFlow: Channel-based reactive
+        event := hersh.WatchFlow(eventChan, "events", ctx)
+
+        // 4. Memo: Cached computation (runs once per session)
+        apiClient := hersh.Memo(func() any {
+            fmt.Println("Initializing API client...")
+            return &struct{ name string }{name: "client"}
+        }, "apiClient", ctx)
+
+        // 5. HershContext: Persistent state with atomic updates
+        ctx.UpdateValue("totalRuns", func(current any) any {
+            if current == nil {
+                return 1
             }
-        }
-        return nil
-    }
+            return current.(int) + 1
+        })
+        totalRuns := ctx.GetValue("totalRuns")
 
-    // Register managed function with cleanup
-    watcher.Manage(managedFunc, "myApp").Cleanup(func(ctx hersh.HershContext) {
+        // 6. Environment variables (immutable)
+        apiKey, _ := ctx.GetEnv("API_KEY")
+
+        fmt.Printf("Execution: counter=%v, event=%v, client=%v, runs=%v, key=%s\n",
+            counter, event, apiClient, totalRuns, apiKey)
+
+        // 7. Message handling with error control
+        if msg != nil && msg.Content == "stop" {
+            return hersh.NewStopErr("user requested stop")
+        }
+
+        return nil
+    }, "app").Cleanup(func(ctx hersh.HershContext) {
         fmt.Println("Cleanup executed")
     })
 
-    // Start watcher (triggers first execution)
+    // Start watcher (blocks until Ready)
     watcher.Start()
 
-    // Send messages to trigger additional executions
+    // 8. Send messages to trigger execution
     watcher.SendMessage("hello")
     time.Sleep(100 * time.Millisecond)
 
-    watcher.SendMessage("stop")
+    // Send events to trigger WatchFlow
+    eventChan <- "event1"
     time.Sleep(100 * time.Millisecond)
 
-    // Stop watcher
+    // 9. Logger: Inspect execution history
+    watcher.GetLogger().PrintSummary()
+
+    // 10. Stop gracefully
+    watcher.SendMessage("stop")
+    time.Sleep(100 * time.Millisecond)
     watcher.Stop()
 }
 ```
 
-### 2. WatchCall: Polling-Based Reactive
+**Output**:
 
-Poll external values and trigger re-execution on changes:
+``` txt
+Initializing API client...
+Execution: counter=0, event=<nil>, client=&{client}, runs=1, key=secret
+Execution: counter=1, event=<nil>, client=&{client}, runs=2, key=secret
+Execution: counter=1, event=event1, client=&{client}, runs=3, key=secret
 
-```go
-import (
-    "github.com/HershyOrg/hersh"
-    "github.com/HershyOrg/hersh/manager"
-)
+=== Logger Summary ===
+Reduce Log Entries: 12
+Effect Log Entries: 0
+Effect Results: 8
+Watch Error Log Entries: 0
+Context Value Changes: 5
 
-externalCounter := 0
-
-managedFunc := func(msg *hersh.Message, ctx hersh.HershContext) error {
-    // Poll external value every 300ms, re-execute when changed
-    watchedValue := hersh.WatchCall(
-        func() (manager.VarUpdateFunc, error) {
-            return func(prev any) (any, bool, error) {
-                currentValue := externalCounter
-                externalCounter++
-
-                // Detect change
-                if prev == nil {
-                    return currentValue, true, nil // First call
-                }
-
-                changed := prev.(int) != currentValue
-                return currentValue, changed, nil
-            }, nil
-        },
-        "externalCounter", // Variable name
-        300*time.Millisecond, // Poll interval
-        ctx,
-    )
-
-    if watchedValue != nil {
-        fmt.Printf("Value changed to: %d\n", watchedValue.(int))
-    }
-    return nil
-}
-```
-
-**Key Points:**
-- `getComputationFunc` returns a `VarUpdateFunc` on each tick
-- `VarUpdateFunc` receives `prev` value and returns `(next, changed, error)`
-- Re-execution only triggers when `changed = true`
-- Returns `nil` on first call (not initialized yet)
-
-### 3. WatchFlow: Channel-Based Reactive
-
-Monitor channels and trigger re-execution on new values:
-
-```go
-// Create channel (can be external)
-var eventChan = make(chan any, 10)
-    // Send values to channel (from goroutine or external source)
-go func() {
-    eventChan <- "event1"
-    time.Sleep(100 * time.Millisecond)
-    eventChan <- "event2"
-}()
-
-managedFunc := func(msg *hersh.Message, ctx hersh.HershContext) error {
-
-    // Watch channel for new values
-    latestEvent := hersh.WatchFlow(eventChan, "eventStream", ctx)
-
-    if latestEvent != nil {
-        fmt.Printf("New event: %v\n", latestEvent)
-    }
-
-
-    return nil
-}
-```
-
-**Key Points:**
-- Monitors a channel and emits signals on new values
-- Re-execution triggers automatically when channel receives data
-- Returns `nil` until first value received
-- Automatically stops when channel closed or Watcher stopped
-
-### 4. Memo: Session-Scoped Caching
-
-Cache expensive computations within a Watcher session:
-
-```go
-managedFunc := func(msg *hersh.Message, ctx hersh.HershContext) error {
-    // Expensive computation (cached for entire session)
-    client := hersh.Memo(func() any {
-        fmt.Println("Creating expensive client...")
-        time.Sleep(100 * time.Millisecond)
-        return &ExpensiveClient{}
-    }, "apiClient", ctx).(*ExpensiveClient)
-
-    // First call computes, subsequent calls return cached value
-    fmt.Printf("Using client: %v\n", client)
-
-    // Clear cache if needed
-    if msg != nil && msg.Content == "refresh" {
-        hersh.ClearMemo("apiClient", ctx)
-    }
-
-    return nil
-}
-```
-
-**Key Points:**
-- Computed once per session (until `ClearMemo` or Watcher restart)
-- Thread-safe with `LoadOrStore` semantics
-- Does NOT trigger re-execution
-- Useful for initialization (DB connections, HTTP clients, etc.)
-
-### 5. HershContext: Persistent State Storage
-
-Store values that persist across executions:
-
-```go
-managedFunc := func(msg *hersh.Message, ctx hersh.HershContext) error {
-    // Get persistent value (survives across executions)
-    totalRuns := ctx.GetValue("totalRuns")
-    if totalRuns == nil {
-        totalRuns = 0
-    }
-
-    // Update persistent state
-    newTotal := totalRuns.(int) + 1
-    ctx.SetValue("totalRuns", newTotal)
-    fmt.Printf("Total runs: %d\n", newTotal)
-
-    // UpdateValue with function (thread-safe with deep copy)
-    ctx.UpdateValue("counter", func(current any) any {
-        if current == nil {
-            return 1
-        }
-        return current.(int) + 1
-    })
-
-    // Access environment variables (immutable, set at creation)
-    if apiKey, ok := ctx.GetEnv("API_KEY"); ok {
-        fmt.Printf("Using API key: %s\n", apiKey)
-    }
-
-    return nil
-}
-
-// Set environment variables at creation
-watcher := hersh.NewWatcher(config, map[string]string{
-    "API_KEY": "secret",
-    "ENV": "production",
-}, nil)
-```
-
-**Key Points:**
-- **GetValue/SetValue**: Simple get/set for any type
-- **UpdateValue**: Thread-safe update with deep copy
-- **GetEnv**: Immutable environment variables (set at Watcher creation)
-- Values persist across all executions within a session
-- Separate from Memo (Memo is for cached computations, HershContext for state)
-
-### 6. WatcherAPI: HTTP Control
-
-Enable HTTP API for external control:
-
-```go
-watcher.StartAPIServer() // Defaults to port 8080
-// or
-watcher.StartAPIServer() // Port configured in WatcherConfig
-```
-
-**Available Endpoints:**
-
-```bash
-# Get Watcher state (Ready, Running, Stopped, etc)
-curl http://localhost:8080/watcher/status
-
-# Get detailed state (execution count, error count, uptime)
-curl http://localhost:8080/watcher/state
-
-# Send message to trigger managed function
-curl -X POST http://localhost:8080/watcher/message \
-  -H "Content-Type: application/json" \
-  -d '{"content":"your-command"}'
-
-# Get environment variables
-curl http://localhost:8080/watcher/vars
-
-# Get watched variables state (WatchCall, WatchFlow values)
-curl http://localhost:8080/watcher/watching
-
-# Get memo cache contents
-curl http://localhost:8080/watcher/memoCache
-
-# Get HershContext variable state (GetValue/SetValue)
-curl http://localhost:8080/watcher/varState
-
-# Get Watcher configuration
-curl http://localhost:8080/watcher/config
+Cleanup executed
 ```
 
 ## Core Concepts
 
-### Execution Model
+### Managed Function
 
 Hersh uses a **single managed function** that executes:
 
-1. **On Start**: Initial execution when `watcher.Start()` is called
-2. **On SendMessage**: When `watcher.SendMessage(content)` or WatcherAPI `/message` is called
-3. **On WatchCall Change**: When polled values change (every `tick` interval)
-4. **On WatchFlow Event**: When channel receives new values
+1. **On Start**: Initial execution (`InitRun` state)
+2. **On SendMessage**: When `SendMessage(content)` or API `/message` is called
+3. **On WatchCall**: When polled value changes (every `tick` interval)
+4. **On WatchFlow**: When channel receives new values
 
-```
-Start() → InitRun (first execution) → Ready → [trigger] → Running → Ready → ...
-```
+State flow: `NotRun → InitRun → Ready → Running → Ready → ...`
 
-### Error Handling & Lifecycle Control
+### Reactive Variables
 
-Return special errors to control Watcher lifecycle:
+#### WatchCall (Polling)
+
+- Polls external values at fixed intervals (`tick`)
+- Returns `VarUpdateFunc` that computes `(next, changed, error)` from `prev`
+- Re-executes managed function only when `changed = true`
+- Returns `nil` until first value is ready
+
+#### WatchFlow (Channel)
+
+- Monitors channels for new values
+- Pushes values directly without computation
+- Re-executes managed function on each channel event
+- Returns `nil` until first value received
+
+### Memo vs HershContext
+
+| Feature | Memo | HershContext |
+|---------|------|--------------|
+| **Purpose** | Cache expensive computations | Store persistent state |
+| **Lifetime** | Session (until `ClearMemo` or restart) | Session (across all executions) |
+| **Triggers** | Does NOT trigger re-execution | Does NOT trigger re-execution |
+| **Thread-safe** | ✅ `LoadOrStore` semantics | ✅ Mutex-protected |
+| **Use case** | DB connections, HTTP clients | Counters, statistics, flags |
+
+### Error Handling
+
+Control Watcher lifecycle by returning special errors:
 
 ```go
-// Graceful stop (cleanup executes)
-return hersh.NewStopErr("user requested stop")
+// Graceful stop (cleanup executes, can't recover)
+return hersh.NewStopErr("user stop")
 
-// Force kill (immediate shutdown, no cleanup)
+// Force kill (no cleanup, immediate shutdown)
 return hersh.NewKillErr("critical error")
 
-// Crash (triggers recovery if configured)
-return hersh.NewCrashErr("unexpected error")
+// Crash with recovery (cleanup executes, may recover)
+return hersh.NewCrashErr("recoverable error")
 
-// Normal error (logs but continues)
+// Normal error (logs but continues execution)
 return fmt.Errorf("non-fatal error")
 ```
 
 ### State Lifecycle
 
 ```
-NotRun → InitRun → Ready → [trigger] → Running → Ready
-                          ↓
-                      Stopped/Killed
-                          ↓
-                      Crashed → WaitRecover (if recovery enabled)
+NotRun → InitRun → Ready ⇄ Running
+                    ↓
+                Stopped/Killed (permanent)
+                    ↓
+                Crashed → WaitRecover → Ready (or Crashed permanently)
 ```
 
-- **NotRun**: Before Start()
-- **InitRun**: First execution (initialization)
-- **Ready**: Idle, waiting for triggers
-- **Running**: Executing managed function
-- **Stopped**: Graceful shutdown (via StopErr or Stop())
-- **Killed**: Force shutdown (via KillErr)
-- **Crashed**: Error occurred, may recover
-- **WaitRecover**: Waiting to retry after crash
-
-### Signal Priority
-
-Internal signal processing order:
-
-```
-PriorityManagerInner > PriorityUser > PriorityVar
-```
-
-- **ManagerInner**: Lifecycle signals (stop, kill, crash)
-- **User**: `SendMessage()` and WatcherAPI `/message`
-- **Var**: WatchCall/WatchFlow reactive triggers
-
-This ensures lifecycle commands always take precedence over user messages and reactive triggers.
-
-## Configuration
-
-### WatcherConfig
-
-```go
-config := hersh.WatcherConfig{
-    DefaultTimeout:     5 * time.Second,  // Timeout for managed function
-    RecoveryPolicy:     hersh.DefaultRecoveryPolicy(), // or custom
-    SignalChanCapacity: 100,              // Internal signal queue size
-    MaxLogEntries:      1000,             // Max log history
-    MaxMemoEntries:     100,              // Max memo cache size
-}
-
-watcher := hersh.NewWatcher(config, envVars, parentCtx)
-```
-
-### Recovery Policy
-
-Configure automatic recovery on crashes:
-
-```go
-config.RecoveryPolicy = &hersh.RecoveryPolicy{
-    MaxRetries:    3,               // Max retry attempts
-    RetryDelay:    1 * time.Second, // Initial delay
-    BackoffFactor: 2.0,             // Exponential backoff (1s, 2s, 4s)
-}
-```
-
-**Behavior:**
-- On `CrashErr`: Waits `RetryDelay`, then retries managed function
-- On `StopErr`/`KillErr`: No recovery, immediate stop
-- After `MaxRetries`: Enters permanent `Crashed` state
-
-### Parent Context (Auto-Shutdown)
-
-```go
-ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-defer cancel()
-
-watcher := hersh.NewWatcher(config, nil, ctx)
-// Watcher automatically stops when ctx is cancelled
-```
+Terminal states: `Stopped`, `Killed`, `Crashed` (after max retries)
 
 ## Complete API Reference
 
 ### Watcher Methods
 
+| Method | Description |
+|--------|-------------|
+| `NewWatcher(config, envVars, parentCtx)` | Create Watcher with configuration and environment variables |
+| `Manage(fn, name)` | Register managed function, returns `CleanupBuilder` |
+| `.Cleanup(cleanupFn)` | Register cleanup function (called on Stop/Kill/Crash) |
+| `Start()` | Start Watcher (blocks until `Ready` or error) |
+| `Stop()` | Graceful stop with cleanup (blocks until complete) |
+| `SendMessage(content)` | Send message to trigger managed function |
+| `GetState()` | Get current state (`Ready`, `Running`, `Stopped`, etc.) |
+| `GetLogger()` | Access execution logs for inspection |
+| `StartAPIServer()` | Start HTTP API server (default port 8080) |
+
+### Logger Methods
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `PrintSummary()` | - | Print execution summary to stdout |
+| `GetReduceLog()` | `[]ReduceLogEntry` | State transitions (signals processed) |
+| `GetEffectLog()` | `[]EffectLogEntry` | Effect execution logs (user messages) |
+| `GetWatchErrorLog()` | `[]WatchErrorLogEntry` | Watch variable errors (computation failures) |
+| `GetContextLog()` | `[]ContextValueLogEntry` | Context value changes (`SetValue`, `UpdateValue`) |
+| `GetStateTransitionFaultLog()` | `[]StateTransitionFaultLogEntry` | Invalid state transitions (errors) |
+| `GetRecentResults(count)` | `[]*EffectResult` | N most recent effect results |
+
+**Example**:
 ```go
-// Lifecycle
-func NewWatcher(config WatcherConfig, envVars map[string]string, parentCtx context.Context) *Watcher
-func (w *Watcher) Manage(fn ManagedFunc, name string) *CleanupBuilder
-func (cb *CleanupBuilder) Cleanup(cleanupFn func(ctx HershContext)) *Watcher
-func (w *Watcher) Start() error
-func (w *Watcher) Stop() error
+logger := watcher.GetLogger()
+logger.PrintSummary()
 
-// Control
-func (w *Watcher) SendMessage(content string) error
-func (w *Watcher) GetState() ManagerInnerState
-func (w *Watcher) GetLogger() *Logger
-
-// API Server
-func (w *Watcher) StartAPIServer() (*WatcherAPIServer, error)
+// Get specific logs
+contextChanges := logger.GetContextLog()
+watchErrors := logger.GetWatchErrorLog()
 ```
 
 ### Reactive Functions
 
+| Function | Description |
+|----------|-------------|
+| `WatchCall(getComputationFunc, varName, tick, ctx)` | Polling-based reactive (returns current value or `nil`) |
+| `WatchFlow(sourceChan, varName, ctx)` | Channel-based reactive (returns latest value or `nil`) |
+| `Memo(computeValue, memoName, ctx)` | Session-scoped cache (returns computed value) |
+| `ClearMemo(memoName, ctx)` | Clear cached value (forces recomputation) |
+
+**WatchCall signature**:
 ```go
-// Polling-based reactive
 func WatchCall(
     getComputationFunc func() (manager.VarUpdateFunc, error),
     varName string,
     tick time.Duration,
     ctx HershContext,
 ) any
-
-// Channel-based reactive
-func WatchFlow(
-    sourceChan <-chan any,
-    varName string,
-    ctx HershContext,
-) any
 ```
 
-### Caching
-
+**VarUpdateFunc signature**:
 ```go
-func Memo(computeValue func() any, memoName string, ctx HershContext) any
-func ClearMemo(memoName string, ctx HershContext)
+type VarUpdateFunc func(prev any) (next any, changed bool, err error)
 ```
 
 ### HershContext Interface
 
+| Method | Description |
+|--------|-------------|
+| `WatcherID()` | Watcher's unique identifier |
+| `Message()` | Current user message (`nil` if none) |
+| `GetValue(key)` | Get stored value (returns actual value, not copy) |
+| `SetValue(key, value)` | Set stored value (simple assignment) |
+| `UpdateValue(key, updateFn)` | Atomic update with **deep copy** (thread-safe) |
+| `GetEnv(key)` | Get immutable environment variable (set at Watcher creation) |
+| `GetWatcher()` | Watcher reference (as `any`) |
+
+**UpdateValue example** (atomic, thread-safe):
 ```go
-// Persistent storage (across executions)
-GetValue(key string) any
-SetValue(key string, value any)
-UpdateValue(key string, updateFn func(current any) any) any
-
-// Environment variables (immutable)
-GetEnv(key string) (string, bool)
-
-// Context info
-WatcherID() string
-Message() *Message
-GetWatcher() any
+// updateFn receives a deep copy of current value
+ctx.UpdateValue("stats", func(current any) any {
+    if current == nil {
+        return map[string]int{"count": 1}
+    }
+    stats := current.(map[string]int)
+    stats["count"]++
+    return stats
+})
 ```
 
 ### Error Constructors
 
+| Constructor | Lifecycle | Cleanup? | Recovery? |
+|-------------|-----------|----------|-----------|
+| `NewStopErr(reason)` | Stopped (permanent) | ✅ Yes | ❌ No |
+| `NewKillErr(reason)` | Killed (permanent) | ❌ No | ❌ No |
+| `NewCrashErr(reason)` | Crashed → WaitRecover | ✅ Yes | ✅ Yes (if configured) |
+
+### Configuration Types
+
+#### WatcherConfig
+
 ```go
-func NewStopErr(reason string) error   // Graceful stop
-func NewKillErr(reason string) error   // Force kill
-func NewCrashErr(reason string) error  // Crash with recovery
+type WatcherConfig struct {
+    DefaultTimeout     time.Duration  // Managed function timeout (default: 1min)
+    RecoveryPolicy     RecoveryPolicy // Fault tolerance policy
+    ServerPort         int            // API server port (default: 8080)
+    MaxLogEntries      int            // Log buffer size (default: 50,000)
+    MaxWatches         int            // Max concurrent watches (default: 1,000)
+    MaxMemoEntries     int            // Max memo cache size (default: 1,000)
+    SignalChanCapacity int            // Signal queue size (default: 50,000)
+}
+
+func DefaultWatcherConfig() WatcherConfig
 ```
 
-### Helper Functions
+#### RecoveryPolicy
 
 ```go
-func DefaultWatcherConfig() WatcherConfig
-func DefaultRecoveryPolicy() *RecoveryPolicy
+type RecoveryPolicy struct {
+    MinConsecutiveFailures int           // Failures before WaitRecover (default: 3)
+    MaxConsecutiveFailures int           // Failures before Crashed (default: 6)
+    BaseRetryDelay         time.Duration // Initial retry delay (default: 5s)
+    MaxRetryDelay          time.Duration // Max retry delay cap (default: 5min)
+    LightweightRetryDelays []time.Duration // Delays for failures <3 (default: [15s, 30s, 60s])
+}
+
+func DefaultRecoveryPolicy() RecoveryPolicy
+```
+
+**Behavior**:
+- **Failures < 3**: Lightweight retry with delays `[15s, 30s, 60s]` → `Ready`
+- **Failures ≥ 3**: Heavy retry with exponential backoff (`5s → 10s → 20s → ...`) → `WaitRecover`
+- **Failures ≥ 6**: Permanent `Crashed` state (no more retries)
+
+**Example**:
+```go
+config := hersh.WatcherConfig{
+    DefaultTimeout: 30 * time.Second,
+    RecoveryPolicy: hersh.RecoveryPolicy{
+        MinConsecutiveFailures: 2,
+        MaxConsecutiveFailures: 5,
+        BaseRetryDelay:         3 * time.Second,
+        MaxRetryDelay:          1 * time.Minute,
+    },
+}
+```
+
+## WatcherAPI (HTTP Endpoints)
+
+### Control & State
+
+```bash
+# Get current state (Ready, Running, Stopped, Killed, Crashed, WaitRecover)
+GET /watcher/status
+
+# Get detailed state (execution count, error count, uptime)
+GET /watcher/state
+
+# Send message to trigger managed function
+POST /watcher/message
+Content-Type: application/json
+{"content": "your-command"}
+
+# Get Watcher configuration
+GET /watcher/config
+```
+
+### Monitoring
+
+```bash
+# Environment variables
+GET /watcher/vars
+
+# Watch variables (WatchCall/WatchFlow current values)
+GET /watcher/watching
+
+# Memo cache contents
+GET /watcher/memoCache
+
+# HershContext variable state (GetValue/SetValue)
+GET /watcher/varState
+```
+
+### Logs
+
+```bash
+# State transition logs (Reducer actions)
+GET /watcher/logs/reduce
+
+# Effect execution logs (managed function runs)
+GET /watcher/logs/effect
+
+# Watch errors (computation failures)
+GET /watcher/logs/watch-error
+
+# Context value changes (SetValue/UpdateValue)
+GET /watcher/logs/context
+
+# State transition faults (invalid transitions)
+GET /watcher/logs/state-fault
+```
+
+**Example**:
+```bash
+# Start API server (in managed function or before Start)
+watcher.StartAPIServer()
+
+# Query from external process
+curl http://localhost:8080/watcher/status
+# {"status": "Ready"}
+
+curl http://localhost:8080/watcher/logs/context
+# [{"logID": 1, "key": "totalRuns", "newValue": 5, ...}]
 ```
 
 ## Examples
 
-See the [demo/](./demo/) directory for complete examples:
+### Example 1: Recovery Policy Demo
 
-- **[example_simple.go](./demo/example_simple.go)**: Basic managed function with Memo and HershContext
-- **[example_watchcall.go](./demo/example_watchcall.go)**: Polling-based reactive with WatchCall
-- **[example_trading.go](./demo/example_trading.go)**: Real-time trading simulator with Binance WebSocket
+Demonstrates automatic recovery with exponential backoff:
 
-### Running Examples
+```go
+config := hersh.DefaultWatcherConfig()
+config.RecoveryPolicy = hersh.RecoveryPolicy{
+    MinConsecutiveFailures: 2,
+    MaxConsecutiveFailures: 4,
+    BaseRetryDelay:         1 * time.Second,
+    LightweightRetryDelays: []time.Duration{500 * time.Millisecond, 1 * time.Second},
+}
 
-```bash
-# Simple example (Memo, HershContext, SendMessage)
-go run demo/example_simple.go
+watcher := hersh.NewWatcher(config, nil, nil)
 
-# WatchCall reactive polling example
-go run demo/example_watchcall.go
+watcher.Manage(func(msg *hersh.Message, ctx hersh.HershContext) error {
+    failCount := ctx.GetValue("failCount")
+    if failCount == nil {
+        failCount = 0
+    }
+    count := failCount.(int)
 
-# Trading simulation (requires Binance WebSocket connection)
-go run demo/example_trading.go demo/market_client.go
+    fmt.Printf("Execution attempt %d (state: %s)\n", count+1, watcher.GetState())
+
+    if count < 5 {
+        ctx.SetValue("failCount", count+1)
+        return hersh.NewCrashErr(fmt.Sprintf("simulated failure %d", count+1))
+    }
+
+    fmt.Println("Success after recovery!")
+    return nil
+}, "recovery-demo")
+
+watcher.Start()
+time.Sleep(15 * time.Second) // Wait for retries
+watcher.GetLogger().PrintSummary()
+watcher.Stop()
 ```
 
-## Testing
+**Output**:
+```
+Execution attempt 1 (state: InitRun)
+Execution attempt 2 (state: Ready)      # 500ms delay (lightweight)
+Execution attempt 3 (state: Ready)      # 1s delay (lightweight)
+Execution attempt 4 (state: WaitRecover) # 1s delay (heavy)
+Execution attempt 5 (state: WaitRecover) # 2s delay (exponential)
+Execution attempt 6 (state: WaitRecover) # 4s delay (exponential)
+Success after recovery!
 
-Hersh includes 80+ tests covering all major features:
+=== Logger Summary ===
+State Transition Fault Entries: 5
+```
 
-```bash
-# Run all tests
-go test ./... -v
+### Example 2: Real-time Event Pipeline
 
-# Run with race detector
-go test ./... -race
+Demonstrates WatchFlow with processing pipeline:
 
-# Run with coverage
-go test ./... -cover
+```go
+eventChan := make(chan any, 100)
+watcher := hersh.NewWatcher(hersh.DefaultWatcherConfig(), nil, nil)
 
-# Run specific test
-go test -run TestWatchCall_BasicFunctionality -v
-go test -run TestWatchFlow_ChannelBased -v
-go test -run TestMemo_BasicCaching -v
+watcher.Manage(func(msg *hersh.Message, ctx hersh.HershContext) error {
+    // Watch incoming events
+    event := hersh.WatchFlow(eventChan, "eventStream", ctx)
+
+    if event != nil {
+        // Process event
+        processed := fmt.Sprintf("processed_%v", event)
+
+        // Store in context
+        ctx.SetValue("lastProcessed", processed)
+
+        // Update statistics atomically
+        ctx.UpdateValue("stats", func(current any) any {
+            if current == nil {
+                return map[string]int{"total": 1}
+            }
+            stats := current.(map[string]int)
+            stats["total"]++
+            return stats
+        })
+
+        stats := ctx.GetValue("stats").(map[string]int)
+        fmt.Printf("Event: %v → %s (total: %d)\n", event, processed, stats["total"])
+    }
+
+    // Handle control messages
+    if msg != nil && msg.Content == "status" {
+        stats := ctx.GetValue("stats")
+        fmt.Printf("Pipeline stats: %+v\n", stats)
+    }
+
+    return nil
+}, "pipeline")
+
+watcher.Start()
+
+// Producer goroutine
+go func() {
+    for i := 1; i <= 5; i++ {
+        eventChan <- fmt.Sprintf("event%d", i)
+        time.Sleep(100 * time.Millisecond)
+    }
+}()
+
+time.Sleep(600 * time.Millisecond)
+watcher.SendMessage("status")
+time.Sleep(100 * time.Millisecond)
+watcher.Stop()
+```
+
+**Output**:
+```
+Event: event1 → processed_event1 (total: 1)
+Event: event2 → processed_event2 (total: 2)
+Event: event3 → processed_event3 (total: 3)
+Event: event4 → processed_event4 (total: 4)
+Event: event5 → processed_event5 (total: 5)
+Pipeline stats: map[total:5]
 ```
 
 ## Architecture
+
+### State Machine
+
+```
+NotRun → InitRun → Ready ⇄ Running
+                    ↓
+                Stopped/Killed (permanent)
+                    ↓
+                Crashed → WaitRecover → Ready
+                                  ↓
+                                Crashed (permanent, after MaxConsecutiveFailures)
+```
+
+**State descriptions**:
+- **NotRun**: Before `Start()`
+- **InitRun**: First execution (initialization phase)
+- **Ready**: Idle, waiting for triggers (messages, reactive changes)
+- **Running**: Executing managed function
+- **Stopped**: Graceful shutdown via `StopErr` or `Stop()` (permanent)
+- **Killed**: Force shutdown via `KillErr` (permanent)
+- **Crashed**: Unrecoverable error after max retries (permanent)
+- **WaitRecover**: Waiting to retry after crash (temporary)
+
+### Signal Priority
+
+Internal signal processing order (lower = higher priority):
+
+```
+Priority 0: WatcherSig (lifecycle: InitRun, Stop, Kill, Recover)
+Priority 1: UserSig     (SendMessage, API /message)
+Priority 2: VarSig      (WatchCall/WatchFlow reactive triggers)
+```
+
+This ensures lifecycle commands always take precedence over user messages and reactive triggers.
 
 ### Package Structure
 
 ```
 github.com/HershyOrg/hersh/
-├── watcher.go              # Core Watcher (lifecycle, Start, Stop)
-├── watcher_api.go          # HTTP API server
-├── watch.go                # WatchCall, WatchFlow reactive functions
-├── memo.go                 # Memo caching
-├── types.go                # Public types (re-exports from shared/)
-├── manager/                # Internal Manager (Reducer-Effect pattern)
-│   ├── manager.go          # Manager orchestrator
-│   ├── reducer.go          # Pure state transitions
-│   ├── effect.go           # Side effects
-│   ├── effect_handler.go   # Effect execution
-│   ├── signal.go           # Signal priority queue
-│   ├── state.go            # Internal state management
-│   └── logger.go           # Execution logging
-├── hctx/                   # HershContext implementation
+├── watcher.go           # Core Watcher API
+├── watcher_api.go       # HTTP API server
+├── watch.go             # WatchCall, WatchFlow
+├── memo.go              # Memo caching
+├── types.go             # Public types (re-exports from shared/)
+├── manager/             # Internal Manager (Reducer-Effect pattern)
+│   ├── manager.go       # Manager orchestrator
+│   ├── reducer.go       # Pure state transitions
+│   ├── effect_handler.go # Effect execution
+│   ├── logger.go        # Execution logging
+│   └── signal.go        # Signal priority queue
+├── hctx/                # HershContext implementation
 │   └── context.go
-├── api/                    # WatcherAPI HTTP handlers
-│   ├── handlers.go
-│   └── types.go
-├── hutil/                  # Utilities (ticker)
-│   └── ticker.go
-├── shared/                 # Shared types and errors
+├── shared/              # Shared types and errors
 │   ├── types.go
-│   ├── errors.go
-│   └── copy.go
-├── demo/                   # Usage examples
-│   ├── example_simple.go
-│   ├── example_watchcall.go
-│   ├── example_trading.go
-│   └── market_client.go
-└── test/                   # Integration tests
-    ├── concurrent_watch_test.go
-    ├── recovery_test.go
-    └── manager_integration_test.go
-```
-
-### Internal: Reducer-Effect Pattern
-
-Hersh's Manager internally uses the Reducer-Effect pattern for deterministic state management:
-
-1. **Pure Reducer**: Computes next state from current state + signal (no side effects)
-2. **Effect Generation**: Reducer returns effects to execute
-3. **Effect Handler**: Executes effects (runs managed function, updates state)
-4. **Supervisor Loop**: Processes signals with priority queue
-
-This enables:
-- ✅ Deterministic state transitions (testable, reproducible)
-- ✅ Observable state changes (all transitions logged)
-- ✅ Fault tolerance (recovery policies, graceful shutdown)
-- ✅ Testable pure functions (reducer tests without IO)
-
-## Common Patterns
-
-### Pattern 1: API Client with Caching
-
-```go
-managedFunc := func(msg *hersh.Message, ctx hersh.HershContext) error {
-    // Initialize once per session
-    client := hersh.Memo(func() any {
-        return api.NewClient(ctx.GetEnv("API_URL"))
-    }, "apiClient", ctx).(*api.Client)
-
-    // Handle commands
-    if msg != nil {
-        switch msg.Content {
-        case "fetch":
-            data := client.Fetch()
-            ctx.SetValue("lastData", data)
-        case "refresh":
-            hersh.ClearMemo("apiClient", ctx)
-        }
-    }
-    return nil
-}
-```
-
-### Pattern 2: Reactive Data Pipeline
-
-```go
-managedFunc := func(msg *hersh.Message, ctx hersh.HershContext) error {
-    // Poll external API every 5 seconds
-    rawData := hersh.WatchCall(
-        func() (manager.VarUpdateFunc, error) {
-            return func(prev any) (any, bool, error) {
-                data := fetchExternalData()
-                return data, !reflect.DeepEqual(prev, data), nil
-            }, nil
-        },
-        "rawData",
-        5*time.Second,
-        ctx,
-    )
-
-    if rawData != nil {
-        // Process data
-        processed := processData(rawData)
-        ctx.SetValue("processed", processed)
-    }
-    return nil
-}
-```
-
-### Pattern 3: Event-Driven Processing
-
-```go
-eventChan := make(chan any, 100)
-
-managedFunc := func(msg *hersh.Message, ctx hersh.HershContext) error {
-    // Watch channel for events
-    event := hersh.WatchFlow(eventChan, "events", ctx)
-
-    if event != nil {
-        // Process event
-        handleEvent(event)
-
-        // Track statistics
-        count := ctx.GetValue("eventCount")
-        if count == nil {
-            count = 0
-        }
-        ctx.SetValue("eventCount", count.(int)+1)
-    }
-    return nil
-}
-
-// External goroutine pushes events
-go func() {
-    for event := range source {
-        eventChan <- event
-    }
-}()
+│   └── errors.go
+├── api/                 # WatcherAPI HTTP handlers
+└── demo/                # Usage examples
+    ├── example_simple.go
+    ├── example_watchcall.go
+    └── example_trading.go
 ```
 
 ## Real-World Usage
 
 Hersh powers **[Hershy](https://github.com/HershyOrg/hershy)**, a container orchestration system that manages Docker containers with reactive state management.
 
-**Production Examples:**
-- **[simple-counter](https://github.com/HershyOrg/hershy/tree/main/examples/simple-counter)**: Basic counter with WatcherAPI control
-- **[trading-long](https://github.com/HershyOrg/hershy/tree/main/examples/trading-long)**: Real-time trading simulator with command handling
-- **[watcher-server](https://github.com/HershyOrg/hershy/tree/main/examples/watcher-server)**: HTTP server with persistent state
-
-These examples demonstrate Hersh running inside Docker containers with:
-- WatcherAPI exposed on localhost ports
-- Persistent state in `/state` directory
-- External control via HTTP API
-- Real-time reactive updates
-
-## License
-
-MIT License
-
-## Contributing
-
-Contributions are welcome! Please submit a Pull Request or open an Issue.
+**Production examples**:
+- [simple-counter](https://github.com/HershyOrg/hershy/tree/main/examples/simple-counter): Basic counter with WatcherAPI control
+- [trading-long](https://github.com/HershyOrg/hershy/tree/main/examples/trading-long): Real-time trading simulator
+- [watcher-server](https://github.com/HershyOrg/hershy/tree/main/examples/watcher-server): HTTP server with persistent state
 
 ## Links
 
 - **Repository**: https://github.com/HershyOrg/hersh
-- **Issues**: https://github.com/HershyOrg/hersh/issues
 - **Documentation**: https://pkg.go.dev/github.com/HershyOrg/hersh
+- **Issues**: https://github.com/HershyOrg/hersh/issues
 - **Hershy (Container Orchestration)**: https://github.com/HershyOrg/hershy
+
