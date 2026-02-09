@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/HershyOrg/hershy/hersh"
-	"github.com/HershyOrg/hershy/hersh/manager"
-	"github.com/HershyOrg/hershy/hersh/shared"
+	"github.com/HershyOrg/hersh"
+	"github.com/HershyOrg/hersh/manager"
+	"github.com/HershyOrg/hersh/shared"
 )
 
 // TestRecovery_SuppressPhase tests that 1-2 consecutive failures are suppressed

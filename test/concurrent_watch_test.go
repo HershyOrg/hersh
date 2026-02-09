@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/HershyOrg/hershy/hersh"
-	"github.com/HershyOrg/hershy/hersh/manager"
-	"github.com/HershyOrg/hershy/hersh/shared"
+	"github.com/HershyOrg/hersh"
+	"github.com/HershyOrg/hersh/manager"
+	"github.com/HershyOrg/hersh/shared"
 )
 
 // TestConcurrentWatch_MultipleWatchCall tests multiple WatchCall instances with different intervals

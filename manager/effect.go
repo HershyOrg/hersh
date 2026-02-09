@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/HershyOrg/hershy/hersh/shared"
+	"github.com/HershyOrg/hersh/shared"
 )
 
 // EffectDefinition defines the type of effect to execute.

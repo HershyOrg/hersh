@@ -5,7 +5,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/HershyOrg/hershy/hersh/shared"
+	"github.com/HershyOrg/hersh/shared"
 )
 
 // Logger interface for context value logging.

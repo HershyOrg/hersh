@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/HershyOrg/hershy/hersh"
-	"github.com/HershyOrg/hershy/hersh/manager"
-	"github.com/HershyOrg/hershy/hersh/shared"
+	"github.com/HershyOrg/hersh"
+	"github.com/HershyOrg/hersh/manager"
+	"github.com/HershyOrg/hersh/shared"
 )
 
 // TestBatchUpdate_LongExecution tests batch update behavior during a long manage execution.

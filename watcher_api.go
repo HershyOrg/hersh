@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/HershyOrg/hershy/hersh/api"
-	"github.com/HershyOrg/hershy/hersh/manager"
-	"github.com/HershyOrg/hershy/hersh/shared"
+	"github.com/HershyOrg/hersh/api"
+	"github.com/HershyOrg/hersh/manager"
+	"github.com/HershyOrg/hersh/shared"
 )
 
 // WatcherAPIServer provides HTTP API for Watcher monitoring and control

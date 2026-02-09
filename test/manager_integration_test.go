@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/HershyOrg/hershy/hersh/manager"
-	"github.com/HershyOrg/hershy/hersh/shared"
+	"github.com/HershyOrg/hersh/manager"
+	"github.com/HershyOrg/hersh/shared"
 )
 
 // TestManager_BasicWorkflow tests the complete Manager workflow.

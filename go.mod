@@ -1,4 +1,4 @@
-module github.com/HershyOrg/hershy/hersh
+module github.com/HershyOrg/hersh
 
 go 1.24.13
 

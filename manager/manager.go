@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/HershyOrg/hershy/hersh/shared"
+	"github.com/HershyOrg/hersh/shared"
 )
 
 // WatchHandle is an interface for different types of watch mechanisms.

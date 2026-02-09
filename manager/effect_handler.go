@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/HershyOrg/hershy/hersh/hctx"
-	"github.com/HershyOrg/hershy/hersh/shared"
+	"github.com/HershyOrg/hersh/hctx"
+	"github.com/HershyOrg/hersh/shared"
 )
 
 // ManagedFunc is the type of function that can be managed by the Watcher.

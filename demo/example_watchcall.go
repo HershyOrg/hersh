@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/HershyOrg/hershy/hersh"
-	"github.com/HershyOrg/hershy/hersh/manager"
+	"github.com/HershyOrg/hersh"
+	"github.com/HershyOrg/hersh/manager"
 )
 
 // Advanced example demonstrating WatchCall reactive mechanism

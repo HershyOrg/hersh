@@ -2,7 +2,7 @@
 package hersh
 
 import (
-	"github.com/HershyOrg/hershy/hersh/shared"
+	"github.com/HershyOrg/hersh/shared"
 )
 
 // Re-export core types for convenience

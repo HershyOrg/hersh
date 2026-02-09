@@ -1,13 +1,13 @@
 package test
 
 import (
-	"github.com/HershyOrg/hershy/hersh/manager"
+	"github.com/HershyOrg/hersh/manager"
 	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/HershyOrg/hershy/hersh"
-	"github.com/HershyOrg/hershy/hersh/shared"
+	"github.com/HershyOrg/hersh"
+	"github.com/HershyOrg/hersh/shared"
 )
 
 // TestEdgeCase_StopDuringInitRun tests graceful handling of stop during initialization

@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/HershyOrg/hershy/hersh/shared"
+	"github.com/HershyOrg/hersh/shared"
 )
 
 // Logger implements both ReduceLogger and EffectLogger interfaces.

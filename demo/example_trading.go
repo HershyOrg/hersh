@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/HershyOrg/hershy/hersh"
-	"github.com/HershyOrg/hershy/hersh/manager"
+	"github.com/HershyOrg/hersh"
+	"github.com/HershyOrg/hersh/manager"
 )
 
 // Trading strategy configuration

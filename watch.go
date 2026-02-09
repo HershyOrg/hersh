@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/HershyOrg/hershy/hersh/manager"
+	"github.com/HershyOrg/hersh/manager"
 )
 
 // getWatcherFromContext extracts the Watcher from HershContext.
