@@ -242,6 +242,19 @@ func (l *Logger) GetEffectLog() []EffectLogEntry {
 	return logCopy
 }
 
+// GetEffectResults returns a copy of all effect results.
+func (l *Logger) GetEffectResults() []EffectResult {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+
+	logCopy := make([]EffectResult, len(l.effectResults))
+	for i, result := range l.effectResults {
+		logCopy[i] = *result
+	}
+	return logCopy
+}
+
+
 // GetWatchErrorLog returns a copy of the watch error log.
 func (l *Logger) GetWatchErrorLog() []WatchErrorLogEntry {
 	l.mu.RLock()

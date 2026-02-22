@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/HershyOrg/hersh/manager"
+	"github.com/HershyOrg/hersh/shared"
 )
 
 // getWatcherFromContext extracts the Watcher from HershContext.
@@ -17,17 +18,17 @@ func getWatcherFromContext(ctx HershContext) *Watcher {
 }
 
 // WatchCall monitors a value by periodically generating computation functions.
-// Returns the current value or nil if not yet initialized.
+// Returns the current HershValue or an empty HershValue if not yet initialized.
 //
 // The getComputationFunc is called on each tick and returns:
 // - A VarUpdateFunc that computes the next state from the previous state
 // - An error if the computation function cannot be generated
 //
 // The returned VarUpdateFunc receives:
-// - prev: the previous value (nil on first call)
+// - prev: the previous HershValue (empty HershValue on first call)
 //
 // The VarUpdateFunc returns:
-// - next: the new value
+// - next: the new HershValue
 // - changed: whether the value changed
 // - error: any error that occurred during computation
 func WatchCall(
@@ -35,7 +36,7 @@ func WatchCall(
 	varName string,
 	tick time.Duration,
 	runCtx HershContext,
-) any {
+) shared.HershValue {
 	w := getWatcherFromContext(runCtx)
 	if w == nil {
 		panic("WatchCall called with invalid HershContext")
@@ -63,21 +64,23 @@ func WatchCall(
 		// Start watching in background
 		go tickWatchLoop(w, tickHandle, ctx)
 
-		// Return nil on first call (not yet initialized)
-		return nil
+		// Return empty HershValue on first call (not yet initialized)
+		return shared.HershValue{VarName: varName}
 	}
 
-	// Get current value from VarState
+	// Get current HershValue from VarState
 	if w.manager != nil {
-		val, ok := w.manager.GetState().VarState.Get(varName)
+		hv, ok := w.manager.GetState().VarState.Get(varName)
 		if !ok {
 			// Not initialized yet
-			return nil
+			return shared.HershValue{VarName: varName}
 		}
-		return val
+		// Set VarName before returning
+		hv.VarName = varName
+		return hv
 	}
 
-	return nil
+	return shared.HershValue{VarName: varName}
 }
 
 // tickWatchLoop runs the tick-based Watch monitoring loop.
@@ -117,12 +120,12 @@ func tickWatchLoop(w *Watcher, handle *manager.TickHandle, rootCtx context.Conte
 // WatchFlow monitors a channel and emits VarSig when values arrive.
 // This is for event-driven reactive programming.
 //
-// Returns the latest value from the channel or nil if none received.
+// Returns the latest HershValue from the channel or an empty HershValue if none received.
 func WatchFlow(
-	sourceChan <-chan any,
+	getChannelFunc func(ctx context.Context) (<-chan shared.FlowValue, error),
 	varName string,
 	runCtx HershContext,
-) any {
+) shared.HershValue {
 	w := getWatcherFromContext(runCtx)
 	if w == nil {
 		panic("WatchFlow called with invalid HershContext")
@@ -133,12 +136,26 @@ func WatchFlow(
 
 	if !exists {
 		// First call - register and start watching
-		ctx, cancel := context.WithCancel(w.rootCtx)
+		// Create channel lifecycle context
+		flowCtx, cancel := context.WithCancel(w.rootCtx)
+
+		// Try to create channel
+		sourceChan, err := getChannelFunc(flowCtx)
+		if err != nil {
+			cancel()
+			// Log error (recovery responsibility is separated)
+			w.GetLogger().LogWatchError(varName, manager.ErrorPhaseGetComputeFunc, err)
+
+			// Register error HershValue with VarName
+			errorHV := shared.HershValue{Value: nil, Error: err, VarName: varName}
+			w.manager.GetState().VarState.Set(varName, errorHV)
+			return errorHV
+		}
 
 		flowHandle := &manager.FlowHandle{
-			VarName:    varName,
-			SourceChan: sourceChan,
-			CancelFunc: cancel,
+			VarName:        varName,
+			GetChannelFunc: getChannelFunc,
+			CancelFunc:     cancel,
 		}
 
 		if err := w.registerWatch(varName, flowHandle); err != nil {
@@ -147,41 +164,53 @@ func WatchFlow(
 		}
 
 		// Start watching channel
-		go flowWatchLoop(w, flowHandle, ctx)
+		go flowWatchLoop(w, flowHandle, flowCtx, sourceChan)
 
-		return nil
+		return shared.HershValue{VarName: varName}
 	}
 
-	// Get current value from VarState
+	// Get current HershValue from VarState
 	if w.manager != nil {
-		val, ok := w.manager.GetState().VarState.Get(varName)
+		hv, ok := w.manager.GetState().VarState.Get(varName)
 		if !ok {
-			return nil
+			return shared.HershValue{VarName: varName}
 		}
-		return val
+		// Set VarName before returning
+		hv.VarName = varName
+		return hv
 	}
 
-	return nil
+	return shared.HershValue{VarName: varName}
 }
 
 // flowWatchLoop monitors a channel and sends VarSig on updates.
-func flowWatchLoop(w *Watcher, handle *manager.FlowHandle, ctx context.Context) {
+// Now propagates errors to user via HershValue instead of skipping them.
+func flowWatchLoop(w *Watcher, handle *manager.FlowHandle, ctx context.Context, sourceChan <-chan shared.FlowValue) {
 	for {
 		select {
 		case <-ctx.Done():
-			msg := time.Now().String() + ": flow " + handle.VarName + " chan cancelled"
+			msg := "FlowWatch stopped: " + handle.VarName
 			w.GetLogger().LogEffect(msg)
 			return
 
-		case value, ok := <-handle.SourceChan:
+		case flowValue, ok := <-sourceChan:
 			if !ok {
 				// Channel closed
+				msg := "Channel closed: " + handle.VarName
+				w.GetLogger().LogEffect(msg)
 				return
 			}
 
-			// Wrap value in a VarUpdateFunc (ignores prev, returns value)
-			varUpdateFunc := func(prev any) (any, bool, error) {
-				return value, true, nil
+			// Wrap value or error in a VarUpdateFunc that returns HershValue
+			varUpdateFunc := func(prev shared.HershValue) (shared.HershValue, bool, error) {
+				if flowValue.E != nil {
+					// Log error but still propagate to user
+					w.GetLogger().LogWatchError(handle.VarName, manager.ErrorPhaseExecuteComputeFunc, flowValue.E)
+					// Return HershValue with error
+					return shared.HershValue{Value: nil, Error: flowValue.E}, true, nil
+				}
+				// Return HershValue with value
+				return shared.HershValue{Value: flowValue.V, Error: nil}, true, nil
 			}
 
 			// Send VarSig
@@ -195,23 +224,4 @@ func flowWatchLoop(w *Watcher, handle *manager.FlowHandle, ctx context.Context) 
 			}
 		}
 	}
-}
-
-// Watch is a convenience wrapper that creates a channel-based watch.
-// Deprecated: Use WatchCall or WatchFlow directly.
-func Watch(varName string, initialValue any, runCtx HershContext) any {
-	// For backward compatibility, just return WatchCall with a simple function
-	return WatchCall(
-		func() (manager.VarUpdateFunc, error) {
-			return func(prev any) (any, bool, error) {
-				if prev == nil {
-					return initialValue, true, nil
-				}
-				return prev, false, nil
-			}, nil
-		},
-		varName,
-		1*time.Second,
-		runCtx,
-	)
 }

@@ -1,19 +1,21 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/HershyOrg/hersh/shared"
 	"github.com/gorilla/websocket"
 )
 
 // BinanceStream handles WebSocket connection to Binance for real-time price data
 type BinanceStream struct {
-	// Price channels for WatchFlow (any type for hersh compatibility)
-	btcPriceChan chan any
-	ethPriceChan chan any
+	// Internal channels for message distribution
+	btcInternalChan chan shared.FlowValue
+	ethInternalChan chan shared.FlowValue
 
 	// Current prices (atomic access)
 	currentBTC atomic.Value // float64
@@ -53,9 +55,9 @@ type BinanceTradeMsg struct {
 // NewBinanceStream creates a new Binance WebSocket stream client
 func NewBinanceStream() *BinanceStream {
 	bs := &BinanceStream{
-		btcPriceChan: make(chan any, 100),
-		ethPriceChan: make(chan any, 100),
-		stopChan:     make(chan struct{}),
+		btcInternalChan: make(chan shared.FlowValue, 100),
+		ethInternalChan: make(chan shared.FlowValue, 100),
+		stopChan:        make(chan struct{}),
 	}
 
 	bs.currentBTC.Store(0.0)
@@ -71,6 +73,10 @@ func (bs *BinanceStream) Connect() error {
 		return fmt.Errorf("stream already stopped")
 	}
 
+	if bs.connected.Load() {
+		return nil // Already connected
+	}
+
 	url := "wss://stream.binance.com:9443/stream?streams=btcusdt@trade/ethusdt@trade"
 
 	conn, _, err := websocket.DefaultDialer.Dial(url, nil)
@@ -84,23 +90,26 @@ func (bs *BinanceStream) Connect() error {
 
 	bs.connected.Store(true)
 
-	// Start message receiver goroutine
+	// Start SINGLE receiveLoop that distributes to internal channels
 	go bs.receiveLoop()
 
 	return nil
 }
 
-// receiveLoop continuously receives messages from WebSocket
+// receiveLoop continuously receives messages from WebSocket and distributes to internal channels
 func (bs *BinanceStream) receiveLoop() {
 	defer func() {
 		bs.connected.Store(false)
-
-		// Close price channels when stream stops
+		// Close internal channels when stream stops
 		if bs.stopped.Load() {
-			close(bs.btcPriceChan)
-			close(bs.ethPriceChan)
+			close(bs.btcInternalChan)
+			close(bs.ethInternalChan)
 		}
 	}()
+
+	// Error injection: every 5 seconds, inject a simulated error
+	lastErrorInjection := time.Now()
+	errorInjectionInterval := 5 * time.Second
 
 	for {
 		select {
@@ -108,6 +117,20 @@ func (bs *BinanceStream) receiveLoop() {
 			return
 		default:
 			// Continue receiving
+		}
+
+		// Inject simulated error every 5 seconds for demo purposes
+		if time.Since(lastErrorInjection) > errorInjectionInterval {
+			errValue := shared.FlowValue{V: nil, E: fmt.Errorf("simulated error injection (every 5s)")}
+			select {
+			case bs.btcInternalChan <- errValue:
+			default:
+			}
+			select {
+			case bs.ethInternalChan <- errValue:
+			default:
+			}
+			lastErrorInjection = time.Now()
 		}
 
 		bs.mu.RLock()
@@ -130,21 +153,31 @@ func (bs *BinanceStream) receiveLoop() {
 			}
 
 			bs.stats.errors.Add(1)
-			fmt.Printf("[Stream] Read error: %v\n", err)
+
+			// Send error to BOTH internal channels
+			errValue := shared.FlowValue{V: nil, E: fmt.Errorf("read error: %w", err)}
+			select {
+			case bs.btcInternalChan <- errValue:
+			default:
+			}
+			select {
+			case bs.ethInternalChan <- errValue:
+			default:
+			}
 
 			// Attempt reconnection
 			bs.reconnect()
 			continue
 		}
 
-		// Process message
+		// Process message and distribute to correct internal channel
 		bs.processMessage(msg)
 		bs.stats.messagesReceived.Add(1)
 		bs.stats.lastUpdate.Store(time.Now())
 	}
 }
 
-// processMessage parses and distributes price updates
+// processMessage parses and distributes price updates to internal channels
 func (bs *BinanceStream) processMessage(msg BinanceTradeMsg) {
 	var price float64
 	fmt.Sscanf(msg.Data.Price, "%f", &price)
@@ -153,21 +186,22 @@ func (bs *BinanceStream) processMessage(msg BinanceTradeMsg) {
 		return
 	}
 
+	flowValue := shared.FlowValue{V: price, E: nil}
+
+	// Update atomic value and send to correct internal channel
 	switch msg.Stream {
 	case "btcusdt@trade":
 		bs.currentBTC.Store(price)
-		// Non-blocking send (cast to any)
 		select {
-		case bs.btcPriceChan <- any(price):
+		case bs.btcInternalChan <- flowValue:
 		default:
 			// Channel full, skip
 		}
 
 	case "ethusdt@trade":
 		bs.currentETH.Store(price)
-		// Non-blocking send (cast to any)
 		select {
-		case bs.ethPriceChan <- any(price):
+		case bs.ethInternalChan <- flowValue:
 		default:
 			// Channel full, skip
 		}
@@ -205,14 +239,82 @@ func (bs *BinanceStream) reconnect() {
 	}
 }
 
-// GetBTCPriceChan returns the BTC price channel for WatchFlow
-func (bs *BinanceStream) GetBTCPriceChan() <-chan any {
-	return bs.btcPriceChan
+// GetBTCPriceStream returns a function that creates a BTC price channel for WatchFlow
+func (bs *BinanceStream) GetBTCPriceStream() func(ctx context.Context) (<-chan shared.FlowValue, error) {
+	return func(ctx context.Context) (<-chan shared.FlowValue, error) {
+		if bs.stopped.Load() {
+			return nil, fmt.Errorf("stream already stopped")
+		}
+
+		// Check if connected
+		if !bs.connected.Load() {
+			return nil, fmt.Errorf("stream not connected - call Connect() first")
+		}
+
+		// Create subscriber channel
+		subscriberChan := make(chan shared.FlowValue, 100)
+
+		// Forward from internal channel to subscriber
+		go func() {
+			defer close(subscriberChan)
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case value, ok := <-bs.btcInternalChan:
+					if !ok {
+						return
+					}
+					select {
+					case subscriberChan <- value:
+					case <-ctx.Done():
+						return
+					}
+				}
+			}
+		}()
+
+		return subscriberChan, nil
+	}
 }
 
-// GetETHPriceChan returns the ETH price channel for WatchFlow
-func (bs *BinanceStream) GetETHPriceChan() <-chan any {
-	return bs.ethPriceChan
+// GetETHPriceStream returns a function that creates an ETH price channel for WatchFlow
+func (bs *BinanceStream) GetETHPriceStream() func(ctx context.Context) (<-chan shared.FlowValue, error) {
+	return func(ctx context.Context) (<-chan shared.FlowValue, error) {
+		if bs.stopped.Load() {
+			return nil, fmt.Errorf("stream already stopped")
+		}
+
+		// Check if connected
+		if !bs.connected.Load() {
+			return nil, fmt.Errorf("stream not connected - call Connect() first")
+		}
+
+		// Create subscriber channel
+		subscriberChan := make(chan shared.FlowValue, 100)
+
+		// Forward from internal channel to subscriber
+		go func() {
+			defer close(subscriberChan)
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case value, ok := <-bs.ethInternalChan:
+					if !ok {
+						return
+					}
+					select {
+					case subscriberChan <- value:
+					case <-ctx.Done():
+						return
+					}
+				}
+			}
+		}()
+
+		return subscriberChan, nil
+	}
 }
 
 // GetCurrentBTC returns the current BTC price

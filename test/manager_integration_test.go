@@ -50,7 +50,7 @@ func TestManager_BasicWorkflow(t *testing.T) {
 	signals.SendVarSig(&manager.VarSig{
 		ComputedTime:       time.Now(),
 		TargetVarName:      "testVar",
-		VarUpdateFunc:      func(prev any) (any, bool, error) { return 42, true, nil },
+		VarUpdateFunc:      func(prev shared.HershValue) (shared.HershValue, bool, error) { return shared.HershValue{Value: 42, Error: nil}, true, nil },
 		IsStateIndependent: false,
 	})
 
@@ -68,9 +68,9 @@ func TestManager_BasicWorkflow(t *testing.T) {
 	}
 
 	// Verify variable was set
-	val, ok := state.VarState.Get("testVar")
-	if !ok || val != 42 {
-		t.Errorf("expected testVar=42, got %v", val)
+	hv, ok := state.VarState.Get("testVar")
+	if !ok || hv.Value == nil || hv.Value.(int) != 42 {
+		t.Errorf("expected testVar=42, got %v", hv.Value)
 	}
 
 	logger.PrintSummary()
@@ -164,7 +164,7 @@ func TestManager_ErrorHandling(t *testing.T) {
 	signals.SendVarSig(&manager.VarSig{
 		ComputedTime:       time.Now(),
 		TargetVarName:      "trigger",
-		VarUpdateFunc:      func(prev any) (any, bool, error) { return 1, true, nil },
+		VarUpdateFunc:      func(prev shared.HershValue) (shared.HershValue, bool, error) { return shared.HershValue{Value: 1, Error: nil}, true, nil },
 		IsStateIndependent: false,
 	})
 
@@ -205,7 +205,7 @@ func TestManager_PriorityProcessing(t *testing.T) {
 	signals.SendVarSig(&manager.VarSig{
 		ComputedTime:       time.Now(),
 		TargetVarName:      "var1",
-		VarUpdateFunc:      func(prev any) (any, bool, error) { return 1, true, nil },
+		VarUpdateFunc:      func(prev shared.HershValue) (shared.HershValue, bool, error) { return shared.HershValue{Value: 1, Error: nil}, true, nil },
 		IsStateIndependent: false,
 	})
 
@@ -272,7 +272,7 @@ func TestManager_MultipleVarBatching(t *testing.T) {
 		signals.SendVarSig(&manager.VarSig{
 			ComputedTime:       time.Now(),
 			TargetVarName:      "var" + string(rune('0'+i)),
-			VarUpdateFunc:      func(prev any) (any, bool, error) { return currentVal, true, nil },
+			VarUpdateFunc:      func(prev shared.HershValue) (shared.HershValue, bool, error) { return shared.HershValue{Value: currentVal, Error: nil}, true, nil },
 			IsStateIndependent: false,
 		})
 	}
@@ -284,13 +284,13 @@ func TestManager_MultipleVarBatching(t *testing.T) {
 	// All variables should be set
 	for i := 1; i <= 10; i++ {
 		varName := "var" + string(rune('0'+i))
-		val, ok := state.VarState.Get(varName)
+		hv, ok := state.VarState.Get(varName)
 		if !ok {
 			t.Errorf("expected %s to exist", varName)
 			continue
 		}
-		if val != i*10 {
-			t.Errorf("expected %s=%d, got %v", varName, i*10, val)
+		if hv.Value == nil || hv.Value.(int) != i*10 {
+			t.Errorf("expected %s=%d, got %v", varName, i*10, hv.Value)
 		}
 	}
 
@@ -337,7 +337,7 @@ func TestManager_FullCycle(t *testing.T) {
 	signals.SendVarSig(&manager.VarSig{
 		ComputedTime:       time.Now(),
 		TargetVarName:      "trigger1",
-		VarUpdateFunc:      func(prev any) (any, bool, error) { return 1, true, nil },
+		VarUpdateFunc:      func(prev shared.HershValue) (shared.HershValue, bool, error) { return shared.HershValue{Value: 1, Error: nil}, true, nil },
 		IsStateIndependent: false,
 	})
 	time.Sleep(200 * time.Millisecond)
@@ -355,7 +355,7 @@ func TestManager_FullCycle(t *testing.T) {
 	signals.SendVarSig(&manager.VarSig{
 		ComputedTime:       time.Now(),
 		TargetVarName:      "trigger3",
-		VarUpdateFunc:      func(prev any) (any, bool, error) { return 3, true, nil },
+		VarUpdateFunc:      func(prev shared.HershValue) (shared.HershValue, bool, error) { return shared.HershValue{Value: 3, Error: nil}, true, nil },
 		IsStateIndependent: false,
 	})
 	time.Sleep(200 * time.Millisecond)

@@ -292,12 +292,14 @@ func (w *Watcher) GetLogger() *manager.Logger {
 }
 
 // registerWatch registers a Watch variable with limit enforcement.
+// Disallow duplicate watch registration.
+// Watch variables are immutable once registered.
 // This is called by Watch/WatchCall/WatchFlow functions.
 // Returns error if watch limit is reached.
 func (w *Watcher) registerWatch(varName string, handle manager.WatchHandle) error {
 	watchRegistry := w.manager.GetWatchRegistry()
 
-	// Check if updating existing watch (allowed)
+	// Check if updating existing watch
 	if _, exists := watchRegistry.Load(varName); !exists {
 		// New watch - check size limit
 		count := 0
@@ -310,6 +312,8 @@ func (w *Watcher) registerWatch(varName string, handle manager.WatchHandle) erro
 			return fmt.Errorf("watch registry limit reached: %d/%d (cannot register '%s')",
 				count, w.config.MaxWatches, varName)
 		}
+	} else {
+		return fmt.Errorf("watch varName already exist")
 	}
 
 	watchRegistry.Store(varName, handle)

@@ -14,6 +14,7 @@ type (
 	Message           = shared.Message
 	WatcherConfig     = shared.WatcherConfig
 	RecoveryPolicy    = shared.RecoveryPolicy
+	HershValue        = shared.HershValue
 
 	// Error types
 	ControlError           = shared.ControlError
@@ -24,6 +25,7 @@ type (
 )
 
 // VarUpdateFunc is a function that updates a variable's state.
+// DEPRECATED: This type is no longer used. Use manager.VarUpdateFunc instead.
 // It takes the previous state and returns the next state, a boolean indicating if the state changed, and an error.
 type VarUpdateFunc func(prev any) (next any, changed bool, err error)
 

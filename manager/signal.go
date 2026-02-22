@@ -10,8 +10,9 @@ import (
 )
 
 // VarUpdateFunc is a function that updates a variable's state.
-// It receives the previous state and returns the next state, a changed flag, and an error.
-type VarUpdateFunc func(prev any) (next any, changed bool, err error)
+// It receives the previous HershValue and returns the next HershValue, a changed flag, and an error.
+// The error parameter is for VarUpdateFunc execution errors (separate from prev.Error).
+type VarUpdateFunc func(prev shared.HershValue) (next shared.HershValue, changed bool, err error)
 
 // VarSig represents a change in a watched variable's state.
 type VarSig struct {

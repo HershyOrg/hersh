@@ -44,8 +44,8 @@ func TestRecovery_SuppressPhase(t *testing.T) {
 		// Register a watch to trigger periodic re-execution
 		hersh.WatchCall(
 			func() (manager.VarUpdateFunc, error) {
-				return func(prev any) (any, bool, error) {
-					return time.Now().Unix(), true, nil
+				return func(prev shared.HershValue) (shared.HershValue, bool, error) {
+					return shared.HershValue{Value: time.Now().Unix(), Error: nil}, true, nil
 				}, nil
 			},
 			"tick",
@@ -120,8 +120,8 @@ func TestRecovery_EnterRecoveryMode(t *testing.T) {
 		// Register a watch to trigger periodic re-execution
 		hersh.WatchCall(
 			func() (manager.VarUpdateFunc, error) {
-				return func(prev any) (any, bool, error) {
-					return time.Now().Unix(), true, nil
+				return func(prev shared.HershValue) (shared.HershValue, bool, error) {
+					return shared.HershValue{Value: time.Now().Unix(), Error: nil}, true, nil
 				}, nil
 			},
 			"tick",
@@ -195,8 +195,8 @@ func TestRecovery_SuccessfulRecovery(t *testing.T) {
 		// Register a watch to trigger periodic re-execution
 		hersh.WatchCall(
 			func() (manager.VarUpdateFunc, error) {
-				return func(prev any) (any, bool, error) {
-					return time.Now().Unix(), true, nil
+				return func(prev shared.HershValue) (shared.HershValue, bool, error) {
+					return shared.HershValue{Value: time.Now().Unix(), Error: nil}, true, nil
 				}, nil
 			},
 			"tick",
@@ -269,8 +269,8 @@ func TestRecovery_MaxFailureCrash(t *testing.T) {
 		// Register a watch to trigger periodic re-execution
 		hersh.WatchCall(
 			func() (manager.VarUpdateFunc, error) {
-				return func(prev any) (any, bool, error) {
-					return time.Now().Unix(), true, nil
+				return func(prev shared.HershValue) (shared.HershValue, bool, error) {
+					return shared.HershValue{Value: time.Now().Unix(), Error: nil}, true, nil
 				}, nil
 			},
 			"tick",
@@ -352,8 +352,8 @@ func TestRecovery_CounterReset(t *testing.T) {
 		// Register a watch to trigger periodic re-execution
 		hersh.WatchCall(
 			func() (manager.VarUpdateFunc, error) {
-				return func(prev any) (any, bool, error) {
-					return time.Now().Unix(), true, nil
+				return func(prev shared.HershValue) (shared.HershValue, bool, error) {
+					return shared.HershValue{Value: time.Now().Unix(), Error: nil}, true, nil
 				}, nil
 			},
 			"tick",

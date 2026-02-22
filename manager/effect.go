@@ -45,7 +45,9 @@ func (et EffectType) String() string {
 }
 
 // RunScriptEffect executes the managed function.
-type RunScriptEffect struct{}
+type RunScriptEffect struct {
+	TriggeredSignal *shared.TriggeredSignal // Information about which signals triggered this execution
+}
 
 func (e *RunScriptEffect) Type() EffectType { return EffectRunScript }
 func (e *RunScriptEffect) String() string   { return "RunScript" }
@@ -61,7 +63,9 @@ func (e *ClearRunScriptEffect) String() string {
 }
 
 // InitRunScriptEffect initializes and runs the managed function.
-type InitRunScriptEffect struct{}
+type InitRunScriptEffect struct {
+	TriggeredSignal *shared.TriggeredSignal // Information about which signals triggered this initialization
+}
 
 func (e *InitRunScriptEffect) Type() EffectType { return EffectInitRunScript }
 func (e *InitRunScriptEffect) String() string   { return "InitRunScript" }
@@ -105,38 +109,38 @@ func (ec *EffectCommander) CommandEffect(action ReduceAction) EffectDefinition {
 		return nil
 	}
 
-	return ec.determineEffect(prevState, nextState)
+	return ec.determineEffect(prevState, nextState, action)
 }
 
 // determineEffect implements the trigger rules from the design.
-func (ec *EffectCommander) determineEffect(prevState, nextState shared.ManagerInnerState) EffectDefinition {
+func (ec *EffectCommander) determineEffect(prevState, nextState shared.ManagerInnerState, action ReduceAction) EffectDefinition {
 	switch prevState {
 	case shared.StateRunning:
-		return ec.fromRunning(nextState)
+		return ec.fromRunning(nextState, action)
 	case shared.StateReady:
-		return ec.fromReady(nextState)
+		return ec.fromReady(nextState, action)
 	case shared.StateInitRun:
-		return ec.fromInitRun(nextState)
+		return ec.fromInitRun(nextState, action)
 	case shared.StateStopped:
-		return ec.fromStopped(nextState)
+		return ec.fromStopped(nextState, action)
 	case shared.StateKilled:
-		return ec.fromKilled(nextState)
+		return ec.fromKilled(nextState, action)
 	case shared.StateCrashed:
 		return nil // Terminal state, ignore
 	case shared.StateWaitRecover:
-		return ec.fromWaitRecover(nextState)
+		return ec.fromWaitRecover(nextState, action)
 	}
 	return nil
 }
 
-func (ec *EffectCommander) fromRunning(nextState shared.ManagerInnerState) EffectDefinition {
+func (ec *EffectCommander) fromRunning(nextState shared.ManagerInnerState, action ReduceAction) EffectDefinition {
 	switch nextState {
 	case shared.StateRunning:
 		return nil // Ignore
 	case shared.StateReady:
 		return nil // Ignore (normal completion handled by EffectHandler)
 	case shared.StateInitRun:
-		return &InitRunScriptEffect{}
+		return &InitRunScriptEffect{TriggeredSignal: action.TriggeredSignal}
 	case shared.StateStopped, shared.StateKilled, shared.StateCrashed:
 		return &ClearRunScriptEffect{HookState: nextState}
 	case shared.StateWaitRecover:
@@ -145,14 +149,14 @@ func (ec *EffectCommander) fromRunning(nextState shared.ManagerInnerState) Effec
 	return nil
 }
 
-func (ec *EffectCommander) fromReady(nextState shared.ManagerInnerState) EffectDefinition {
+func (ec *EffectCommander) fromReady(nextState shared.ManagerInnerState, action ReduceAction) EffectDefinition {
 	switch nextState {
 	case shared.StateReady:
 		return nil
 	case shared.StateRunning:
-		return &RunScriptEffect{}
+		return &RunScriptEffect{TriggeredSignal: action.TriggeredSignal}
 	case shared.StateInitRun:
-		return &InitRunScriptEffect{}
+		return &InitRunScriptEffect{TriggeredSignal: action.TriggeredSignal}
 	case shared.StateKilled, shared.StateStopped, shared.StateCrashed:
 		return &ClearRunScriptEffect{HookState: nextState}
 	case shared.StateWaitRecover:
@@ -161,12 +165,12 @@ func (ec *EffectCommander) fromReady(nextState shared.ManagerInnerState) EffectD
 	return nil
 }
 
-func (ec *EffectCommander) fromInitRun(nextState shared.ManagerInnerState) EffectDefinition {
+func (ec *EffectCommander) fromInitRun(nextState shared.ManagerInnerState, action ReduceAction) EffectDefinition {
 	switch nextState {
 	case shared.StateInitRun:
 		return nil
 	case shared.StateRunning:
-		return &RunScriptEffect{}
+		return &RunScriptEffect{TriggeredSignal: action.TriggeredSignal}
 	case shared.StateReady:
 		return nil // Normal completion
 	case shared.StateKilled, shared.StateStopped, shared.StateCrashed:
@@ -177,12 +181,12 @@ func (ec *EffectCommander) fromInitRun(nextState shared.ManagerInnerState) Effec
 	return nil
 }
 
-func (ec *EffectCommander) fromStopped(nextState shared.ManagerInnerState) EffectDefinition {
+func (ec *EffectCommander) fromStopped(nextState shared.ManagerInnerState, action ReduceAction) EffectDefinition {
 	switch nextState {
 	case shared.StateStopped:
 		return nil
 	case shared.StateInitRun:
-		return &InitRunScriptEffect{}
+		return &InitRunScriptEffect{TriggeredSignal: action.TriggeredSignal}
 	case shared.StateKilled:
 		return &JustKillEffect{}
 	case shared.StateCrashed:
@@ -195,7 +199,7 @@ func (ec *EffectCommander) fromStopped(nextState shared.ManagerInnerState) Effec
 	return nil
 }
 
-func (ec *EffectCommander) fromKilled(nextState shared.ManagerInnerState) EffectDefinition {
+func (ec *EffectCommander) fromKilled(nextState shared.ManagerInnerState, action ReduceAction) EffectDefinition {
 	switch nextState {
 	case shared.StateKilled:
 		return nil
@@ -208,14 +212,14 @@ func (ec *EffectCommander) fromKilled(nextState shared.ManagerInnerState) Effect
 	}
 }
 
-func (ec *EffectCommander) fromWaitRecover(nextState shared.ManagerInnerState) EffectDefinition {
+func (ec *EffectCommander) fromWaitRecover(nextState shared.ManagerInnerState, action ReduceAction) EffectDefinition {
 	switch nextState {
 	case shared.StateWaitRecover:
 		return &RecoverEffect{}
 	case shared.StateCrashed, shared.StateKilled, shared.StateStopped:
 		return &ClearRunScriptEffect{HookState: shared.StateCrashed}
 	case shared.StateInitRun:
-		return &InitRunScriptEffect{}
+		return &InitRunScriptEffect{TriggeredSignal: action.TriggeredSignal}
 	default:
 		return &RecoverEffect{}
 	}

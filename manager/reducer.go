@@ -11,9 +11,10 @@ import (
 
 // ReduceAction represents a state transition that occurred.
 type ReduceAction struct {
-	PrevState StateSnapshot
-	Signal    shared.Signal
-	NextState StateSnapshot
+	PrevState       StateSnapshot
+	Signal          shared.Signal
+	NextState       StateSnapshot
+	TriggeredSignal *shared.TriggeredSignal // Information about which signals triggered this action
 }
 
 // Reducer manages state transitions based on signals.
@@ -139,26 +140,28 @@ func (r *Reducer) tryProcessNextSignalWithEffects(commander *EffectCommander, ha
 // reduceAndExecuteEffect performs the complete Reduce-Effect cycle:
 // Reduce → CommandEffect → ExecuteEffect → handle result.
 func (r *Reducer) reduceAndExecuteEffect(sig shared.Signal, commander *EffectCommander, handler *EffectHandler) {
-	// 1. Reduce: perform state transition
+	// 1. Reduce: perform state transition and get triggered signal info
 	prevSnapshot := r.state.Snapshot()
+	var triggeredSig *shared.TriggeredSignal
 
 	switch s := sig.(type) {
 	case *WatcherSig:
-		r.reduceWatcherSig(s)
+		triggeredSig = r.reduceWatcherSig(s)
 	case *UserSig:
-		r.reduceUserSig(s)
+		triggeredSig = r.reduceUserSig(s)
 	case *VarSig:
-		r.reduceVarSig(s)
+		triggeredSig = r.reduceVarSig(s)
 		// Note: InitRun completion check moved after effect execution for atomic processing
 	default:
 		return // Unknown signal type
 	}
 
-	// 2. Create action
+	// 2. Create action with triggered signal information
 	action := ReduceAction{
-		PrevState: prevSnapshot,
-		Signal:    sig,
-		NextState: r.state.Snapshot(),
+		PrevState:       prevSnapshot,
+		Signal:          sig,
+		NextState:       r.state.Snapshot(),
+		TriggeredSignal: triggeredSig,
 	}
 
 	// Log the reduce action
@@ -253,7 +256,8 @@ func (r *Reducer) canProcessVarSig(state shared.ManagerInnerState) bool {
 // reduceVarSig handles VarSig according to transition rules.
 // Only called when canProcessVarSig returns true.
 // Logging is handled by reduceAndExecuteEffect.
-func (r *Reducer) reduceVarSig(sig *VarSig) {
+// Returns TriggeredSignal with the names of variables that were triggered.
+func (r *Reducer) reduceVarSig(sig *VarSig) *shared.TriggeredSignal {
 	currentState := r.state.GetManagerInnerState()
 
 	switch currentState {
@@ -265,8 +269,16 @@ func (r *Reducer) reduceVarSig(sig *VarSig) {
 		if len(updates) > 0 {
 			r.state.VarState.BatchSet(updates)
 			r.state.SetManagerInnerState(shared.StateRunning)
+
+			// Collect triggered variable names
+			varNames := make([]string, 0, len(updates))
+			for varName := range updates {
+				varNames = append(varNames, varName)
+			}
+			return &shared.TriggeredSignal{VarSigNames: varNames}
 		}
 		// If no updates (all changed=false), stay in Ready state
+		return nil
 
 	case shared.StateInitRun:
 		// During initialization, collect and apply VarSigs to update state
@@ -276,8 +288,16 @@ func (r *Reducer) reduceVarSig(sig *VarSig) {
 		// Only update VarState if there are actual updates
 		if len(updates) > 0 {
 			r.state.VarState.BatchSet(updates)
+
+			// Collect triggered variable names
+			varNames := make([]string, 0, len(updates))
+			for varName := range updates {
+				varNames = append(varNames, varName)
+			}
+			return &shared.TriggeredSignal{VarSigNames: varNames}
 		}
 		// Don't change ManagerInnerState, just update VarState
+		return nil
 
 	default:
 		// Should never reach here due to canProcessVarSig check
@@ -288,7 +308,7 @@ func (r *Reducer) reduceVarSig(sig *VarSig) {
 // collectAndApplyVarSigs collects all VarSigs and applies them correctly.
 // For IsStateIndependent=true (Flow): only apply the last signal's function
 // For IsStateIndependent=false (Tick): apply all functions sequentially
-func (r *Reducer) collectAndApplyVarSigs(first *VarSig) map[string]any {
+func (r *Reducer) collectAndApplyVarSigs(first *VarSig) map[string]shared.HershValue {
 	sigs := []*VarSig{first}
 
 	// Collect all available VarSigs from the channel
@@ -309,7 +329,7 @@ APPLY:
 		byVar[sig.TargetVarName] = append(byVar[sig.TargetVarName], sig)
 	}
 
-	updates := make(map[string]any)
+	updates := make(map[string]shared.HershValue)
 
 	for varName, varSigs := range byVar {
 		// Check if this variable is state-independent (check first signal)
@@ -319,49 +339,57 @@ APPLY:
 			// State-independent (Flow): only apply the last signal
 			lastSig := varSigs[len(varSigs)-1]
 
-			// Get current value from VarState (may be ignored by the function)
-			currentValue, _ := r.state.VarState.Get(varName)
+			// Get current HershValue from VarState
+			currentHV, exists := r.state.VarState.Get(varName)
+			if !exists {
+				currentHV = shared.HershValue{} // Empty HershValue if not exists
+			}
 
-			nextValue, changed, err := lastSig.VarUpdateFunc(currentValue)
+			nextHV, changed, err := lastSig.VarUpdateFunc(currentHV)
 			if err != nil {
-				// Skip this signal on error
+				// VarUpdateFunc execution error - log and store error in HershValue
 				if r.logger != nil {
 					r.logger.LogWatchError(varName, ErrorPhaseExecuteComputeFunc, err)
 				}
+				// Store the error in HershValue
+				updates[varName] = shared.HershValue{Value: nil, Error: err}
 				continue
 			}
 
 			if changed {
-				updates[varName] = nextValue
+				updates[varName] = nextHV
 			}
 
 		} else {
 			// State-dependent (Tick): apply all signals sequentially
-			currentValue, exists := r.state.VarState.Get(varName)
+			currentHV, exists := r.state.VarState.Get(varName)
 			if !exists {
-				currentValue = nil
+				currentHV = shared.HershValue{} // Empty HershValue if not exists
 			}
 
 			hasAnyChange := false
 			for _, sig := range varSigs {
-				nextValue, changed, err := sig.VarUpdateFunc(currentValue)
+				nextHV, changed, err := sig.VarUpdateFunc(currentHV)
 				if err != nil {
-					// Skip this signal on error
+					// VarUpdateFunc execution error - log and store error in HershValue
 					if r.logger != nil {
 						r.logger.LogWatchError(varName, ErrorPhaseExecuteComputeFunc, err)
 					}
+					// Store the error and mark as changed
+					currentHV = shared.HershValue{Value: nil, Error: err}
+					hasAnyChange = true
 					continue
 				}
 
 				if changed {
-					currentValue = nextValue // Next function's input
+					currentHV = nextHV // Next function's input
 					hasAnyChange = true
 				}
 			}
 
 			// Only add to updates if at least one signal reported a change
 			if hasAnyChange {
-				updates[varName] = currentValue
+				updates[varName] = currentHV
 			}
 		}
 	}
@@ -372,13 +400,15 @@ APPLY:
 // reduceUserSig handles UserSig according to transition rules.
 // Only called when canProcessUserSig returns true.
 // Logging is handled by reduceAndExecuteEffect.
-func (r *Reducer) reduceUserSig(sig *UserSig) {
+// Returns TriggeredSignal indicating UserSig was triggered.
+func (r *Reducer) reduceUserSig(sig *UserSig) *shared.TriggeredSignal {
 	currentState := r.state.GetManagerInnerState()
 
 	switch currentState {
 	case shared.StateReady:
 		r.state.UserState.SetMessage(sig.UserMessage)
 		r.state.SetManagerInnerState(shared.StateRunning)
+		return &shared.TriggeredSignal{IsUserSig: true}
 
 	default:
 		// Should never reach here due to canProcessUserSig check
@@ -388,13 +418,14 @@ func (r *Reducer) reduceUserSig(sig *UserSig) {
 
 // reduceWatcherSig handles WatcherSig according to transition rules.
 // Logging is handled by reduceAndExecuteEffect.
-func (r *Reducer) reduceWatcherSig(sig *WatcherSig) {
+// Returns TriggeredSignal indicating WatcherSig was triggered.
+func (r *Reducer) reduceWatcherSig(sig *WatcherSig) *shared.TriggeredSignal {
 	currentState := r.state.GetManagerInnerState()
 	targetState := sig.TargetState
 
 	// Ignore same-state transitions
 	if currentState == targetState {
-		return
+		return nil
 	}
 
 	// Validate transition
@@ -403,7 +434,7 @@ func (r *Reducer) reduceWatcherSig(sig *WatcherSig) {
 		if r.logger != nil {
 			r.logger.LogStateTransitionFault(currentState, targetState, sig.Reason, err)
 		}
-		return
+		return nil
 	}
 
 	// Special case: Crashed is terminal
@@ -416,7 +447,7 @@ func (r *Reducer) reduceWatcherSig(sig *WatcherSig) {
 				fmt.Errorf("cannot transition from Crashed state"),
 			)
 		}
-		return
+		return nil
 	}
 
 	// Special case: InitRun clears VarState
@@ -426,6 +457,7 @@ func (r *Reducer) reduceWatcherSig(sig *WatcherSig) {
 
 	// Perform transition
 	r.state.SetManagerInnerState(targetState)
+	return &shared.TriggeredSignal{IsWatcherSig: true}
 }
 
 // validateTransition checks if a state transition is valid.

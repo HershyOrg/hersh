@@ -7,36 +7,36 @@ import (
 )
 
 // VarState holds the state of all watched variables.
-// map[varName]value
+// map[varName]HershValue
 type VarState struct {
 	mu     sync.RWMutex
-	values map[string]any
+	values map[string]shared.HershValue
 }
 
 // NewVarState creates a new VarState.
 func NewVarState() *VarState {
 	return &VarState{
-		values: make(map[string]any),
+		values: make(map[string]shared.HershValue),
 	}
 }
 
-// Get retrieves a variable's value.
-func (vs *VarState) Get(name string) (any, bool) {
+// Get retrieves a variable's HershValue.
+func (vs *VarState) Get(name string) (shared.HershValue, bool) {
 	vs.mu.RLock()
 	defer vs.mu.RUnlock()
 	val, ok := vs.values[name]
 	return val, ok
 }
 
-// Set updates a variable's value.
-func (vs *VarState) Set(name string, value any) {
+// Set updates a variable's HershValue.
+func (vs *VarState) Set(name string, value shared.HershValue) {
 	vs.mu.Lock()
 	defer vs.mu.Unlock()
 	vs.values[name] = value
 }
 
 // BatchSet updates multiple variables atomically.
-func (vs *VarState) BatchSet(updates map[string]any) {
+func (vs *VarState) BatchSet(updates map[string]shared.HershValue) {
 	vs.mu.Lock()
 	defer vs.mu.Unlock()
 	for name, value := range updates {
@@ -45,10 +45,10 @@ func (vs *VarState) BatchSet(updates map[string]any) {
 }
 
 // GetAll returns a snapshot of all variable values.
-func (vs *VarState) GetAll() map[string]any {
+func (vs *VarState) GetAll() map[string]shared.HershValue {
 	vs.mu.RLock()
 	defer vs.mu.RUnlock()
-	snapshot := make(map[string]any, len(vs.values))
+	snapshot := make(map[string]shared.HershValue, len(vs.values))
 	for k, v := range vs.values {
 		snapshot[k] = v
 	}
@@ -59,15 +59,23 @@ func (vs *VarState) GetAll() map[string]any {
 func (vs *VarState) Clear() {
 	vs.mu.Lock()
 	defer vs.mu.Unlock()
-	vs.values = make(map[string]any)
+	vs.values = make(map[string]shared.HershValue)
 }
 
-// AllInitialized checks if all expected variables are initialized (non-nil).
+// AllInitialized checks if all expected variables are initialized (non-nil and no error).
 func (vs *VarState) AllInitialized(expectedVars []string) bool {
 	vs.mu.RLock()
 	defer vs.mu.RUnlock()
 	for _, varName := range expectedVars {
-		if val, ok := vs.values[varName]; !ok || val == nil {
+		hv, ok := vs.values[varName]
+		// Consider initialized if:
+		// 1. Key exists AND
+		// 2. Either has a value OR has an error (both are valid initialization states)
+		if !ok {
+			return false
+		}
+		// Empty HershValue (no value, no error) means not initialized
+		if hv.Value == nil && hv.Error == nil {
 			return false
 		}
 	}
@@ -184,7 +192,7 @@ func (ms *ManagerState) WaitReadyAfterInit() <-chan struct{} {
 
 // Snapshot returns a complete state snapshot for logging.
 type StateSnapshot struct {
-	VarState          map[string]any
+	VarState          map[string]shared.HershValue
 	UserMessage       *shared.Message
 	ManagerInnerState shared.ManagerInnerState
 }

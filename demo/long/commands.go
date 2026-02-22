@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"strings"
+
+	"github.com/HershyOrg/hersh"
 )
 
 // CommandHandler handles user commands
@@ -22,12 +24,12 @@ func NewCommandHandler(bs *BinanceStream, ts *TradingSimulator, stats *StatsColl
 }
 
 // HandleCommand processes user commands
-func (ch *CommandHandler) HandleCommand(cmd string) {
+func (ch *CommandHandler) HandleCommand(cmd string, ctx hersh.HershContext) {
 	cmd = strings.TrimSpace(strings.ToLower(cmd))
 
 	switch cmd {
 	case "help", "h", "?":
-		ch.printHelp()
+		ch.printHelp(ctx)
 
 	case "status", "s":
 		ch.stats.PrintStatus(ch.bs, ch.ts)
@@ -51,124 +53,124 @@ func (ch *CommandHandler) HandleCommand(cmd string) {
 		ch.stats.PrintRecentTrades(ch.ts, 50)
 
 	case "pause":
-		ch.pauseTrading()
+		ch.pauseTrading(ctx)
 
 	case "resume":
-		ch.resumeTrading()
+		ch.resumeTrading(ctx)
 
 	case "rebalance", "r":
-		ch.rebalance()
+		ch.rebalance(ctx)
 
 	case "prices", "price":
-		ch.printPrices()
+		ch.printPrices(ctx)
 
 	case "quit", "exit", "q":
-		fmt.Println("\n⚠️  Use Ctrl+C to stop the demo gracefully")
+		hersh.PrintWithLog("\n⚠️  Use Ctrl+C to stop the demo gracefully", ctx)
 
 	default:
-		fmt.Printf("\n❌ Unknown command: '%s'\n", cmd)
-		fmt.Println("💡 Type 'help' to see available commands")
+		hersh.PrintWithLog(fmt.Sprintf("\n❌ Unknown command: '%s'", cmd), ctx)
+		hersh.PrintWithLog("💡 Type 'help' to see available commands", ctx)
 	}
 }
 
 // printHelp prints available commands
-func (ch *CommandHandler) printHelp() {
-	fmt.Println("\n" + strings.Repeat("═", 80))
-	fmt.Println("📖 AVAILABLE COMMANDS")
-	fmt.Println(strings.Repeat("═", 80))
+func (ch *CommandHandler) printHelp(ctx hersh.HershContext) {
+	hersh.PrintWithLog("\n"+strings.Repeat("═", 80), ctx)
+	hersh.PrintWithLog("📖 AVAILABLE COMMANDS", ctx)
+	hersh.PrintWithLog(strings.Repeat("═", 80), ctx)
 
-	fmt.Println("\n📊 Statistics:")
-	fmt.Println("   status, s          Show quick status summary")
-	fmt.Println("   stats, st          Show 1-minute stats report")
-	fmt.Println("   detailed, d        Show comprehensive detailed statistics")
-	fmt.Println("   portfolio, p       Show detailed portfolio information")
+	hersh.PrintWithLog("\n📊 Statistics:", ctx)
+	hersh.PrintWithLog("   status, s          Show quick status summary", ctx)
+	hersh.PrintWithLog("   stats, st          Show 1-minute stats report", ctx)
+	hersh.PrintWithLog("   detailed, d        Show comprehensive detailed statistics", ctx)
+	hersh.PrintWithLog("   portfolio, p       Show detailed portfolio information", ctx)
 
-	fmt.Println("\n📈 Trading:")
-	fmt.Println("   trades, t          Show last 10 trades")
-	fmt.Println("   trades20, t20      Show last 20 trades")
-	fmt.Println("   trades50, t50      Show last 50 trades")
-	fmt.Println("   pause              Pause trading (stop strategy execution)")
-	fmt.Println("   resume             Resume trading")
-	fmt.Println("   rebalance, r       Force portfolio rebalance")
+	hersh.PrintWithLog("\n📈 Trading:", ctx)
+	hersh.PrintWithLog("   trades, t          Show last 10 trades", ctx)
+	hersh.PrintWithLog("   trades20, t20      Show last 20 trades", ctx)
+	hersh.PrintWithLog("   trades50, t50      Show last 50 trades", ctx)
+	hersh.PrintWithLog("   pause              Pause trading (stop strategy execution)", ctx)
+	hersh.PrintWithLog("   resume             Resume trading", ctx)
+	hersh.PrintWithLog("   rebalance, r       Force portfolio rebalance", ctx)
 
-	fmt.Println("\n💰 Market:")
-	fmt.Println("   prices, price      Show current BTC/ETH prices")
+	hersh.PrintWithLog("\n💰 Market:", ctx)
+	hersh.PrintWithLog("   prices, price      Show current BTC/ETH prices", ctx)
 
-	fmt.Println("\n❓ Other:")
-	fmt.Println("   help, h, ?         Show this help message")
-	fmt.Println("   quit, exit, q      Exit instructions (use Ctrl+C)")
+	hersh.PrintWithLog("\n❓ Other:", ctx)
+	hersh.PrintWithLog("   help, h, ?         Show this help message", ctx)
+	hersh.PrintWithLog("   quit, exit, q      Exit instructions (use Ctrl+C)", ctx)
 
-	fmt.Println(strings.Repeat("═", 80))
+	hersh.PrintWithLog(strings.Repeat("═", 80), ctx)
 }
 
 // pauseTrading pauses trading strategy
-func (ch *CommandHandler) pauseTrading() {
+func (ch *CommandHandler) pauseTrading(ctx hersh.HershContext) {
 	if ch.ts.IsPaused() {
-		fmt.Println("\n⚠️  Trading is already paused")
+		hersh.PrintWithLog("\n⚠️  Trading is already paused", ctx)
 		return
 	}
 
 	ch.ts.Pause()
-	fmt.Println("\n⏸️  Trading PAUSED")
-	fmt.Println("   Strategy execution stopped")
-	fmt.Println("   Price monitoring continues")
-	fmt.Println("   Type 'resume' to restart trading")
+	hersh.PrintWithLog("\n⏸️  Trading PAUSED", ctx)
+	hersh.PrintWithLog("   Strategy execution stopped", ctx)
+	hersh.PrintWithLog("   Price monitoring continues", ctx)
+	hersh.PrintWithLog("   Type 'resume' to restart trading", ctx)
 }
 
 // resumeTrading resumes trading strategy
-func (ch *CommandHandler) resumeTrading() {
+func (ch *CommandHandler) resumeTrading(ctx hersh.HershContext) {
 	if !ch.ts.IsPaused() {
-		fmt.Println("\n⚠️  Trading is already active")
+		hersh.PrintWithLog("\n⚠️  Trading is already active", ctx)
 		return
 	}
 
 	ch.ts.Resume()
-	fmt.Println("\n▶️  Trading RESUMED")
-	fmt.Println("   Strategy execution restarted")
+	hersh.PrintWithLog("\n▶️  Trading RESUMED", ctx)
+	hersh.PrintWithLog("   Strategy execution restarted", ctx)
 }
 
 // rebalance forces portfolio rebalance
-func (ch *CommandHandler) rebalance() {
-	fmt.Println("\n🔄 Rebalancing portfolio...")
+func (ch *CommandHandler) rebalance(ctx hersh.HershContext) {
+	hersh.PrintWithLog("\n🔄 Rebalancing portfolio...", ctx)
 
 	trades := ch.ts.Rebalance()
 
 	if len(trades) == 0 {
-		fmt.Println("   No rebalancing needed (positions already balanced)")
+		hersh.PrintWithLog("   No rebalancing needed (positions already balanced)", ctx)
 		return
 	}
 
-	fmt.Printf("   Executed %d rebalancing trades:\n", len(trades))
+	hersh.PrintWithLog(fmt.Sprintf("   Executed %d rebalancing trades:", len(trades)), ctx)
 	for _, t := range trades {
-		fmt.Printf("      %s %s: %.6f @ $%.2f = $%.2f\n",
-			t.Action, t.Symbol, t.Amount, t.Price, t.USDValue)
+		hersh.PrintWithLog(fmt.Sprintf("      %s %s: %.6f @ $%.2f = $%.2f",
+			t.Action, t.Symbol, t.Amount, t.Price, t.USDValue), ctx)
 	}
 
 	portfolio := ch.ts.GetPortfolio()
-	fmt.Printf("   New Portfolio Value: $%.2f\n", portfolio.CurrentValue)
+	hersh.PrintWithLog(fmt.Sprintf("   New Portfolio Value: $%.2f", portfolio.CurrentValue), ctx)
 }
 
 // printPrices prints current market prices
-func (ch *CommandHandler) printPrices() {
+func (ch *CommandHandler) printPrices(ctx hersh.HershContext) {
 	btcPrice := ch.bs.GetCurrentBTC()
 	ethPrice := ch.bs.GetCurrentETH()
 	streamStats := ch.bs.GetStats()
 
-	fmt.Println("\n" + strings.Repeat("-", 50))
-	fmt.Println("💰 Current Market Prices")
-	fmt.Println(strings.Repeat("-", 50))
+	hersh.PrintWithLog("\n"+strings.Repeat("-", 50), ctx)
+	hersh.PrintWithLog("💰 Current Market Prices", ctx)
+	hersh.PrintWithLog(strings.Repeat("-", 50), ctx)
 
 	if btcPrice == 0 || ethPrice == 0 {
-		fmt.Println("   ⚠️  Prices not available yet")
-		fmt.Printf("   WebSocket Connected: %v\n", streamStats.Connected)
-		fmt.Println(strings.Repeat("-", 50))
+		hersh.PrintWithLog("   ⚠️  Prices not available yet", ctx)
+		hersh.PrintWithLog(fmt.Sprintf("   WebSocket Connected: %v", streamStats.Connected), ctx)
+		hersh.PrintWithLog(strings.Repeat("-", 50), ctx)
 		return
 	}
 
-	fmt.Printf("   🟠 BTC/USDT: $%.2f\n", btcPrice)
-	fmt.Printf("   🔵 ETH/USDT: $%.2f\n", ethPrice)
-	fmt.Printf("   📡 WebSocket: %v\n", streamStats.Connected)
-	fmt.Printf("   📨 Messages: %d\n", streamStats.MessagesReceived)
+	hersh.PrintWithLog(fmt.Sprintf("   🟠 BTC/USDT: $%.2f", btcPrice), ctx)
+	hersh.PrintWithLog(fmt.Sprintf("   🔵 ETH/USDT: $%.2f", ethPrice), ctx)
+	hersh.PrintWithLog(fmt.Sprintf("   📡 WebSocket: %v", streamStats.Connected), ctx)
+	hersh.PrintWithLog(fmt.Sprintf("   📨 Messages: %d", streamStats.MessagesReceived), ctx)
 
-	fmt.Println(strings.Repeat("-", 50))
+	hersh.PrintWithLog(strings.Repeat("-", 50), ctx)
 }

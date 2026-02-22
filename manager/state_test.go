@@ -10,13 +10,13 @@ func TestVarState_BasicOperations(t *testing.T) {
 	vs := NewVarState()
 
 	// Test Set and Get
-	vs.Set("var1", 42)
-	val, ok := vs.Get("var1")
+	vs.Set("var1", shared.HershValue{Value: 42, Error: nil})
+	hv, ok := vs.Get("var1")
 	if !ok {
 		t.Fatal("expected var1 to exist")
 	}
-	if val != 42 {
-		t.Errorf("expected 42, got %v", val)
+	if hv.Value == nil || hv.Value.(int) != 42 {
+		t.Errorf("expected 42, got %v", hv.Value)
 	}
 
 	// Test non-existent variable
@@ -29,21 +29,21 @@ func TestVarState_BasicOperations(t *testing.T) {
 func TestVarState_BatchSet(t *testing.T) {
 	vs := NewVarState()
 
-	updates := map[string]any{
-		"var1": 1,
-		"var2": "two",
-		"var3": 3.0,
+	updates := map[string]shared.HershValue{
+		"var1": {Value: 1, Error: nil},
+		"var2": {Value: "two", Error: nil},
+		"var3": {Value: 3.0, Error: nil},
 	}
 
 	vs.BatchSet(updates)
 
 	for name, expected := range updates {
-		val, ok := vs.Get(name)
+		hv, ok := vs.Get(name)
 		if !ok {
 			t.Errorf("expected %s to exist", name)
 		}
-		if val != expected {
-			t.Errorf("expected %v, got %v", expected, val)
+		if hv.Value != expected.Value {
+			t.Errorf("expected %v, got %v", expected.Value, hv.Value)
 		}
 	}
 }
@@ -59,26 +59,26 @@ func TestVarState_AllInitialized(t *testing.T) {
 	}
 
 	// Initialize all
-	vs.Set("var1", 1)
-	vs.Set("var2", 2)
-	vs.Set("var3", 3)
+	vs.Set("var1", shared.HershValue{Value: 1, Error: nil})
+	vs.Set("var2", shared.HershValue{Value: 2, Error: nil})
+	vs.Set("var3", shared.HershValue{Value: 3, Error: nil})
 
 	if !vs.AllInitialized(expectedVars) {
 		t.Error("expected AllInitialized to return true")
 	}
 
-	// Set one to nil
-	vs.Set("var2", nil)
+	// Set one to empty HershValue (uninitialized)
+	vs.Set("var2", shared.HershValue{})
 	if vs.AllInitialized(expectedVars) {
-		t.Error("expected AllInitialized to return false when var is nil")
+		t.Error("expected AllInitialized to return false when var is empty HershValue")
 	}
 }
 
 func TestVarState_Clear(t *testing.T) {
 	vs := NewVarState()
 
-	vs.Set("var1", 1)
-	vs.Set("var2", 2)
+	vs.Set("var1", shared.HershValue{Value: 1, Error: nil})
+	vs.Set("var2", shared.HershValue{Value: 2, Error: nil})
 
 	vs.Clear()
 
@@ -153,7 +153,7 @@ func TestManagerState_Snapshot(t *testing.T) {
 	ms := NewManagerState(shared.StateReady)
 
 	// Set up state
-	ms.VarState.Set("var1", 100)
+	ms.VarState.Set("var1", shared.HershValue{Value: 100, Error: nil})
 	ms.UserState.SetMessage(&shared.Message{Content: "hello"})
 
 	snapshot := ms.Snapshot()
@@ -163,8 +163,8 @@ func TestManagerState_Snapshot(t *testing.T) {
 		t.Errorf("expected StateReady, got %s", snapshot.ManagerInnerState)
 	}
 
-	if val, ok := snapshot.VarState["var1"]; !ok || val != 100 {
-		t.Errorf("expected var1=100, got %v", val)
+	if hv, ok := snapshot.VarState["var1"]; !ok || hv.Value == nil || hv.Value.(int) != 100 {
+		t.Errorf("expected var1=100, got %v", hv.Value)
 	}
 
 	if snapshot.UserMessage == nil || snapshot.UserMessage.Content != "hello" {

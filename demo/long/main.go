@@ -19,8 +19,8 @@ const (
 	DemoName          = "Long-Running Trading Simulator"
 	DemoVersion       = "1.0.0"
 	TargetDuration    = 10 * time.Minute // 10 minutes
-	StatsInterval     = 1 * time.Minute
-	RebalanceInterval = 1 * time.Hour
+	StatsInterval     = 3 * time.Minute
+	RebalanceInterval = 10 * time.Second
 	InitialCapital    = 10000.0 // $10,000 USD
 )
 
@@ -98,10 +98,6 @@ func main() {
 	watcher := hersh.NewWatcher(config, envVars, ctx)
 	fmt.Println("   ✅ Watcher created with 10-minute timeout context")
 
-	// Create ticker channels (once) to avoid goroutine leaks
-	statsTickerChan := hutil.TickerWithInit(StatsInterval)
-	rebalanceTickerChan := hutil.TickerWithInit(RebalanceInterval)
-
 	// Register managed function with closure
 	watcher.Manage(func(msg *hersh.Message, ctx hersh.HershContext) error {
 		return mainReducer(
@@ -110,8 +106,6 @@ func main() {
 			simulator,
 			statsCollector,
 			commandHandler,
-			statsTickerChan,
-			rebalanceTickerChan,
 		)
 	}, "TradingSimulator").Cleanup(func(ctx hersh.HershContext) {
 		cleanup(ctx, stream, simulator, statsCollector)
@@ -173,75 +167,41 @@ func mainReducer(
 	simulator *TradingSimulator,
 	statsCollector *StatsCollector,
 	commandHandler *CommandHandler,
-	statsTickerChan <-chan any,
-	rebalanceTickerChan <-chan any,
 ) error {
 	// WatchFlow: BTC price (real-time from WebSocket)
-	btcPrice := hersh.WatchFlow(stream.GetBTCPriceChan(), "btc_price", ctx)
-	if btcPrice != nil {
-		simulator.UpdatePrice("BTC", btcPrice.(float64))
+	btcHV := hersh.WatchFlow(stream.GetBTCPriceStream(), "btc_price", ctx)
+	if btcHV.IsValid() {
+		simulator.UpdatePrice("BTC", btcHV.Value.(float64))
 	}
 
 	// WatchFlow: ETH price (real-time from WebSocket)
-	ethPrice := hersh.WatchFlow(stream.GetETHPriceChan(), "eth_price", ctx)
-	if ethPrice != nil {
-		simulator.UpdatePrice("ETH", ethPrice.(float64))
+	ethHV := hersh.WatchFlow(stream.GetETHPriceStream(), "eth_price", ctx)
+	if ethHV.IsValid() {
+		simulator.UpdatePrice("ETH", ethHV.Value.(float64))
 	}
 
-	// WatchFlow: Stats ticker (1 minute interval)
-	statsTick := hersh.WatchFlow(statsTickerChan, "stats_ticker", ctx)
-	if statsTick != nil {
-		tickTime := statsTick.(time.Time)
-		lastStats := ctx.GetValue("last_stats")
-
-		// Only print stats if this is a new tick (not the same timestamp)
-		shouldPrintStats := false
-		if lastStats == nil {
-			shouldPrintStats = true
-		} else {
-			lastTime := lastStats.(time.Time)
-			if !tickTime.Equal(lastTime) {
-				shouldPrintStats = true
-			}
-		}
-
-		if shouldPrintStats {
-			ctx.SetValue("last_stats", tickTime)
-			statsCollector.PrintStats(stream, simulator)
-		}
+	// WatchTick: Stats ticker (1 minute interval)
+	statsTick := hutil.WatchTick("stats_ticker", StatsInterval, ctx)
+	if !statsTick.IsZero() && statsTick.IsTriggered(ctx) {
+		statsCollector.PrintStats(stream, simulator)
+		hersh.PrintWithLog(fmt.Sprintf("   (Stats tick #%d at %s)", statsTick.TickCount, statsTick.Time.Format("15:04:05")), ctx)
 	}
 
-	// WatchFlow: Rebalance ticker (1 hour interval)
-	rebalanceTick := hersh.WatchFlow(rebalanceTickerChan, "rebalance_ticker", ctx)
-	if rebalanceTick != nil {
-		tickTime := rebalanceTick.(time.Time)
-		lastRebalance := ctx.GetValue("last_rebalance")
+	// WatchTick: Rebalance ticker (1 hour interval)
+	rebalanceTick := hutil.WatchTick("rebalance_ticker", RebalanceInterval, ctx)
+	if !rebalanceTick.IsZero() && rebalanceTick.IsTriggered(ctx) {
+		hersh.PrintWithLog(fmt.Sprintf("\n⏰ Hourly rebalance triggered (tick #%d at %s)...",
+			rebalanceTick.TickCount, rebalanceTick.Time.Format("15:04:05")), ctx)
+		trades := simulator.Rebalance()
 
-		// Only rebalance if this is a new tick (not the same timestamp)
-		shouldRebalance := false
-		if lastRebalance == nil {
-			shouldRebalance = true
+		if len(trades) > 0 {
+			hersh.PrintWithLog(fmt.Sprintf("   Executed %d rebalancing trades", len(trades)), ctx)
+			for _, t := range trades {
+				hersh.PrintWithLog(fmt.Sprintf("      %s %s: %.6f @ $%.2f",
+					t.Action, t.Symbol, t.Amount, t.Price), ctx)
+			}
 		} else {
-			lastTime := lastRebalance.(time.Time)
-			if !tickTime.Equal(lastTime) {
-				shouldRebalance = true
-			}
-		}
-
-		if shouldRebalance {
-			ctx.SetValue("last_rebalance", tickTime)
-			fmt.Println("\n⏰ Hourly rebalance triggered...")
-			trades := simulator.Rebalance()
-
-			if len(trades) > 0 {
-				fmt.Printf("   Executed %d rebalancing trades\n", len(trades))
-				for _, t := range trades {
-					fmt.Printf("      %s %s: %.6f @ $%.2f\n",
-						t.Action, t.Symbol, t.Amount, t.Price)
-				}
-			} else {
-				fmt.Println("   No rebalancing needed")
-			}
+			hersh.PrintWithLog("   No rebalancing needed", ctx)
 		}
 	}
 
@@ -250,22 +210,22 @@ func mainReducer(
 		trades := simulator.ExecuteStrategy()
 
 		if len(trades) > 0 {
-			fmt.Printf("\n💹 Strategy executed %d trades:\n", len(trades))
+			hersh.PrintWithLog(fmt.Sprintf("\n💹 Strategy executed %d trades:", len(trades)), ctx)
 			for _, t := range trades {
-				fmt.Printf("   %s %s %s: %.6f @ $%.2f (%s)\n",
+				hersh.PrintWithLog(fmt.Sprintf("   %s %s %s: %.6f @ $%.2f (%s)",
 					t.Time.Format("15:04:05"),
-					t.Action, t.Symbol, t.Amount, t.Price, t.Reason)
+					t.Action, t.Symbol, t.Amount, t.Price, t.Reason), ctx)
 			}
 
 			portfolio := simulator.GetPortfolio()
-			fmt.Printf("   Portfolio Value: $%.2f (%.2f%%)\n",
-				portfolio.CurrentValue, portfolio.ProfitLossPercent)
+			hersh.PrintWithLog(fmt.Sprintf("   Portfolio Value: $%.2f (%.2f%%)",
+				portfolio.CurrentValue, portfolio.ProfitLossPercent), ctx)
 		}
 	}
 
 	// Handle user messages (commands)
 	if msg != nil && msg.Content != "" {
-		commandHandler.HandleCommand(msg.Content)
+		commandHandler.HandleCommand(msg.Content, ctx)
 	}
 
 	return nil

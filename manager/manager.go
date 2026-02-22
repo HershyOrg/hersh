@@ -28,9 +28,9 @@ func (h *TickHandle) GetCancelFunc() context.CancelFunc { return h.CancelFunc }
 
 // FlowHandle represents a channel-based watch variable.
 type FlowHandle struct {
-	VarName    string
-	SourceChan <-chan any
-	CancelFunc context.CancelFunc
+	VarName        string
+	GetChannelFunc func(ctx context.Context) (<-chan shared.FlowValue, error)
+	CancelFunc     context.CancelFunc
 }
 
 func (h *FlowHandle) GetVarName() string                { return h.VarName }

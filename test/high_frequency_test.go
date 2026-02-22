@@ -53,7 +53,7 @@ func TestHighFrequency_FastWatchSlowFunction(t *testing.T) {
 		signals.SendVarSig(&manager.VarSig{
 			ComputedTime:       time.Now(),
 			TargetVarName:      "highFreqVar",
-			VarUpdateFunc:      func(prev any) (any, bool, error) { return currentI, true, nil },
+			VarUpdateFunc:      func(prev shared.HershValue) (shared.HershValue, bool, error) { return shared.HershValue{Value: currentI, Error: nil}, true, nil },
 			IsStateIndependent: false,
 		})
 		lastVarValue.Store(int32(i))
@@ -132,7 +132,7 @@ func TestHighFrequency_ConcurrentSignalsAndMessages(t *testing.T) {
 			signals.SendVarSig(&manager.VarSig{
 				ComputedTime:       time.Now(),
 				TargetVarName:      "concurrentVar",
-				VarUpdateFunc:      func(prev any) (any, bool, error) { return currentI, true, nil },
+				VarUpdateFunc:      func(prev shared.HershValue) (shared.HershValue, bool, error) { return shared.HershValue{Value: currentI, Error: nil}, true, nil },
 				IsStateIndependent: false,
 			})
 			varSigCount.Add(1)
@@ -225,7 +225,7 @@ func TestHighFrequency_SignalBurst(t *testing.T) {
 			signals.SendVarSig(&manager.VarSig{
 				ComputedTime:       time.Now(),
 				TargetVarName:      varName,
-				VarUpdateFunc:      func(prev any) (any, bool, error) { return currentVal, true, nil },
+				VarUpdateFunc:      func(prev shared.HershValue) (shared.HershValue, bool, error) { return shared.HershValue{Value: currentVal, Error: nil}, true, nil },
 				IsStateIndependent: false,
 			})
 			processedVars.Store(val, true)
@@ -308,7 +308,7 @@ func TestHighFrequency_SignalsWithTimeout(t *testing.T) {
 		signals.SendVarSig(&manager.VarSig{
 			ComputedTime:       time.Now(),
 			TargetVarName:      "timeoutVar",
-			VarUpdateFunc:      func(prev any) (any, bool, error) { return currentI, true, nil },
+			VarUpdateFunc:      func(prev shared.HershValue) (shared.HershValue, bool, error) { return shared.HershValue{Value: currentI, Error: nil}, true, nil },
 			IsStateIndependent: false,
 		})
 		time.Sleep(40 * time.Millisecond)
@@ -386,7 +386,7 @@ func TestHighFrequency_MultipleWatchVariables(t *testing.T) {
 				signals.SendVarSig(&manager.VarSig{
 					ComputedTime:       time.Now(),
 					TargetVarName:      vName,
-					VarUpdateFunc:      func(prev any) (any, bool, error) { return currentI, true, nil },
+					VarUpdateFunc:      func(prev shared.HershValue) (shared.HershValue, bool, error) { return shared.HershValue{Value: currentI, Error: nil}, true, nil },
 					IsStateIndependent: false,
 				})
 				counter.Add(1)
@@ -476,7 +476,7 @@ func TestHighFrequency_PriorityUnderLoad(t *testing.T) {
 			signals.SendVarSig(&manager.VarSig{
 				ComputedTime:       time.Now(),
 				TargetVarName:      "priorityVar",
-				VarUpdateFunc:      func(prev any) (any, bool, error) { return currentI, true, nil },
+				VarUpdateFunc:      func(prev shared.HershValue) (shared.HershValue, bool, error) { return shared.HershValue{Value: currentI, Error: nil}, true, nil },
 				IsStateIndependent: false,
 			})
 			varSigProcessed.Add(1)
@@ -593,7 +593,7 @@ func TestHighFrequency_StressTest(t *testing.T) {
 				signals.SendVarSig(&manager.VarSig{
 					ComputedTime:       time.Now(),
 					TargetVarName:      "stressVar",
-					VarUpdateFunc:      func(prev any) (any, bool, error) { return currentVal, true, nil },
+					VarUpdateFunc:      func(prev shared.HershValue) (shared.HershValue, bool, error) { return shared.HershValue{Value: currentVal, Error: nil}, true, nil },
 					IsStateIndependent: false,
 				})
 				signalsSent.Add(1)

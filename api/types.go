@@ -21,6 +21,7 @@ type LogsResponse struct {
 	WatchErrorLogs []interface{} `json:"watchErrorLogs,omitempty"`
 	ContextLogs    []interface{} `json:"contextLogs,omitempty"`
 	StateFaultLogs []interface{} `json:"stateFaultLogs,omitempty"`
+	EffectResults  []interface{} `json:"effectResults,omitempty"`
 }
 
 // SignalsResponse represents the response for GET /watcher/signals

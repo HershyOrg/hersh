@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -44,29 +45,36 @@ func TestBatchUpdate_LongExecution(t *testing.T) {
 	ticksB := int32(0)
 	ticksC := int32(0)
 
-	// Create channel for WatchFlow
-	timeChan := make(chan any, 10000) // Buffered to avoid blocking
-
-	// Goroutine to feed channel
+	// Create channel function for WatchFlow (new signature)
 	stopFeeding := make(chan struct{})
-	go func() {
-		ticker := time.NewTicker(5 * time.Millisecond)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-stopFeeding:
-				close(timeChan)
-				return
-			case <-ticker.C:
+	getTimeChannel := func(ctx context.Context) (<-chan shared.FlowValue, error) {
+		timeChan := make(chan shared.FlowValue, 10000) // Buffered to avoid blocking
+
+		// Goroutine to feed channel
+		go func() {
+			defer close(timeChan)
+			ticker := time.NewTicker(5 * time.Millisecond)
+			defer ticker.Stop()
+
+			for {
 				select {
-				case timeChan <- time.Now():
-					atomic.AddInt32(&ticksC, 1)
-				default:
-					// Channel full, skip
+				case <-ctx.Done():
+					return
+				case <-stopFeeding:
+					return
+				case <-ticker.C:
+					select {
+					case timeChan <- shared.FlowValue{V: time.Now(), E: nil}:
+						atomic.AddInt32(&ticksC, 1)
+					default:
+						// Channel full, skip
+					}
 				}
 			}
-		}
-	}()
+		}()
+
+		return timeChan, nil
+	}
 
 	managedFunc := func(msg *shared.Message, ctx shared.HershContext) error {
 		execNum := atomic.AddInt32(&executionCount, 1)
@@ -75,18 +83,18 @@ func TestBatchUpdate_LongExecution(t *testing.T) {
 		// Variable A: Counter increment
 		valA := hersh.WatchCall(
 			func() (manager.VarUpdateFunc, error) {
-				return func(prev any) (any, bool, error) {
+				return func(prev shared.HershValue) (shared.HershValue, bool, error) {
 					var current int32
-					if prev == nil {
+					if prev.Value == nil {
 						current = 0
 					} else {
-						current = prev.(int32)
+						current = prev.Value.(int32)
 					}
 
 					next := current + 1
 					atomic.AddInt32(&ticksA, 1)
 
-					return next, true, nil
+					return shared.HershValue{Value: next, Error: nil}, true, nil
 				}, nil
 			},
 			"counterA",
@@ -97,18 +105,18 @@ func TestBatchUpdate_LongExecution(t *testing.T) {
 		// Variable B: String append
 		valB := hersh.WatchCall(
 			func() (manager.VarUpdateFunc, error) {
-				return func(prev any) (any, bool, error) {
+				return func(prev shared.HershValue) (shared.HershValue, bool, error) {
 					var current string
-					if prev == nil {
+					if prev.Value == nil {
 						current = ""
 					} else {
-						current = prev.(string)
+						current = prev.Value.(string)
 					}
 
 					next := current + "X"
 					atomic.AddInt32(&ticksB, 1)
 
-					return next, true, nil
+					return shared.HershValue{Value: next, Error: nil}, true, nil
 				}, nil
 			},
 			"stringB",
@@ -118,20 +126,20 @@ func TestBatchUpdate_LongExecution(t *testing.T) {
 
 		// Variable C: Timestamp flow
 		valC := hersh.WatchFlow(
-			timeChan,
+			getTimeChannel,
 			"timestampC",
 			ctx,
 		)
 
-		t.Logf("  A=%v, B_len=%v, C=%v", valA,
+		t.Logf("  A=%v, B_len=%v, C=%v", valA.Value,
 			func() int {
-				if valB != nil {
-					return len(valB.(string))
+				if valB.Value != nil {
+					return len(valB.Value.(string))
 				} else {
 					return 0
 				}
 			}(),
-			valC != nil)
+			valC.Value != nil)
 		time.Sleep(6 * time.Second)
 		// First execution: variables are nil, just register them
 		if execNum == 1 {
@@ -142,13 +150,13 @@ func TestBatchUpdate_LongExecution(t *testing.T) {
 		// Second execution: should see accumulated batch updates
 		if execNum == 2 {
 			// Record final values from batched updates
-			if valA != nil {
-				atomic.StoreInt32(&finalA, valA.(int32))
+			if valA.Value != nil {
+				atomic.StoreInt32(&finalA, valA.Value.(int32))
 			}
-			if valB != nil {
-				atomic.StoreInt32(&finalBLen, int32(len(valB.(string))))
+			if valB.Value != nil {
+				atomic.StoreInt32(&finalBLen, int32(len(valB.Value.(string))))
 			}
-			if valC != nil {
+			if valC.Value != nil {
 				atomic.AddInt32(&finalCCount, 1)
 			}
 
@@ -260,16 +268,16 @@ func TestBatchUpdate_RapidExecutions(t *testing.T) {
 
 		valA := hersh.WatchCall(
 			func() (manager.VarUpdateFunc, error) {
-				return func(prev any) (any, bool, error) {
+				return func(prev shared.HershValue) (shared.HershValue, bool, error) {
 					var current int32
-					if prev == nil {
+					if prev.Value == nil {
 						current = 0
 					} else {
-						current = prev.(int32)
+						current = prev.Value.(int32)
 					}
 
 					atomic.AddInt32(&ticksA, 1)
-					return current + 1, true, nil
+					return shared.HershValue{Value: current + 1, Error: nil}, true, nil
 				}, nil
 			},
 			"counter",
@@ -280,12 +288,12 @@ func TestBatchUpdate_RapidExecutions(t *testing.T) {
 		// Short execution (100ms) but still long enough to accumulate signals
 		time.Sleep(100 * time.Millisecond)
 
-		if valA != nil {
-			atomic.StoreInt32(&finalA, valA.(int32))
+		if valA.Value != nil {
+			atomic.StoreInt32(&finalA, valA.Value.(int32))
 		}
 
 		if execNum%5 == 0 {
-			t.Logf("Execution %d: counter=%v", execNum, valA)
+			t.Logf("Execution %d: counter=%v", execNum, valA.Value)
 		}
 
 		// Stop after 10 executions

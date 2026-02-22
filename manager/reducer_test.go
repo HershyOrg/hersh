@@ -40,7 +40,7 @@ func TestReducer_VarSigTransition(t *testing.T) {
 	sig := &VarSig{
 		ComputedTime:       time.Now(),
 		TargetVarName:      "testVar",
-		VarUpdateFunc:      func(prev any) (any, bool, error) { return 42, true, nil },
+		VarUpdateFunc:      func(prev shared.HershValue) (shared.HershValue, bool, error) { return shared.HershValue{Value: 42, Error: nil}, true, nil },
 		IsStateIndependent: false,
 	}
 	signals.SendVarSig(sig)
@@ -56,12 +56,12 @@ func TestReducer_VarSigTransition(t *testing.T) {
 	}
 
 	// Verify variable was set
-	val, ok := state.VarState.Get("testVar")
+	hv, ok := state.VarState.Get("testVar")
 	if !ok {
 		t.Fatal("expected testVar to exist")
 	}
-	if val != 42 {
-		t.Errorf("expected 42, got %v", val)
+	if hv.Value == nil || hv.Value.(int) != 42 {
+		t.Errorf("expected 42, got %v", hv.Value)
 	}
 
 	// Verify actions were logged (VarSig + WatcherSig from effect)
@@ -205,7 +205,7 @@ func TestReducer_PriorityOrdering(t *testing.T) {
 	varSig := &VarSig{
 		ComputedTime:       time.Now(),
 		TargetVarName:      "var1",
-		VarUpdateFunc:      func(prev any) (any, bool, error) { return 1, true, nil },
+		VarUpdateFunc:      func(prev shared.HershValue) (shared.HershValue, bool, error) { return shared.HershValue{Value: 1, Error: nil}, true, nil },
 		IsStateIndependent: false,
 	}
 	userSig := &UserSig{
@@ -264,7 +264,7 @@ func TestReducer_BatchVarSigCollection(t *testing.T) {
 		sig := &VarSig{
 			ComputedTime:       time.Now(),
 			TargetVarName:      "var" + string(rune('0'+i)),
-			VarUpdateFunc:      func(prev any) (any, bool, error) { return currentVal, true, nil },
+			VarUpdateFunc:      func(prev shared.HershValue) (shared.HershValue, bool, error) { return shared.HershValue{Value: currentVal, Error: nil}, true, nil },
 			IsStateIndependent: false,
 		}
 		signals.SendVarSig(sig)
@@ -277,13 +277,13 @@ func TestReducer_BatchVarSigCollection(t *testing.T) {
 	// All 5 variables should be set in one batch
 	for i := 1; i <= 5; i++ {
 		varName := "var" + string(rune('0'+i))
-		val, ok := state.VarState.Get(varName)
+		hv, ok := state.VarState.Get(varName)
 		if !ok {
 			t.Errorf("expected %s to exist", varName)
 			continue
 		}
-		if val != i*10 {
-			t.Errorf("expected %d, got %v", i*10, val)
+		if hv.Value == nil || hv.Value.(int) != i*10 {
+			t.Errorf("expected %d, got %v", i*10, hv.Value)
 		}
 	}
 
@@ -358,8 +358,8 @@ func TestReducer_InitRunClearsVarState(t *testing.T) {
 	defer cancel()
 
 	// Set some variables
-	state.VarState.Set("var1", 1)
-	state.VarState.Set("var2", 2)
+	state.VarState.Set("var1", shared.HershValue{Value: 1, Error: nil})
+	state.VarState.Set("var2", shared.HershValue{Value: 2, Error: nil})
 
 	go reducer.RunWithEffects(ctx, commander, handler)
 

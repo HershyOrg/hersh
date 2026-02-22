@@ -8,9 +8,10 @@ import (
 	"github.com/HershyOrg/hersh/shared"
 )
 
-// Logger interface for context value logging.
+// Logger interface for context value logging and effect logging.
 type Logger interface {
 	LogContextValue(key string, oldValue, newValue any, operation string)
+	LogEffect(msg string)
 }
 
 // HershContext implements core.HershContext interface.
@@ -18,13 +19,14 @@ type Logger interface {
 // messages, watcher reference, and user-defined values.
 type HershContext struct {
 	context.Context
-	watcherID   string
-	message     *shared.Message
-	watcher     any // Watcher reference (stored as any to avoid circular dependency with hersh package)
-	valueStore  map[string]any
-	envVarMap   map[string]string // Environment variables (immutable after initialization)
-	valuesMutex sync.RWMutex
-	logger      Logger
+	watcherID       string
+	message         *shared.Message
+	triggeredSignal *shared.TriggeredSignal
+	watcher         any // Watcher reference (stored as any to avoid circular dependency with hersh package)
+	valueStore      map[string]any
+	envVarMap       map[string]string // Environment variables (immutable after initialization)
+	valuesMutex     sync.RWMutex
+	logger          Logger
 }
 
 // New creates a new HershContext with the given parameters.
@@ -46,6 +48,12 @@ func (hc *HershContext) WatcherID() string {
 
 func (hc *HershContext) Message() *shared.Message {
 	return hc.message
+}
+
+func (hc *HershContext) GetTriggeredSignal() *shared.TriggeredSignal {
+	hc.valuesMutex.RLock()
+	defer hc.valuesMutex.RUnlock()
+	return hc.triggeredSignal
 }
 
 func (hc *HershContext) GetValue(key string) any {
@@ -117,6 +125,14 @@ func (hc *HershContext) SetMessage(msg *shared.Message) {
 	hc.message = msg
 }
 
+// SetTriggeredSignal updates the triggered signal information.
+// This is called internally by the framework during execution.
+func (hc *HershContext) SetTriggeredSignal(ts *shared.TriggeredSignal) {
+	hc.valuesMutex.Lock()
+	defer hc.valuesMutex.Unlock()
+	hc.triggeredSignal = ts
+}
+
 // UpdateContext replaces the underlying context.
 // This is used by EffectHandler when creating execution contexts with timeouts.
 func (hc *HershContext) UpdateContext(ctx context.Context) {
@@ -147,4 +163,10 @@ func (hc *HershContext) SetEnvVars(envVars map[string]string) {
 			hc.envVarMap[k] = v
 		}
 	}
+}
+
+// GetLogger returns the logger instance.
+// This is used by hersh.Log and hersh.PrintWithLog functions.
+func (hc *HershContext) GetLogger() Logger {
+	return hc.logger
 }

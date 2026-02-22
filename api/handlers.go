@@ -11,16 +11,16 @@ import (
 // WatcherAPIHandlers provides HTTP handlers for WatcherServer API
 type WatcherAPIHandlers struct {
 	// Using interface{} to avoid circular dependency with hersh package
-	getState      func() string
-	isRunning     func() bool
-	getWatcherID  func() string
-	getLogger     func() LoggerInterface
-	getSignals    func() SignalsInterface
-	sendMessage   func(string) error
-	getManager    func() ManagerInterface
-	getVarState   func() VarStateInterface
-	getConfig     func() ConfigInterface
-	startTime     time.Time
+	getState     func() string
+	isRunning    func() bool
+	getWatcherID func() string
+	getLogger    func() LoggerInterface
+	getSignals   func() SignalsInterface
+	sendMessage  func(string) error
+	getManager   func() ManagerInterface
+	getVarState  func() VarStateInterface
+	getConfig    func() ConfigInterface
+	startTime    time.Time
 }
 
 // LoggerInterface defines methods needed from manager.Logger
@@ -30,6 +30,7 @@ type LoggerInterface interface {
 	GetWatchErrorLog() []interface{}
 	GetContextLog() []interface{}
 	GetStateTransitionFaultLog() []interface{}
+	GetEffectResults() []interface{}
 }
 
 // SignalsInterface defines methods needed from manager.SignalChannels
@@ -134,12 +135,15 @@ func (h *WatcherAPIHandlers) HandleLogs(w http.ResponseWriter, r *http.Request) 
 	response := LogsResponse{}
 
 	switch logType {
-	case "effect":
-		logs := logger.GetEffectLog()
-		response.EffectLogs = h.limitEffectLogs(logs, limit)
 	case "reduce":
 		logs := logger.GetReduceLog()
 		response.ReduceLogs = h.limitReduceLogs(logs, limit)
+	case "effect":
+		logs := logger.GetEffectLog()
+		response.EffectLogs = h.limitEffectLogs(logs, limit)
+	case "effect_result":
+		logs := logger.GetEffectResults()
+		response.EffectResults = h.limitEffectResults(logs, limit)
 	case "watch_error":
 		logs := logger.GetWatchErrorLog()
 		response.WatchErrorLogs = h.limitWatchErrorLogs(logs, limit)
@@ -155,6 +159,7 @@ func (h *WatcherAPIHandlers) HandleLogs(w http.ResponseWriter, r *http.Request) 
 		response.WatchErrorLogs = h.limitWatchErrorLogs(logger.GetWatchErrorLog(), limit)
 		response.ContextLogs = h.limitContextLogs(logger.GetContextLog(), limit)
 		response.StateFaultLogs = h.limitStateFaultLogs(logger.GetStateTransitionFaultLog(), limit)
+		response.EffectResults = h.limitEffectResults(logger.GetEffectResults(), limit)
 	default:
 		http.Error(w, fmt.Sprintf("invalid log type: %s", logType), http.StatusBadRequest)
 		return
@@ -193,6 +198,13 @@ func (h *WatcherAPIHandlers) limitContextLogs(logs []interface{}, limit int) []i
 }
 
 func (h *WatcherAPIHandlers) limitStateFaultLogs(logs []interface{}, limit int) []interface{} {
+	if len(logs) > limit {
+		return logs[len(logs)-limit:]
+	}
+	return logs
+}
+
+func (h *WatcherAPIHandlers) limitEffectResults(logs []interface{}, limit int) []interface{} {
 	if len(logs) > limit {
 		return logs[len(logs)-limit:]
 	}

@@ -69,6 +69,15 @@ func (la *loggerAdapter) GetStateTransitionFaultLog() []interface{} {
 	return result
 }
 
+func (la *loggerAdapter) GetEffectResults() []interface{} {
+	logs := la.logger.GetEffectResults()
+	result := make([]interface{}, len(logs))
+	for i, log := range logs {
+		result[i] = log
+	}
+	return result
+}
+
 // signalsAdapter adapts manager.SignalChannels to api.SignalsInterface
 type signalsAdapter struct {
 	signals *manager.SignalChannels
@@ -206,7 +215,20 @@ type varStateAdapter struct {
 }
 
 func (vsa *varStateAdapter) GetAll() map[string]interface{} {
-	return vsa.state.GetAll()
+	hvMap := vsa.state.GetAll()
+	result := make(map[string]interface{}, len(hvMap))
+	for k, hv := range hvMap {
+		// Convert HershValue to interface{} for API compatibility
+		if hv.IsError() {
+			result[k] = map[string]interface{}{
+				"value": hv.Value,
+				"error": hv.Error.Error(),
+			}
+		} else {
+			result[k] = hv.Value
+		}
+	}
+	return result
 }
 
 // configAdapter adapts shared.WatcherConfig to api.ConfigInterface

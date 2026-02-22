@@ -135,9 +135,9 @@ func (eh *EffectHandler) executeEffect(effect EffectDefinition) *WatcherSig {
 
 	switch e := effect.(type) {
 	case *RunScriptEffect:
-		result, sig = eh.runScript()
+		result, sig = eh.runScript(e)
 	case *InitRunScriptEffect:
-		result, sig = eh.initRunScript()
+		result, sig = eh.initRunScript(e)
 	case *ClearRunScriptEffect:
 		result, sig = eh.clearRunScript(e.HookState)
 	case *JustKillEffect:
@@ -165,9 +165,9 @@ func (eh *EffectHandler) executeEffect(effect EffectDefinition) *WatcherSig {
 
 // runScript executes the managed function.
 // Returns (result, sig) where sig is the state transition signal.
-func (eh *EffectHandler) runScript() (*EffectResult, *WatcherSig) {
+func (eh *EffectHandler) runScript(effect *RunScriptEffect) (*EffectResult, *WatcherSig) {
 	result := &EffectResult{
-		Effect:    &RunScriptEffect{},
+		Effect:    effect,
 		Timestamp: time.Now(),
 	}
 
@@ -179,10 +179,11 @@ func (eh *EffectHandler) runScript() (*EffectResult, *WatcherSig) {
 	// Consume message
 	msg := eh.state.UserState.ConsumeMessage()
 
-	// Update persistent HershContext with new context and message
+	// Update persistent HershContext with new context, message, and triggered signal
 	// All Watch calls will use this context and respect the timeout
 	eh.hershCtx.UpdateContext(execCtx)
 	eh.hershCtx.SetMessage(msg)
+	eh.hershCtx.SetTriggeredSignal(effect.TriggeredSignal)
 
 	// Get managedFunc with read lock
 	eh.mu.RLock()
@@ -282,11 +283,14 @@ func (eh *EffectHandler) handleScriptError(err error) *WatcherSig {
 
 // initRunScript performs initialization run.
 // Returns (result, sig).
-func (eh *EffectHandler) initRunScript() (*EffectResult, *WatcherSig) {
+func (eh *EffectHandler) initRunScript(effect *InitRunScriptEffect) (*EffectResult, *WatcherSig) {
 	result := &EffectResult{
-		Effect:    &InitRunScriptEffect{},
+		Effect:    effect,
 		Timestamp: time.Now(),
 	}
+
+	// Set triggered signal for initialization
+	eh.hershCtx.SetTriggeredSignal(effect.TriggeredSignal)
 
 	// Phase 1: Run once to trigger Watch registrations
 	phase1Result := eh.runScriptOnce()

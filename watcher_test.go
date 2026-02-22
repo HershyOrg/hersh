@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/HershyOrg/hersh/manager"
+	"github.com/HershyOrg/hersh/shared"
 )
 
 // TestWatchCall_BasicFunctionality tests basic WatchCall behavior
@@ -25,12 +26,12 @@ func TestWatchCall_BasicFunctionality(t *testing.T) {
 		// WatchCall with compute function
 		val := WatchCall(
 			func() (manager.VarUpdateFunc, error) {
-				return func(prev any) (any, bool, error) {
+				return func(prev HershValue) (HershValue, bool, error) {
 					newVal := atomic.AddInt32(&varValue, 1)
-					if prev == nil {
-						return newVal, true, nil
+					if prev.Value == nil {
+						return HershValue{Value: newVal, Error: nil}, true, nil
 					}
-					return newVal, newVal != prev.(int32), nil
+					return HershValue{Value: newVal, Error: nil}, newVal != prev.Value.(int32), nil
 				}, nil
 			},
 			"testVar",
@@ -38,7 +39,7 @@ func TestWatchCall_BasicFunctionality(t *testing.T) {
 			ctx,
 		)
 
-		if val != nil {
+		if val.Value != nil {
 			t.Logf("WatchCall returned: %v", val)
 		}
 
@@ -84,8 +85,8 @@ func TestWatchCall_ValuePersistence(t *testing.T) {
 
 		val := WatchCall(
 			func() (manager.VarUpdateFunc, error) {
-				return func(prev any) (any, bool, error) {
-					return executionCount, true, nil
+				return func(prev HershValue) (HershValue, bool, error) {
+					return HershValue{Value: executionCount, Error: nil}, true, nil
 				}, nil
 			},
 			"counter",
@@ -93,7 +94,7 @@ func TestWatchCall_ValuePersistence(t *testing.T) {
 			ctx,
 		)
 
-		if val != nil {
+		if val.Value != nil {
 			observedValues = append(observedValues, val)
 			t.Logf("Execution %d: observed value = %v", executionCount, val)
 		}
@@ -117,8 +118,10 @@ func TestWatchCall_ValuePersistence(t *testing.T) {
 
 	// Verify that values increase over time (persistence)
 	for i := 1; i < len(observedValues); i++ {
-		if observedValues[i].(int) <= observedValues[i-1].(int) {
-			t.Errorf("Expected increasing values, got %v -> %v", observedValues[i-1], observedValues[i])
+		curr := observedValues[i].(HershValue).Value.(int)
+		prev := observedValues[i-1].(HershValue).Value.(int)
+		if curr <= prev {
+			t.Errorf("Expected increasing values, got %v -> %v", prev, curr)
 		}
 	}
 
@@ -138,14 +141,14 @@ func TestWatchCall_NoChangeDoesNotTrigger(t *testing.T) {
 
 		val := WatchCall(
 			func() (manager.VarUpdateFunc, error) {
-				return func(prev any) (any, bool, error) {
+				return func(prev HershValue) (HershValue, bool, error) {
 					atomic.AddInt32(&computeCallCount, 1)
 					// First call: initialize with changed=true
 					// Subsequent calls: return same value with changed=false
-					if prev == nil {
-						return 42, true, nil // Initialize
+					if prev.Value == nil {
+						return HershValue{Value: 42, Error: nil}, true, nil // Initialize
 					}
-					return 42, false, nil // No change
+					return HershValue{Value: 42, Error: nil}, false, nil // No change
 				}, nil
 			},
 			"staticVar",
@@ -191,16 +194,41 @@ func TestWatchFlow_ChannelBased(t *testing.T) {
 	config := DefaultWatcherConfig()
 	watcher := NewWatcher(config, nil, nil)
 
-	sourceChan := make(chan any, 10)
 	receivedValues := make([]any, 0)
 	executeCount := int32(0)
+
+	// Create channel function (new WatchFlow signature)
+	getChannelFunc := func(ctx context.Context) (<-chan shared.FlowValue, error) {
+		sourceChan := make(chan shared.FlowValue, 10)
+
+		go func() {
+			defer close(sourceChan)
+
+			// Send initial value
+			time.Sleep(50 * time.Millisecond)
+			sourceChan <- shared.FlowValue{V: 0, E: nil}
+
+			// Send more values
+			for i := 1; i <= 5; i++ {
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(100 * time.Millisecond):
+					sourceChan <- shared.FlowValue{V: i, E: nil}
+					t.Logf("Sent value: %d", i)
+				}
+			}
+		}()
+
+		return sourceChan, nil
+	}
 
 	managedFunc := func(msg *Message, ctx HershContext) error {
 		atomic.AddInt32(&executeCount, 1)
 
-		val := WatchFlow(sourceChan, "flowVar", ctx)
+		val := WatchFlow(getChannelFunc, "flowVar", ctx)
 
-		if val != nil {
+		if val.Value != nil {
 			receivedValues = append(receivedValues, val)
 			t.Logf("Execution %d: received value = %v", atomic.LoadInt32(&executeCount), val)
 		}
@@ -210,26 +238,11 @@ func TestWatchFlow_ChannelBased(t *testing.T) {
 
 	watcher.Manage(managedFunc, "test")
 
-	// Send initial value to allow initialization to complete
-	go func() {
-		time.Sleep(50 * time.Millisecond)
-		sourceChan <- 0
-	}()
-
 	err := watcher.Start()
 	if err != nil {
 		t.Fatalf("Failed to start watcher: %v", err)
 	}
 	defer watcher.Stop()
-
-	// Send more values through channel
-	go func() {
-		for i := 1; i <= 5; i++ {
-			time.Sleep(100 * time.Millisecond)
-			sourceChan <- i
-			t.Logf("Sent value: %d", i)
-		}
-	}()
 
 	time.Sleep(800 * time.Millisecond)
 
@@ -250,29 +263,35 @@ func TestWatchFlow_ChannelClosed(t *testing.T) {
 	config := DefaultWatcherConfig()
 	watcher := NewWatcher(config, nil, nil)
 
-	sourceChan := make(chan any, 5)
 	receivedValues := make([]any, 0)
 
+	// Create channel function that closes after sending values
+	getChannelFunc := func(ctx context.Context) (<-chan shared.FlowValue, error) {
+		sourceChan := make(chan shared.FlowValue, 5)
+
+		go func() {
+			defer close(sourceChan)
+
+			time.Sleep(50 * time.Millisecond)
+			sourceChan <- shared.FlowValue{V: 1, E: nil}
+			time.Sleep(100 * time.Millisecond)
+			sourceChan <- shared.FlowValue{V: 2, E: nil}
+			time.Sleep(100 * time.Millisecond)
+			t.Log("Channel closed")
+		}()
+
+		return sourceChan, nil
+	}
+
 	managedFunc := func(msg *Message, ctx HershContext) error {
-		val := WatchFlow(sourceChan, "flowVar", ctx)
-		if val != nil {
+		val := WatchFlow(getChannelFunc, "flowVar", ctx)
+		if val.Value != nil {
 			receivedValues = append(receivedValues, val)
 		}
 		return nil
 	}
 
 	watcher.Manage(managedFunc, "test")
-
-	// Send initial value before Start to allow initialization
-	go func() {
-		time.Sleep(50 * time.Millisecond)
-		sourceChan <- 1
-		time.Sleep(100 * time.Millisecond)
-		sourceChan <- 2
-		time.Sleep(100 * time.Millisecond)
-		close(sourceChan)
-		t.Log("Channel closed")
-	}()
 
 	err := watcher.Start()
 	if err != nil {
@@ -422,8 +441,8 @@ func TestWatcher_MultipleWatchVariables(t *testing.T) {
 
 		val1 := WatchCall(
 			func() (manager.VarUpdateFunc, error) {
-				return func(prev any) (any, bool, error) {
-					return atomic.AddInt32(&counter1, 1), true, nil
+				return func(prev HershValue) (HershValue, bool, error) {
+					return HershValue{Value: atomic.AddInt32(&counter1, 1), Error: nil}, true, nil
 				}, nil
 			},
 			"var1",
@@ -433,8 +452,8 @@ func TestWatcher_MultipleWatchVariables(t *testing.T) {
 
 		val2 := WatchCall(
 			func() (manager.VarUpdateFunc, error) {
-				return func(prev any) (any, bool, error) {
-					return atomic.AddInt32(&counter2, 2), true, nil
+				return func(prev HershValue) (HershValue, bool, error) {
+					return HershValue{Value: atomic.AddInt32(&counter2, 2), Error: nil}, true, nil
 				}, nil
 			},
 			"var2",
@@ -442,7 +461,7 @@ func TestWatcher_MultipleWatchVariables(t *testing.T) {
 			ctx,
 		)
 
-		if val1 != nil && val2 != nil {
+		if val1.Value != nil && val2.Value != nil {
 			t.Logf("Execution %d: var1=%v, var2=%v", atomic.LoadInt32(&executeCount), val1, val2)
 		}
 
@@ -490,8 +509,8 @@ func TestWatcher_WatchAndMemo(t *testing.T) {
 		// Watch value changes frequently
 		watchVal := WatchCall(
 			func() (manager.VarUpdateFunc, error) {
-				return func(prev any) (any, bool, error) {
-					return atomic.AddInt32(&watchCounter, 1), true, nil
+				return func(prev HershValue) (HershValue, bool, error) {
+					return HershValue{Value: atomic.AddInt32(&watchCounter, 1), Error: nil}, true, nil
 				}, nil
 			},
 			"frequentVar",
@@ -505,7 +524,7 @@ func TestWatcher_WatchAndMemo(t *testing.T) {
 			return "cached-config"
 		}, "config", ctx)
 
-		if watchVal != nil && memoVal != nil {
+		if watchVal.Value != nil && memoVal != nil {
 			t.Logf("Watch value: %v, Memo value: %v", watchVal, memoVal)
 		}
 
@@ -556,8 +575,8 @@ func TestWatcher_HershContextAccess(t *testing.T) {
 		// Use Watch to verify context is working
 		val := WatchCall(
 			func() (manager.VarUpdateFunc, error) {
-				return func(prev any) (any, bool, error) {
-					return 42, true, nil
+				return func(prev HershValue) (HershValue, bool, error) {
+					return HershValue{Value: 42, Error: nil}, true, nil
 				}, nil
 			},
 			"contextTest",
@@ -565,7 +584,7 @@ func TestWatcher_HershContextAccess(t *testing.T) {
 			ctx,
 		)
 
-		if val != nil {
+		if val.Value != nil {
 			t.Logf("Watch value: %v", val)
 		}
 
@@ -599,9 +618,9 @@ func TestWatcher_StopCancelsWatches(t *testing.T) {
 	managedFunc := func(msg *Message, ctx HershContext) error {
 		WatchCall(
 			func() (manager.VarUpdateFunc, error) {
-				return func(prev any) (any, bool, error) {
+				return func(prev HershValue) (HershValue, bool, error) {
 					atomic.AddInt32(&watchCallCount, 1)
-					return time.Now().Unix(), true, nil
+					return HershValue{Value: time.Now().Unix(), Error: nil}, true, nil
 				}, nil
 			},
 			"activeCheck",
@@ -653,14 +672,14 @@ func TestWatchCall_ErrorHandling(t *testing.T) {
 	managedFunc := func(msg *Message, ctx HershContext) error {
 		val := WatchCall(
 			func() (manager.VarUpdateFunc, error) {
-				return func(prev any) (any, bool, error) {
+				return func(prev HershValue) (HershValue, bool, error) {
 					count := atomic.AddInt32(&errorCount, 1)
 					if count%2 == 0 {
 						// Return error on even calls
-						return nil, false, context.DeadlineExceeded
+						return HershValue{}, false, context.DeadlineExceeded
 					}
 					atomic.AddInt32(&successCount, 1)
-					return count, true, nil
+					return HershValue{Value: count, Error: nil}, true, nil
 				}, nil
 			},
 			"errorVar",
@@ -668,7 +687,7 @@ func TestWatchCall_ErrorHandling(t *testing.T) {
 			ctx,
 		)
 
-		if val != nil {
+		if val.Value != nil {
 			t.Logf("Received value despite errors: %v", val)
 		}
 

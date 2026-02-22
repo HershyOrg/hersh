@@ -85,6 +85,41 @@ func (m *Message) String() string {
 	return m.Content
 }
 
+// TriggeredSignal represents which signals triggered the current execution.
+// This allows managed functions to determine what caused them to run.
+type TriggeredSignal struct {
+	// IsUserSig indicates whether a UserSig triggered this execution
+	IsUserSig bool
+
+	// IsWatcherSig indicates whether a WatcherSig triggered this execution
+	IsWatcherSig bool
+
+	// VarSigNames contains the names of variables whose VarSigs triggered this execution
+	// Multiple variables can trigger simultaneously due to batch processing
+	VarSigNames []string
+}
+
+// HasTrigger returns true if any signal was triggered.
+func (ts *TriggeredSignal) HasTrigger() bool {
+	if ts == nil {
+		return false
+	}
+	return ts.IsUserSig || ts.IsWatcherSig || len(ts.VarSigNames) > 0
+}
+
+// HasVarTrigger checks if a specific variable signal was triggered.
+func (ts *TriggeredSignal) HasVarTrigger(varName string) bool {
+	if ts == nil {
+		return false
+	}
+	for _, v := range ts.VarSigNames {
+		if v == varName {
+			return true
+		}
+	}
+	return false
+}
+
 // HershContext provides runtime context for managed functions.
 // It includes cancellation, deadlines, and access to Watcher features.
 // This is the base interface used by manager package.
@@ -96,6 +131,10 @@ type HershContext interface {
 
 	// Message returns the current user message (nil if none)
 	Message() *Message
+
+	// GetTriggeredSignal returns information about which signals triggered the current execution
+	// Returns nil if no trigger information is available (e.g., during initialization)
+	GetTriggeredSignal() *TriggeredSignal
 
 	// GetValue retrieves a value stored in the context by key
 	// Returns nil if the key does not exist
@@ -187,6 +226,103 @@ func DefaultRecoveryPolicy() RecoveryPolicy {
 			60 * time.Second, // 3rd failure: 60s
 		},
 	}
+}
+
+// FlowValue represents a value or error from a WatchFlow channel.
+// Only used internally; users receive V as 'any' type.
+type FlowValue struct {
+	V any   // Value (passed to user if E == nil)
+	E error // Error (logged internally, never exposed to user)
+}
+
+// HershValue represents a value or error from Watch variables.
+// This allows users to explicitly handle errors from watched variables.
+type HershValue struct {
+	Value   any    // The actual value (may be nil)
+	Error   error  // Error that occurred during computation (nil if no error)
+	VarName string // Name of the watched variable (empty if not from Watch)
+}
+
+// IsError returns true if this HershValue contains an error.
+func (hv HershValue) IsError() bool {
+	return hv.Error != nil
+}
+
+// IsZero returns true if Value==nil
+func (hv HershValue) IsZero() bool {
+	return hv.Value == nil
+}
+
+// IsValid returns true if !IsError && !IsZero
+func (hv HershValue) IsValid() bool {
+	return !hv.IsError() && !hv.IsZero()
+}
+
+// Unwrap returns the value and error separately (Go idiomatic pattern).
+func (hv HershValue) Unwrap() (any, error) {
+	return hv.Value, hv.Error
+}
+
+// MustValue returns the value or panics if there's an error.
+// Use this only when you're certain there won't be an error.
+func (hv HershValue) MustValue() any {
+	if hv.Error != nil {
+		panic("HershValue contains error: " + hv.Error.Error())
+	}
+	return hv.Value
+}
+
+// ValueOr returns the value if no error, otherwise returns the default value.
+func (hv HershValue) ValueOr(defaultVal any) any {
+	if hv.Error != nil {
+		return defaultVal
+	}
+	return hv.Value
+}
+
+// IsTriggered returns true if this variable was triggered in the current execution.
+// Requires a valid HershContext to check the TriggeredSignal.
+// Returns false if VarName is empty or if no trigger information is available.
+func (hv HershValue) IsTriggered(ctx HershContext) bool {
+	if hv.VarName == "" {
+		return false // Not a watched variable
+	}
+
+	trigger := ctx.GetTriggeredSignal()
+	if trigger == nil {
+		return false
+	}
+
+	return trigger.HasVarTrigger(hv.VarName)
+}
+
+// HershTick represents a time-based tick event with count tracking.
+// Used by WatchTick to provide both timestamp and tick count information.
+type HershTick struct {
+	Time      time.Time // Current tick timestamp
+	TickCount int       // Total number of ticks occurred (starts from 1)
+	VarName   string    // Name of the watched variable (empty if not from WatchTick)
+}
+
+// IsZero returns true if this is an uninitialized tick (zero value).
+func (ht HershTick) IsZero() bool {
+	return ht.Time.IsZero() && ht.TickCount == 0
+}
+
+// IsTriggered returns true if this ticker was triggered in the current execution.
+// Requires a valid HershContext to check the TriggeredSignal.
+// Returns false if VarName is empty or if no trigger information is available.
+func (ht HershTick) IsTriggered(ctx HershContext) bool {
+	if ht.VarName == "" {
+		return false // Not a watched variable
+	}
+
+	trigger := ctx.GetTriggeredSignal()
+	if trigger == nil {
+		return false
+	}
+
+	return trigger.HasVarTrigger(ht.VarName)
 }
 
 // DefaultWatcherConfig returns default configuration.

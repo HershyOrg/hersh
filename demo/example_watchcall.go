@@ -23,23 +23,23 @@ func main1() {
 		fmt.Printf("\n[Managed Function Execution]\n")
 
 		// WatchCall monitors external value and triggers re-execution on change
-		watchedValue := hersh.WatchCall(
+		hv := hersh.WatchCall(
 			func() (manager.VarUpdateFunc, error) {
-				return func(prev any) (any, bool, error) {
+				return func(prev hersh.HershValue) (hersh.HershValue, bool, error) {
 					// Simulate polling external data source
 					currentValue := externalCounter
 					externalCounter++
 
-					fmt.Printf("  Polling: prev=%v, current=%v\n", prev, currentValue)
+					fmt.Printf("  Polling: prev=%v, current=%v\n", prev.Value, currentValue)
 
 					// Detect change
-					if prev == nil {
-						return currentValue, true, nil // First call - always changed
+					if prev.Value == nil {
+						return hersh.HershValue{Value: currentValue, Error: nil}, true, nil
 					}
 
-					prevInt := prev.(int)
+					prevInt := prev.Value.(int)
 					changed := prevInt != currentValue
-					return currentValue, changed, nil
+					return hersh.HershValue{Value: currentValue, Error: nil}, changed, nil
 				}, nil
 			},
 			"externalCounter",
@@ -48,10 +48,12 @@ func main1() {
 		)
 
 		// React to the watched value
-		if watchedValue == nil {
+		if hv.Value == nil && hv.Error == nil {
 			fmt.Println("  Status: Waiting for first value...")
+		} else if hv.IsError() {
+			fmt.Printf("  ⚠️ Error: %v\n", hv.Error)
 		} else {
-			counter := watchedValue.(int)
+			counter := hv.Value.(int)
 			fmt.Printf("  Watched Value: %d\n", counter)
 
 			// Business logic based on watched value
