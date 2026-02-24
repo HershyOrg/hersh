@@ -22,6 +22,7 @@ func getWatcherFromContext(ctx HershContext) *Watcher {
 //
 // The getComputationFunc is called on each tick and returns:
 // - A VarUpdateFunc that computes the next state from the previous state
+// - skipSignal: whether to skip sending a signal (default false = send signal)
 // - An error if the computation function cannot be generated
 //
 // The returned VarUpdateFunc receives:
@@ -29,10 +30,9 @@ func getWatcherFromContext(ctx HershContext) *Watcher {
 //
 // The VarUpdateFunc returns:
 // - next: the new HershValue
-// - changed: whether the value changed
 // - error: any error that occurred during computation
 func WatchCall(
-	getComputationFunc func() (manager.VarUpdateFunc, error),
+	getComputationFunc manager.GetComputationFunc,
 	varName string,
 	tick time.Duration,
 	runCtx HershContext,
@@ -94,8 +94,8 @@ func tickWatchLoop(w *Watcher, handle *manager.TickHandle, rootCtx context.Conte
 			return
 
 		case <-ticker.C:
-			// Get computation function
-			varUpdateFunc, err := handle.GetComputationFunc()
+			// Get computation function and signal flag
+			varUpdateFunc, skipSignal, err := handle.GetComputationFunc()
 			if err != nil {
 				// Log error but continue watching
 				if logger := w.manager.GetLogger(); logger != nil {
@@ -104,10 +104,10 @@ func tickWatchLoop(w *Watcher, handle *manager.TickHandle, rootCtx context.Conte
 				continue
 			}
 
-			// Send VarSig with the computation function
-			if w.manager != nil {
+			// Send VarSig unless user wants to skip
+			if !skipSignal && w.manager != nil {
 				w.manager.GetSignals().SendVarSig(&manager.VarSig{
-					ComputedTime:       time.Now(),
+					ReceivedTime:       time.Now(),
 					TargetVarName:      handle.VarName,
 					VarUpdateFunc:      varUpdateFunc,
 					IsStateIndependent: false, // Tick is state-dependent (apply sequentially)
@@ -201,26 +201,29 @@ func flowWatchLoop(w *Watcher, handle *manager.FlowHandle, ctx context.Context, 
 				return
 			}
 
-			// Wrap value or error in a VarUpdateFunc that returns HershValue
-			varUpdateFunc := func(prev shared.HershValue) (shared.HershValue, bool, error) {
-				if flowValue.E != nil {
-					// Log error but still propagate to user
-					w.GetLogger().LogWatchError(handle.VarName, manager.ErrorPhaseExecuteComputeFunc, flowValue.E)
-					// Return HershValue with error
-					return shared.HershValue{Value: nil, Error: flowValue.E}, true, nil
+			// Send signal unless SkipSignal is true
+			if !flowValue.SkipSignal {
+				// Wrap value or error in a VarUpdateFunc that returns HershValue
+				varUpdateFunc := func(prev shared.HershValue) (shared.HershValue, error) {
+					if flowValue.E != nil {
+						// Log error but still propagate to user
+						w.GetLogger().LogWatchError(handle.VarName, manager.ErrorPhaseExecuteComputeFunc, flowValue.E)
+						// Return HershValue with error
+						return shared.HershValue{Value: nil, Error: flowValue.E}, nil
+					}
+					// Return HershValue with value
+					return shared.HershValue{Value: flowValue.V, Error: nil}, nil
 				}
-				// Return HershValue with value
-				return shared.HershValue{Value: flowValue.V, Error: nil}, true, nil
-			}
 
-			// Send VarSig
-			if w.manager != nil {
-				w.manager.GetSignals().SendVarSig(&manager.VarSig{
-					ComputedTime:       time.Now(),
-					TargetVarName:      handle.VarName,
-					VarUpdateFunc:      varUpdateFunc,
-					IsStateIndependent: true, // Flow is state-independent (use last value only)
-				})
+				// Send VarSig
+				if w.manager != nil {
+					w.manager.GetSignals().SendVarSig(&manager.VarSig{
+						ReceivedTime:       time.Now(),
+						TargetVarName:      handle.VarName,
+						VarUpdateFunc:      varUpdateFunc,
+						IsStateIndependent: true, // Flow is state-independent (use last value only)
+					})
+				}
 			}
 		}
 	}

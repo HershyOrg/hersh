@@ -29,10 +29,10 @@ func TestHershValue_IsTriggered(t *testing.T) {
 	watcher.Manage(func(msg *shared.Message, runCtx shared.HershContext) error {
 		// Watch two variables
 		price := hersh.WatchCall(
-			func() (manager.VarUpdateFunc, error) {
-				return func(prev shared.HershValue) (shared.HershValue, bool, error) {
-					return shared.HershValue{Value: 100.0, Error: nil}, true, nil
-				}, nil
+			func() (manager.VarUpdateFunc, bool, error) {
+				return func(prev shared.HershValue) (shared.HershValue, error) {
+					return shared.HershValue{Value: 100.0, Error: nil}, nil
+				}, false, nil
 			},
 			"price",
 			100*time.Millisecond,
@@ -40,10 +40,10 @@ func TestHershValue_IsTriggered(t *testing.T) {
 		)
 
 		volume := hersh.WatchCall(
-			func() (manager.VarUpdateFunc, error) {
-				return func(prev shared.HershValue) (shared.HershValue, bool, error) {
-					return shared.HershValue{Value: 50.0, Error: nil}, true, nil
-				}, nil
+			func() (manager.VarUpdateFunc, bool, error) {
+				return func(prev shared.HershValue) (shared.HershValue, error) {
+					return shared.HershValue{Value: 50.0, Error: nil}, nil
+				}, false, nil
 			},
 			"volume",
 			100*time.Millisecond,
@@ -188,10 +188,10 @@ func TestIsTriggered_Convenience(t *testing.T) {
 
 	watcher.Manage(func(msg *shared.Message, runCtx shared.HershContext) error {
 		price := hersh.WatchCall(
-			func() (manager.VarUpdateFunc, error) {
-				return func(prev shared.HershValue) (shared.HershValue, bool, error) {
-					return shared.HershValue{Value: 42.0, Error: nil}, true, nil
-				}, nil
+			func() (manager.VarUpdateFunc, bool, error) {
+				return func(prev shared.HershValue) (shared.HershValue, error) {
+					return shared.HershValue{Value: 42.0, Error: nil}, nil
+				}, false, nil
 			},
 			"price",
 			100*time.Millisecond,

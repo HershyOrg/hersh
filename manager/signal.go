@@ -10,13 +10,13 @@ import (
 )
 
 // VarUpdateFunc is a function that updates a variable's state.
-// It receives the previous HershValue and returns the next HershValue, a changed flag, and an error.
+// It receives the previous HershValue and returns the next HershValue and an error.
 // The error parameter is for VarUpdateFunc execution errors (separate from prev.Error).
-type VarUpdateFunc func(prev shared.HershValue) (next shared.HershValue, changed bool, err error)
+type VarUpdateFunc func(prev shared.HershValue) (next shared.HershValue, err error)
 
 // VarSig represents a change in a watched variable's state.
 type VarSig struct {
-	ComputedTime       time.Time
+	ReceivedTime       time.Time
 	TargetVarName      string
 	VarUpdateFunc      VarUpdateFunc // Function to compute the next state
 	IsStateIndependent bool          // If true, only last signal matters; if false, apply sequentially
@@ -27,7 +27,7 @@ func (s *VarSig) Priority() shared.SignalPriority {
 }
 
 func (s *VarSig) CreatedAt() time.Time {
-	return s.ComputedTime
+	return s.ReceivedTime
 }
 
 func (s *VarSig) String() string {
@@ -36,7 +36,7 @@ func (s *VarSig) String() string {
 		typeStr = "independent"
 	}
 	return fmt.Sprintf("VarSig{var=%s, type=%s, time=%s}",
-		s.TargetVarName, typeStr, s.ComputedTime.Format(time.RFC3339))
+		s.TargetVarName, typeStr, s.ReceivedTime.Format(time.RFC3339))
 }
 
 // UserSig represents a change in the user message state.
@@ -64,9 +64,9 @@ func (s *UserSig) String() string {
 
 // WatcherSig represents a change in the Watcher's state.
 type WatcherSig struct {
-	SignalTime  time.Time
-	TargetState shared.ManagerInnerState
-	Reason      string // Why this transition is happening
+	ReceivedTime time.Time
+	TargetState  shared.ManagerInnerState
+	Reason       string // Why this transition is happening
 }
 
 func (s *WatcherSig) Priority() shared.SignalPriority {
@@ -74,12 +74,12 @@ func (s *WatcherSig) Priority() shared.SignalPriority {
 }
 
 func (s *WatcherSig) CreatedAt() time.Time {
-	return s.SignalTime
+	return s.ReceivedTime
 }
 
 func (s *WatcherSig) String() string {
 	return fmt.Sprintf("WatcherSig{target=%s, reason=%s, time=%s}",
-		s.TargetState, s.Reason, s.SignalTime.Format(time.RFC3339))
+		s.TargetState, s.Reason, s.ReceivedTime.Format(time.RFC3339))
 }
 
 // SignalChannels holds all signal channels for the Manager.

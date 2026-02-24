@@ -210,9 +210,9 @@ func (eh *EffectHandler) runScript(effect *RunScriptEffect) (*EffectResult, *Wat
 		result.Success = false
 		result.Error = execCtx.Err()
 		sig = &WatcherSig{
-			SignalTime:  time.Now(),
-			TargetState: shared.StateReady,
-			Reason:      "execution timeout",
+			ReceivedTime: time.Now(),
+			TargetState:  shared.StateReady,
+			Reason:       "execution timeout",
 		}
 		// Note: goroutine may still be running, but context cancellation
 		// will be propagated to all child contexts (WatchCall, etc.)
@@ -225,9 +225,9 @@ func (eh *EffectHandler) runScript(effect *RunScriptEffect) (*EffectResult, *Wat
 		} else {
 			result.Success = true
 			sig = &WatcherSig{
-				SignalTime:  time.Now(),
-				TargetState: shared.StateReady,
-				Reason:      "execution completed successfully",
+				ReceivedTime: time.Now(),
+				TargetState:  shared.StateReady,
+				Reason:       "execution completed successfully",
 			}
 		}
 	}
@@ -242,15 +242,15 @@ func (eh *EffectHandler) handleScriptError(err error) *WatcherSig {
 	switch err.(type) {
 	case *shared.KillError:
 		return &WatcherSig{
-			SignalTime:  time.Now(),
-			TargetState: shared.StateKilled,
-			Reason:      err.Error(),
+			ReceivedTime: time.Now(),
+			TargetState:  shared.StateKilled,
+			Reason:       err.Error(),
 		}
 	case *shared.StopError:
 		return &WatcherSig{
-			SignalTime:  time.Now(),
-			TargetState: shared.StateStopped,
-			Reason:      err.Error(),
+			ReceivedTime: time.Now(),
+			TargetState:  shared.StateStopped,
+			Reason:       err.Error(),
 		}
 	default:
 		// Count consecutive failures from recent logs
@@ -264,8 +264,8 @@ func (eh *EffectHandler) handleScriptError(err error) *WatcherSig {
 			}
 
 			return &WatcherSig{
-				SignalTime:  time.Now(),
-				TargetState: shared.StateReady,
+				ReceivedTime: time.Now(),
+				TargetState:  shared.StateReady,
 				Reason: fmt.Sprintf("error suppressed (%d/%d) after %v delay: %v",
 					consecutiveFails, eh.config.RecoveryPolicy.MinConsecutiveFailures, delay, err),
 			}
@@ -273,8 +273,8 @@ func (eh *EffectHandler) handleScriptError(err error) *WatcherSig {
 
 		// Too many consecutive failures - enter recovery mode
 		return &WatcherSig{
-			SignalTime:  time.Now(),
-			TargetState: shared.StateWaitRecover,
+			ReceivedTime: time.Now(),
+			TargetState:  shared.StateWaitRecover,
 			Reason: fmt.Sprintf("consecutive failures (%d) >= threshold (%d): %v",
 				consecutiveFails, eh.config.RecoveryPolicy.MinConsecutiveFailures, err),
 		}
@@ -310,9 +310,9 @@ func (eh *EffectHandler) initRunScript(effect *InitRunScriptEffect) (*EffectResu
 	if len(eh.expectedVars) == 0 {
 		result.Success = true
 		sig := &WatcherSig{
-			SignalTime:  time.Now(),
-			TargetState: shared.StateReady,
-			Reason:      "initialization complete (no variables to watch)",
+			ReceivedTime: time.Now(),
+			TargetState:  shared.StateReady,
+			Reason:       "initialization complete (no variables to watch)",
 		}
 		return result, sig
 	}
@@ -321,9 +321,9 @@ func (eh *EffectHandler) initRunScript(effect *InitRunScriptEffect) (*EffectResu
 	if eh.state.VarState.AllInitialized(eh.expectedVars) {
 		result.Success = true
 		sig := &WatcherSig{
-			SignalTime:  time.Now(),
-			TargetState: shared.StateReady,
-			Reason:      "initialization complete",
+			ReceivedTime: time.Now(),
+			TargetState:  shared.StateReady,
+			Reason:       "initialization complete",
 		}
 		return result, sig
 	}
@@ -417,9 +417,9 @@ func (eh *EffectHandler) clearRunScript(hookState shared.ManagerInnerState) (*Ef
 
 	// Return signal to transition to hook state
 	sig := &WatcherSig{
-		SignalTime:  time.Now(),
-		TargetState: hookState,
-		Reason:      fmt.Sprintf("cleanup completed for %s", hookState),
+		ReceivedTime: time.Now(),
+		TargetState:  hookState,
+		Reason:       fmt.Sprintf("cleanup completed for %s", hookState),
 	}
 
 	return result, sig
@@ -435,9 +435,9 @@ func (eh *EffectHandler) GetCleanupDone() <-chan struct{} {
 // Returns (result, sig).
 func (eh *EffectHandler) justKill() (*EffectResult, *WatcherSig) {
 	sig := &WatcherSig{
-		SignalTime:  time.Now(),
-		TargetState: shared.StateKilled,
-		Reason:      "kill requested",
+		ReceivedTime: time.Now(),
+		TargetState:  shared.StateKilled,
+		Reason:       "kill requested",
 	}
 	result := &EffectResult{
 		Effect:    &JustKillEffect{},
@@ -451,9 +451,9 @@ func (eh *EffectHandler) justKill() (*EffectResult, *WatcherSig) {
 // Returns (result, sig).
 func (eh *EffectHandler) justCrash() (*EffectResult, *WatcherSig) {
 	sig := &WatcherSig{
-		SignalTime:  time.Now(),
-		TargetState: shared.StateCrashed,
-		Reason:      "crash requested",
+		ReceivedTime: time.Now(),
+		TargetState:  shared.StateCrashed,
+		Reason:       "crash requested",
 	}
 	result := &EffectResult{
 		Effect:    &JustCrashEffect{},
@@ -479,9 +479,9 @@ func (eh *EffectHandler) recover() (*EffectResult, *WatcherSig) {
 		result.Success = false
 		result.Error = fmt.Errorf("max consecutive failures reached: %d", consecutiveFails)
 		sig := &WatcherSig{
-			SignalTime:  time.Now(),
-			TargetState: shared.StateCrashed,
-			Reason:      "max consecutive failures exceeded",
+			ReceivedTime: time.Now(),
+			TargetState:  shared.StateCrashed,
+			Reason:       "max consecutive failures exceeded",
 		}
 		return result, sig
 	}
@@ -493,9 +493,9 @@ func (eh *EffectHandler) recover() (*EffectResult, *WatcherSig) {
 	// Attempt recovery - return InitRun signal
 	result.Success = true
 	sig := &WatcherSig{
-		SignalTime:  time.Now(),
-		TargetState: shared.StateInitRun,
-		Reason:      fmt.Sprintf("recovery attempt after %d failures (backoff: %v)", consecutiveFails, delay),
+		ReceivedTime: time.Now(),
+		TargetState:  shared.StateInitRun,
+		Reason:       fmt.Sprintf("recovery attempt after %d failures (backoff: %v)", consecutiveFails, delay),
 	}
 
 	return result, sig

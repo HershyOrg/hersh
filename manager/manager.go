@@ -15,10 +15,14 @@ type WatchHandle interface {
 	GetCancelFunc() context.CancelFunc
 }
 
+// GetComputationFunc returns the varUpdateFunc, a skipSignal flag
+// (false by default; set to true if you want to skip), and an error.
+type GetComputationFunc func() (varUpdateFunc VarUpdateFunc, skipSignal bool, err error)
+
 // TickHandle represents a tick-based watch variable.
 type TickHandle struct {
 	VarName            string
-	GetComputationFunc func() (VarUpdateFunc, error) // Returns a function to compute next state
+	GetComputationFunc GetComputationFunc // Returns a function to compute next state and skipSignal flag
 	Tick               time.Duration
 	CancelFunc         context.CancelFunc
 }

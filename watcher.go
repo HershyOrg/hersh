@@ -156,22 +156,10 @@ func (w *Watcher) Start() error {
 
 	// Send InitRun signal to start initialization
 	w.manager.GetSignals().SendWatcherSig(&manager.WatcherSig{
-		SignalTime:  time.Now(),
-		TargetState: StateInitRun,
-		Reason:      "watcher start",
+		ReceivedTime: time.Now(),
+		TargetState:  StateInitRun,
+		Reason:       "watcher start",
 	})
-
-	// Wait for initialization to complete using channel (deterministic, no timeouts)
-	// The Manager will transition to Ready state when all variables are initialized
-	readyAfterInitChan := w.manager.GetState().WaitReadyAfterInit()
-	<-readyAfterInitChan
-
-	// Check final state - it should be Ready, but could be Crashed/Killed if init failed
-	finalState := w.manager.GetState().GetManagerInnerState()
-	if finalState != StateReady {
-		// Initialization failed
-		return fmt.Errorf("initialization failed: watcher entered %s state", finalState)
-	}
 
 	return nil
 }
@@ -191,9 +179,9 @@ func (w *Watcher) Stop() error {
 
 	// Send Stop signal
 	w.manager.GetSignals().SendWatcherSig(&manager.WatcherSig{
-		SignalTime:  time.Now(),
-		TargetState: StateStopped,
-		Reason:      "user requested stop",
+		ReceivedTime: time.Now(),
+		TargetState:  StateStopped,
+		Reason:       "user requested stop",
 	})
 
 	// Wait for actual cleanup completion using channels (deterministic, no timeouts)

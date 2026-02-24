@@ -130,7 +130,6 @@ type ManagerState struct {
 	// State transition notification channels
 	// These channels are closed when the Manager reaches the corresponding state
 	stoppedAfterCleanupChan  chan struct{}
-	readyAfterInitChan       chan struct{}
 	stoppedChanClosed        bool
 	readyAfterInitChanClosed bool
 }
@@ -142,7 +141,6 @@ func NewManagerState(initialState shared.ManagerInnerState) *ManagerState {
 		UserState:               NewUserState(),
 		ManagerInnerState:       initialState,
 		stoppedAfterCleanupChan: make(chan struct{}),
-		readyAfterInitChan:      make(chan struct{}),
 	}
 }
 
@@ -167,11 +165,7 @@ func (ms *ManagerState) SetManagerInnerState(state shared.ManagerInnerState) {
 		close(ms.stoppedAfterCleanupChan)
 		ms.stoppedChanClosed = true
 	}
-	if state == shared.StateReady && !ms.readyAfterInitChanClosed {
-		//close 로 신호 보낸 효과를 냄.
-		close(ms.readyAfterInitChan)
-		ms.readyAfterInitChanClosed = true
-	}
+
 }
 
 // WaitStoppedAfterCleanup returns a channel that closes when Manager reaches Stopped state.
@@ -180,14 +174,6 @@ func (ms *ManagerState) WaitStoppedAfterCleanup() <-chan struct{} {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
 	return ms.stoppedAfterCleanupChan
-}
-
-// WaitReadyAfterInit returns a channel that closes when Manager reaches Ready state.
-// This allows deterministic waiting without timeouts.
-func (ms *ManagerState) WaitReadyAfterInit() <-chan struct{} {
-	ms.mu.RLock()
-	defer ms.mu.RUnlock()
-	return ms.readyAfterInitChan
 }
 
 // Snapshot returns a complete state snapshot for logging.

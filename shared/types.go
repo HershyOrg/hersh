@@ -231,8 +231,9 @@ func DefaultRecoveryPolicy() RecoveryPolicy {
 // FlowValue represents a value or error from a WatchFlow channel.
 // Only used internally; users receive V as 'any' type.
 type FlowValue struct {
-	V any   // Value (passed to user if E == nil)
-	E error // Error (logged internally, never exposed to user)
+	V          any   // Value (passed to user if E == nil)
+	E          error // Error (logged internally, never exposed to user)
+	SkipSignal bool  // If true, skip sending VarSig (default false = send signal)
 }
 
 // HershValue represents a value or error from Watch variables.

@@ -9,8 +9,8 @@ Hersh is a lightweight reactive framework that provides deterministic state mana
 ## Features
 
 - 🎯 **Managed Execution**: Single function triggered by messages or reactive changes
-- 🔄 **WatchCall**: Polling-based reactive variables (tick-based with change detection)
-- 📡 **WatchFlow**: Channel-based reactive variables (event streams with error handling)
+- 🔄 **WatchCall**: Polling-based reactive variables with explicit signal control
+- 📡 **WatchFlow**: Channel-based reactive variables with signal skipping support
 - ⏰ **WatchTick**: Time-based ticker helper (automatic count tracking)
 - 💾 **Memo**: Session-scoped caching for expensive computations
 - 📦 **HershContext**: Persistent key-value storage with atomic updates
@@ -25,7 +25,7 @@ Hersh is a lightweight reactive framework that provides deterministic state mana
 ### Installation
 
 ```bash
-go get github.com/HershyOrg/hersh@v0.3.0
+go get github.com/HershyOrg/hersh@v0.3.1
 ```
 
 ### Demo
@@ -333,27 +333,27 @@ State flow: `NotRun → InitRun → Ready → Running → Ready → ...`
 
 ### Reactive Variables
 
-#### WatchCall (Polling)
+#### WatchCall (Polling with Signal Control)
 
-Polls external values at fixed intervals and returns `HershValue`:
+Polls external values at fixed intervals with explicit signal control:
 
 ```go
 counter := hersh.WatchCall(
-    func() (manager.VarUpdateFunc, error) {
+    func() (manager.VarUpdateFunc, bool, error) {
         // This outer function is called every tick
         // Can perform network calls, file reads, etc.
-        return func(prev shared.HershValue) (shared.HershValue, bool, error) {
-            // This inner function computes next state from previous state
+
+        // The inner VarUpdateFunc computes next state from previous
+        updateFunc := func(prev shared.HershValue) (shared.HershValue, error) {
             // Should be pure (no side effects)
             value := fetchExternalValue()
+            return shared.HershValue{Value: value}, nil
+        }
 
-            if prev.IsZero() {
-                return shared.HershValue{Value: value}, true, nil
-            }
+        // Signal control: false = send signal, true = skip signal
+        skipSignal := false  // Default: send signal to trigger execution
 
-            changed := prev.Value != value
-            return shared.HershValue{Value: value}, changed, nil
-        }, nil
+        return updateFunc, skipSignal, nil
     },
     "varName", 500*time.Millisecond, ctx,
 )
@@ -369,13 +369,14 @@ if counter.IsError() {
 **Characteristics**:
 
 - Returns `HershValue` (not `any`)
-- Re-executes managed function only when `changed = true`
+- **Signal Control**: `skipSignal = false` sends signal (triggers execution), `true` skips
+- **No change detection**: Execution is controlled by signals, not value changes
 - Returns empty `HershValue` until first value is ready
 - State-dependent: processes updates sequentially
 
-#### WatchFlow (Channel)
+#### WatchFlow (Channel with Signal Control)
 
-Monitors channels for new values and returns `HershValue`:
+Monitors channels for new values with explicit signal control:
 
 ```go
 event := hersh.WatchFlow(
@@ -390,7 +391,12 @@ event := hersh.WatchFlow(
                 case <-flowCtx.Done():
                     return
                 case data := <-externalSource:
-                    ch <- shared.FlowValue{V: data, E: nil}
+                    // SkipSignal: false = send signal (default), true = skip signal
+                    ch <- shared.FlowValue{
+                        V:          data,
+                        E:          nil,
+                        SkipSignal: false,  // Send signal to trigger execution
+                    }
                 }
             }
         }()
@@ -409,9 +415,10 @@ if event.IsValid() {
 **Characteristics**:
 
 - Returns `HershValue` (not `any`)
+- **Signal Control**: `SkipSignal = false` sends signal (triggers execution), `true` skips
+- **No change detection**: Execution is controlled by signals, not value changes
 - Channel lifecycle managed by `flowCtx`
 - Errors can be sent via `FlowValue{V: nil, E: err}`
-- Re-executes managed function on each channel event
 - Returns empty `HershValue` until first value received
 - State-independent: uses last value only (deduplication)
 
@@ -756,8 +763,9 @@ func WatchFlow(
 
 // FlowValue (internal type)
 type FlowValue struct {
-    V any   // Value (passed to user if E == nil)
-    E error // Error (logged internally, converted to HershValue.Error)
+    V          any   // Value (passed to user if E == nil)
+    E          error // Error (logged internally, converted to HershValue.Error)
+    SkipSignal bool  // If true, skip sending VarSig (default false = send signal)
 }
 
 // WatchTick - Time-based ticker (hutil package)
@@ -901,8 +909,9 @@ func (ts *TriggeredSignal) HasVarTrigger(varName string) bool
 
 ```go
 type FlowValue struct {
-    V any   // Value (passed to user if E == nil)
-    E error // Error (logged internally, never exposed to user)
+    V          any   // Value (passed to user if E == nil)
+    E          error // Error (logged internally, never exposed to user)
+    SkipSignal bool  // If true, skip sending VarSig (default false = send signal)
 }
 ```
 
@@ -1292,6 +1301,124 @@ if err != nil {
 4. **Test thoroughly** as these are breaking changes
 5. **Review demo/long/main.go** for updated usage patterns
 
+## Migration Guide (v0.3.0 → v0.3.1)
+
+### Major Paradigm Shift
+
+**v0.3.0**: Change detection paradigm - signals triggered when values changed
+**v0.3.1**: Signal control paradigm - explicit control over signal triggering
+
+The concept of "change" has been entirely removed from Hersh. The only trigger criterion is now "was a signal sent or not."
+
+### Breaking Changes
+
+#### 1. WatchCall Signature Changed
+
+**Before (v0.3.0):**
+
+```go
+hersh.WatchCall(
+    func() (manager.VarUpdateFunc, error) {
+        return func(prev shared.HershValue) (shared.HershValue, bool, error) {
+            value := fetchValue()
+            changed := prev.Value != value
+            return shared.HershValue{Value: value}, changed, nil
+        }, nil
+    },
+    "varName", tick, ctx,
+)
+```
+
+**After (v0.3.1):**
+
+```go
+hersh.WatchCall(
+    func() (manager.VarUpdateFunc, bool, error) {
+        return func(prev shared.HershValue) (shared.HershValue, error) {
+            value := fetchValue()
+            return shared.HershValue{Value: value}, nil
+        }, false, nil  // false = don't skip signal (send it)
+    },
+    "varName", tick, ctx,
+)
+```
+
+#### 2. FlowValue Structure Updated
+
+**Before (v0.3.0):**
+
+```go
+ch <- shared.FlowValue{
+    V: value,
+    E: nil,
+}
+```
+
+**After (v0.3.1):**
+
+```go
+ch <- shared.FlowValue{
+    V:          value,
+    E:          nil,
+    SkipSignal: false,  // false = send signal (default behavior)
+}
+```
+
+#### 3. VarUpdateFunc Signature Simplified
+
+**Before (v0.3.0):**
+
+```go
+type VarUpdateFunc func(prev shared.HershValue) (next shared.HershValue, hasChanged bool, err error)
+```
+
+**After (v0.3.1):**
+
+```go
+type VarUpdateFunc func(prev shared.HershValue) (next shared.HershValue, err error)
+```
+
+### Other Changes
+
+#### 4. Start() No Longer Blocks
+
+- **v0.3.0**: Start() blocked until InitRun → Ready transition completed
+- **v0.3.1**: Start() returns immediately after launching the reactive engine
+- Impact: If you relied on Start() blocking to ensure Ready state, adjust your code
+
+#### 5. Field Rename
+
+- **ComputedTime** → **ReceivedTime** in VarSig structure for semantic accuracy
+
+### Migration Steps
+
+1. **Update WatchCall implementations:**
+   - Change function signature from `func() (VarUpdateFunc, error)` to `func() (VarUpdateFunc, bool, error)`
+   - Remove `hasChanged` boolean from VarUpdateFunc returns
+   - Add `skipSignal` boolean (use `false` for normal behavior)
+
+2. **Update WatchFlow implementations:**
+   - Add `SkipSignal: false` to FlowValue when you want to trigger execution
+   - Set `SkipSignal: true` only when you want to skip triggering
+
+3. **Update custom VarUpdateFunc implementations:**
+   - Remove the `hasChanged bool` return value
+   - Signal control is now in the outer function
+
+4. **Review Start() usage:**
+   - If you depended on Start() blocking, add appropriate synchronization
+
+5. **Update field references:**
+   - Replace `ComputedTime` with `ReceivedTime` where used
+
+### Key Concept: SkipSignal
+
+The `SkipSignal` field uses inverted logic for better ergonomics:
+- **Default (`false`)**: Send signal, trigger execution (common case)
+- **Set to `true`**: Skip signal, don't trigger execution (special case)
+
+This design makes the default behavior (sending signals) require no extra code.
+
 ## Examples
 
 ### Example 1: Complete Feature Demo
@@ -1591,6 +1718,34 @@ github.com/HershyOrg/hersh/
     ├── example_watchcall.go
     └── example_trading.go
 ```
+
+## Changelog
+
+### v0.3.1 (2025-02-25)
+
+**Breaking Changes - Signal Control Paradigm**
+
+- **Removed change detection**: The concept of "change" has been entirely removed from Hersh
+- **Explicit signal control**: Replaced implicit change detection with explicit signal control via `SkipSignal`
+- **WatchCall signature changed**: Added `bool` parameter for signal control
+- **VarUpdateFunc simplified**: Removed `hasChanged bool` return value
+- **FlowValue enhanced**: Added `SkipSignal` field for channel-based signal control
+
+**Other Changes**
+
+- **Start() behavior**: No longer blocks until Ready state is reached
+- **Field rename**: `ComputedTime` → `ReceivedTime` in VarSig for semantic accuracy
+
+See the [Migration Guide](#migration-guide-v030--v031) for detailed upgrade instructions.
+
+### v0.3.0 (2025-02-22)
+
+**Major Breaking Changes - Better Declarative API**
+
+- Renamed `VarSig.SignalTime` → `VarSig.ReceivedTime`
+- Updated `WatchFlow` to use channel factory functions
+- Enhanced `TriggeredSignal` for better control flow
+- Added `IsTriggered()` method to `HershValue` and `HershTick`
 
 ## Real-World Usage
 

@@ -43,10 +43,10 @@ func TestRecovery_SuppressPhase(t *testing.T) {
 
 		// Register a watch to trigger periodic re-execution
 		hersh.WatchCall(
-			func() (manager.VarUpdateFunc, error) {
-				return func(prev shared.HershValue) (shared.HershValue, bool, error) {
-					return shared.HershValue{Value: time.Now().Unix(), Error: nil}, true, nil
-				}, nil
+			func() (manager.VarUpdateFunc, bool, error) {
+				return func(prev shared.HershValue) (shared.HershValue, error) {
+					return shared.HershValue{Value: time.Now().Unix(), Error: nil}, nil
+				}, false, nil
 			},
 			"tick",
 			100*time.Millisecond,
@@ -119,10 +119,10 @@ func TestRecovery_EnterRecoveryMode(t *testing.T) {
 
 		// Register a watch to trigger periodic re-execution
 		hersh.WatchCall(
-			func() (manager.VarUpdateFunc, error) {
-				return func(prev shared.HershValue) (shared.HershValue, bool, error) {
-					return shared.HershValue{Value: time.Now().Unix(), Error: nil}, true, nil
-				}, nil
+			func() (manager.VarUpdateFunc, bool, error) {
+				return func(prev shared.HershValue) (shared.HershValue, error) {
+					return shared.HershValue{Value: time.Now().Unix(), Error: nil}, nil
+				}, false, nil
 			},
 			"tick",
 			100*time.Millisecond,
@@ -194,10 +194,10 @@ func TestRecovery_SuccessfulRecovery(t *testing.T) {
 
 		// Register a watch to trigger periodic re-execution
 		hersh.WatchCall(
-			func() (manager.VarUpdateFunc, error) {
-				return func(prev shared.HershValue) (shared.HershValue, bool, error) {
-					return shared.HershValue{Value: time.Now().Unix(), Error: nil}, true, nil
-				}, nil
+			func() (manager.VarUpdateFunc, bool, error) {
+				return func(prev shared.HershValue) (shared.HershValue, error) {
+					return shared.HershValue{Value: time.Now().Unix(), Error: nil}, nil
+				}, false, nil
 			},
 			"tick",
 			100*time.Millisecond,
@@ -268,10 +268,10 @@ func TestRecovery_MaxFailureCrash(t *testing.T) {
 
 		// Register a watch to trigger periodic re-execution
 		hersh.WatchCall(
-			func() (manager.VarUpdateFunc, error) {
-				return func(prev shared.HershValue) (shared.HershValue, bool, error) {
-					return shared.HershValue{Value: time.Now().Unix(), Error: nil}, true, nil
-				}, nil
+			func() (manager.VarUpdateFunc, bool, error) {
+				return func(prev shared.HershValue) (shared.HershValue, error) {
+					return shared.HershValue{Value: time.Now().Unix(), Error: nil}, nil
+				}, false, nil
 			},
 			"tick",
 			100*time.Millisecond,
@@ -351,10 +351,10 @@ func TestRecovery_CounterReset(t *testing.T) {
 
 		// Register a watch to trigger periodic re-execution
 		hersh.WatchCall(
-			func() (manager.VarUpdateFunc, error) {
-				return func(prev shared.HershValue) (shared.HershValue, bool, error) {
-					return shared.HershValue{Value: time.Now().Unix(), Error: nil}, true, nil
-				}, nil
+			func() (manager.VarUpdateFunc, bool, error) {
+				return func(prev shared.HershValue) (shared.HershValue, error) {
+					return shared.HershValue{Value: time.Now().Unix(), Error: nil}, nil
+				}, false, nil
 			},
 			"tick",
 			100*time.Millisecond,

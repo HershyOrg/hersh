@@ -38,9 +38,11 @@ func TestReducer_VarSigTransition(t *testing.T) {
 
 	// Send VarSig
 	sig := &VarSig{
-		ComputedTime:       time.Now(),
-		TargetVarName:      "testVar",
-		VarUpdateFunc:      func(prev shared.HershValue) (shared.HershValue, bool, error) { return shared.HershValue{Value: 42, Error: nil}, true, nil },
+		ReceivedTime:  time.Now(),
+		TargetVarName: "testVar",
+		VarUpdateFunc: func(prev shared.HershValue) (shared.HershValue, error) {
+			return shared.HershValue{Value: 42, Error: nil}, nil
+		},
 		IsStateIndependent: false,
 	}
 	signals.SendVarSig(sig)
@@ -162,9 +164,9 @@ func TestReducer_WatcherSigTransition(t *testing.T) {
 
 	// Send WatcherSig to transition to Ready
 	sig := &WatcherSig{
-		SignalTime:  time.Now(),
-		TargetState: shared.StateReady,
-		Reason:      "execution completed",
+		ReceivedTime: time.Now(),
+		TargetState:  shared.StateReady,
+		Reason:       "execution completed",
 	}
 	signals.SendWatcherSig(sig)
 
@@ -203,9 +205,11 @@ func TestReducer_PriorityOrdering(t *testing.T) {
 
 	// Send signals in reverse priority order (Var, User, Watcher)
 	varSig := &VarSig{
-		ComputedTime:       time.Now(),
-		TargetVarName:      "var1",
-		VarUpdateFunc:      func(prev shared.HershValue) (shared.HershValue, bool, error) { return shared.HershValue{Value: 1, Error: nil}, true, nil },
+		ReceivedTime:  time.Now(),
+		TargetVarName: "var1",
+		VarUpdateFunc: func(prev shared.HershValue) (shared.HershValue, error) {
+			return shared.HershValue{Value: 1, Error: nil}, nil
+		},
 		IsStateIndependent: false,
 	}
 	userSig := &UserSig{
@@ -213,9 +217,9 @@ func TestReducer_PriorityOrdering(t *testing.T) {
 		UserMessage:  &shared.Message{Content: "user"},
 	}
 	watcherSig := &WatcherSig{
-		SignalTime:  time.Now(),
-		TargetState: shared.StateInitRun,
-		Reason:      "init",
+		ReceivedTime: time.Now(),
+		TargetState:  shared.StateInitRun,
+		Reason:       "init",
 	}
 
 	// Send in this order: Var, User, Watcher
@@ -262,9 +266,11 @@ func TestReducer_BatchVarSigCollection(t *testing.T) {
 	for i := 1; i <= 5; i++ {
 		currentVal := i * 10
 		sig := &VarSig{
-			ComputedTime:       time.Now(),
-			TargetVarName:      "var" + string(rune('0'+i)),
-			VarUpdateFunc:      func(prev shared.HershValue) (shared.HershValue, bool, error) { return shared.HershValue{Value: currentVal, Error: nil}, true, nil },
+			ReceivedTime:  time.Now(),
+			TargetVarName: "var" + string(rune('0'+i)),
+			VarUpdateFunc: func(prev shared.HershValue) (shared.HershValue, error) {
+				return shared.HershValue{Value: currentVal, Error: nil}, nil
+			},
 			IsStateIndependent: false,
 		}
 		signals.SendVarSig(sig)
@@ -316,9 +322,9 @@ func TestReducer_CrashedIsTerminal(t *testing.T) {
 
 	// Try to transition from Crashed
 	sig := &WatcherSig{
-		SignalTime:  time.Now(),
-		TargetState: shared.StateReady,
-		Reason:      "attempt recovery",
+		ReceivedTime: time.Now(),
+		TargetState:  shared.StateReady,
+		Reason:       "attempt recovery",
 	}
 	signals.SendWatcherSig(sig)
 
@@ -365,9 +371,9 @@ func TestReducer_InitRunClearsVarState(t *testing.T) {
 
 	// Send InitRun signal
 	sig := &WatcherSig{
-		SignalTime:  time.Now(),
-		TargetState: shared.StateInitRun,
-		Reason:      "initialization",
+		ReceivedTime: time.Now(),
+		TargetState:  shared.StateInitRun,
+		Reason:       "initialization",
 	}
 	signals.SendWatcherSig(sig)
 

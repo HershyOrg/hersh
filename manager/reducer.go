@@ -175,9 +175,9 @@ func (r *Reducer) reduceAndExecuteEffect(sig shared.Signal, commander *EffectCom
 		if _, ok := sig.(*VarSig); ok && handler.CheckInitializationComplete() {
 			// All variables initialized - transition to Ready immediately
 			initCompleteSig := &WatcherSig{
-				SignalTime:  time.Now(),
-				TargetState: shared.StateReady,
-				Reason:      "initialization complete (all variables initialized)",
+				ReceivedTime: time.Now(),
+				TargetState:  shared.StateReady,
+				Reason:       "initialization complete (all variables initialized)",
 			}
 			// Process Ready transition recursively (atomic)
 			r.reduceAndExecuteEffect(initCompleteSig, commander, handler)
@@ -345,7 +345,7 @@ APPLY:
 				currentHV = shared.HershValue{} // Empty HershValue if not exists
 			}
 
-			nextHV, changed, err := lastSig.VarUpdateFunc(currentHV)
+			nextHV, err := lastSig.VarUpdateFunc(currentHV)
 			if err != nil {
 				// VarUpdateFunc execution error - log and store error in HershValue
 				if r.logger != nil {
@@ -356,9 +356,8 @@ APPLY:
 				continue
 			}
 
-			if changed {
-				updates[varName] = nextHV
-			}
+			// Always update since user explicitly sent signal
+			updates[varName] = nextHV
 
 		} else {
 			// State-dependent (Tick): apply all signals sequentially
@@ -367,30 +366,22 @@ APPLY:
 				currentHV = shared.HershValue{} // Empty HershValue if not exists
 			}
 
-			hasAnyChange := false
 			for _, sig := range varSigs {
-				nextHV, changed, err := sig.VarUpdateFunc(currentHV)
+				nextHV, err := sig.VarUpdateFunc(currentHV)
 				if err != nil {
 					// VarUpdateFunc execution error - log and store error in HershValue
 					if r.logger != nil {
 						r.logger.LogWatchError(varName, ErrorPhaseExecuteComputeFunc, err)
 					}
-					// Store the error and mark as changed
+					// Store the error
 					currentHV = shared.HershValue{Value: nil, Error: err}
-					hasAnyChange = true
 					continue
 				}
-
-				if changed {
-					currentHV = nextHV // Next function's input
-					hasAnyChange = true
-				}
+				currentHV = nextHV // Next function's input
 			}
 
-			// Only add to updates if at least one signal reported a change
-			if hasAnyChange {
-				updates[varName] = currentHV
-			}
+			// Always update since user explicitly sent signals
+			updates[varName] = currentHV
 		}
 	}
 

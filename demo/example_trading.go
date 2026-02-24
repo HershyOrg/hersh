@@ -75,29 +75,29 @@ func tradingFunc(msg *hersh.Message, ctx hersh.HershContext) error {
 
 	// Watch Bitcoin price - always outside conditional logic
 	priceHV := hersh.WatchCall(
-		func() (manager.VarUpdateFunc, error) {
+		func() (manager.VarUpdateFunc, bool, error) {
 			// 네트워크 요청은 미리 해둔 후, func엔 가능한 계산만 남기는게 성능상 유리.
 			price, err := client.GetBitcoinPrice()
 			if err != nil {
-				return nil, err
+				return nil, false, err
+			}
+			// VarUpdateFunc that updates the price value and determines signal
+			updateFunc := func(prev hersh.HershValue) (hersh.HershValue, error) {
+				// Check if price changed significantly (>$100)
+				if prev.Value != nil {
+					prevPrice := prev.Value.(float64)
+					if abs(price-prevPrice) > 100.0 {
+						fmt.Printf("  [Watch] Price changed: $%.2f → $%.2f (Δ $%.2f)\n",
+							prevPrice, price, price-prevPrice)
+					}
+				}
+				return hersh.HershValue{Value: price, Error: nil}, nil
 			}
 
-			return func(prev hersh.HershValue) (hersh.HershValue, bool, error) {
-				// Check if price changed significantly (>$100)
-				if prev.Value == nil {
-					return hersh.HershValue{Value: price, Error: nil}, true, nil
-				}
+			// Don't skip signal for demo (always signal to show price updates)
+			skipSignal := false
 
-				prevPrice := prev.Value.(float64)
-				changed := abs(price-prevPrice) > 100.0
-
-				if changed {
-					fmt.Printf("  [Watch] Price changed: $%.2f → $%.2f (Δ $%.2f)\n",
-						prevPrice, price, price-prevPrice)
-				}
-
-				return hersh.HershValue{Value: price, Error: nil}, changed, nil
-			}, nil
+			return updateFunc, skipSignal, nil
 		},
 		"btcPrice",
 		500*time.Millisecond, // Poll every 500ms
@@ -227,7 +227,7 @@ func cleanupFunc(ctx hersh.HershContext) {
 	fmt.Println("\n✅ Cleanup complete")
 }
 
-func main2() {
+func main() {
 	fmt.Println("=== Hersh Trading Bot Demo ===")
 	fmt.Println()
 	fmt.Println("Polymarket + Bitcoin Price Monitor.")

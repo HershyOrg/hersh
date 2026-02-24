@@ -21,7 +21,7 @@ import (
 // This test exposes issues where batch updates lose intermediate states.
 func TestBatchUpdate_LongExecution(t *testing.T) {
 	config := shared.DefaultWatcherConfig()
-	config.ServerPort = 0 // Random port for test isolation
+	config.ServerPort = 0                    // Random port for test isolation
 	config.DefaultTimeout = 10 * time.Second // Long timeout for 3s execution
 	watcher := hersh.NewWatcher(config, nil, nil)
 
@@ -82,8 +82,8 @@ func TestBatchUpdate_LongExecution(t *testing.T) {
 
 		// Variable A: Counter increment
 		valA := hersh.WatchCall(
-			func() (manager.VarUpdateFunc, error) {
-				return func(prev shared.HershValue) (shared.HershValue, bool, error) {
+			func() (manager.VarUpdateFunc, bool, error) {
+				return func(prev shared.HershValue) (shared.HershValue, error) {
 					var current int32
 					if prev.Value == nil {
 						current = 0
@@ -94,8 +94,8 @@ func TestBatchUpdate_LongExecution(t *testing.T) {
 					next := current + 1
 					atomic.AddInt32(&ticksA, 1)
 
-					return shared.HershValue{Value: next, Error: nil}, true, nil
-				}, nil
+					return shared.HershValue{Value: next, Error: nil}, nil
+				}, false, nil // Don't skip signal
 			},
 			"counterA",
 			5*time.Millisecond,
@@ -104,8 +104,8 @@ func TestBatchUpdate_LongExecution(t *testing.T) {
 
 		// Variable B: String append
 		valB := hersh.WatchCall(
-			func() (manager.VarUpdateFunc, error) {
-				return func(prev shared.HershValue) (shared.HershValue, bool, error) {
+			func() (manager.VarUpdateFunc, bool, error) {
+				return func(prev shared.HershValue) (shared.HershValue, error) {
 					var current string
 					if prev.Value == nil {
 						current = ""
@@ -116,8 +116,8 @@ func TestBatchUpdate_LongExecution(t *testing.T) {
 					next := current + "X"
 					atomic.AddInt32(&ticksB, 1)
 
-					return shared.HershValue{Value: next, Error: nil}, true, nil
-				}, nil
+					return shared.HershValue{Value: next, Error: nil}, nil
+				}, false, nil
 			},
 			"stringB",
 			5*time.Millisecond,
@@ -140,10 +140,11 @@ func TestBatchUpdate_LongExecution(t *testing.T) {
 				}
 			}(),
 			valC.Value != nil)
-		time.Sleep(6 * time.Second)
+
 		// First execution: variables are nil, just register them
 		if execNum == 1 {
 			t.Log("[Execution 1] Variables registered, will be updated by watch loops")
+			time.Sleep(6 * time.Second)
 			return nil // Let VarSig signals trigger re-execution
 		}
 
@@ -179,7 +180,7 @@ func TestBatchUpdate_LongExecution(t *testing.T) {
 	}
 
 	// Wait for execution to complete
-	time.Sleep(5 * time.Second)
+	time.Sleep(10 * time.Second)
 
 	t.Log("Stopping watcher...")
 	err = watcher.Stop()
@@ -267,8 +268,8 @@ func TestBatchUpdate_RapidExecutions(t *testing.T) {
 		execNum := atomic.AddInt32(&executionCount, 1)
 
 		valA := hersh.WatchCall(
-			func() (manager.VarUpdateFunc, error) {
-				return func(prev shared.HershValue) (shared.HershValue, bool, error) {
+			func() (manager.VarUpdateFunc, bool, error) {
+				return func(prev shared.HershValue) (shared.HershValue, error) {
 					var current int32
 					if prev.Value == nil {
 						current = 0
@@ -277,8 +278,8 @@ func TestBatchUpdate_RapidExecutions(t *testing.T) {
 					}
 
 					atomic.AddInt32(&ticksA, 1)
-					return shared.HershValue{Value: current + 1, Error: nil}, true, nil
-				}, nil
+					return shared.HershValue{Value: current + 1, Error: nil}, nil
+				}, false, nil
 			},
 			"counter",
 			5*time.Millisecond,

@@ -30,10 +30,10 @@ func TestConcurrentWatch_MultipleWatchCall(t *testing.T) {
 	managedFunc := func(msg *shared.Message, ctx shared.HershContext) error {
 		// Watch 1: 50ms interval
 		hersh.WatchCall(
-			func() (manager.VarUpdateFunc, error) {
-				return func(prev shared.HershValue) (shared.HershValue, bool, error) {
-					return shared.HershValue{Value: atomic.AddInt32(&watch1Count, 1), Error: nil}, true, nil
-				}, nil
+			func() (manager.VarUpdateFunc, bool, error) {
+				return func(prev shared.HershValue) (shared.HershValue, error) {
+					return shared.HershValue{Value: atomic.AddInt32(&watch1Count, 1), Error: nil}, nil
+				}, false, nil
 			},
 			"watch1",
 			50*time.Millisecond,
@@ -42,10 +42,10 @@ func TestConcurrentWatch_MultipleWatchCall(t *testing.T) {
 
 		// Watch 2: 100ms interval (should be ~2x slower)
 		hersh.WatchCall(
-			func() (manager.VarUpdateFunc, error) {
-				return func(prev shared.HershValue) (shared.HershValue, bool, error) {
-					return shared.HershValue{Value: atomic.AddInt32(&watch2Count, 1), Error: nil}, true, nil
-				}, nil
+			func() (manager.VarUpdateFunc, bool, error) {
+				return func(prev shared.HershValue) (shared.HershValue, error) {
+					return shared.HershValue{Value: atomic.AddInt32(&watch2Count, 1), Error: nil}, nil
+				}, false, nil
 			},
 			"watch2",
 			100*time.Millisecond,
@@ -54,10 +54,10 @@ func TestConcurrentWatch_MultipleWatchCall(t *testing.T) {
 
 		// Watch 3: 200ms interval (should be ~4x slower)
 		hersh.WatchCall(
-			func() (manager.VarUpdateFunc, error) {
-				return func(prev shared.HershValue) (shared.HershValue, bool, error) {
-					return shared.HershValue{Value: atomic.AddInt32(&watch3Count, 1), Error: nil}, true, nil
-				}, nil
+			func() (manager.VarUpdateFunc, bool, error) {
+				return func(prev shared.HershValue) (shared.HershValue, error) {
+					return shared.HershValue{Value: atomic.AddInt32(&watch3Count, 1), Error: nil}, nil
+				}, false, nil
 			},
 			"watch3",
 			200*time.Millisecond,
@@ -130,10 +130,10 @@ func TestConcurrentWatch_WatchPlusMessages(t *testing.T) {
 
 		// Watch updates every 100ms
 		hersh.WatchCall(
-			func() (manager.VarUpdateFunc, error) {
-				return func(prev shared.HershValue) (shared.HershValue, bool, error) {
-					return shared.HershValue{Value: atomic.AddInt32(&watchCounter, 1), Error: nil}, true, nil
-				}, nil
+			func() (manager.VarUpdateFunc, bool, error) {
+				return func(prev shared.HershValue) (shared.HershValue, error) {
+					return shared.HershValue{Value: atomic.AddInt32(&watchCounter, 1), Error: nil}, nil
+				}, false, nil
 			},
 			"counter",
 			100*time.Millisecond,
@@ -213,10 +213,10 @@ func TestConcurrentWatch_ManyWatches(t *testing.T) {
 		for i := 0; i < watchCount; i++ {
 			idx := i // Capture for closure
 			hersh.WatchCall(
-				func() (manager.VarUpdateFunc, error) {
-					return func(prev shared.HershValue) (shared.HershValue, bool, error) {
-						return shared.HershValue{Value: atomic.AddInt32(&counters[idx], 1), Error: nil}, true, nil
-					}, nil
+				func() (manager.VarUpdateFunc, bool, error) {
+					return func(prev shared.HershValue) (shared.HershValue, error) {
+						return shared.HershValue{Value: atomic.AddInt32(&counters[idx], 1), Error: nil}, nil
+					}, false, nil
 				},
 				"watch"+string(rune('0'+i)),
 				100*time.Millisecond,
@@ -291,10 +291,10 @@ func TestConcurrentWatch_RapidStateChanges(t *testing.T) {
 
 		// Very fast watch updates (20ms)
 		hersh.WatchCall(
-			func() (manager.VarUpdateFunc, error) {
-				return func(prev shared.HershValue) (shared.HershValue, bool, error) {
-					return shared.HershValue{Value: atomic.AddInt32(&counter, 1), Error: nil}, true, nil
-				}, nil
+			func() (manager.VarUpdateFunc, bool, error) {
+				return func(prev shared.HershValue) (shared.HershValue, error) {
+					return shared.HershValue{Value: atomic.AddInt32(&counter, 1), Error: nil}, nil
+				}, false, nil
 			},
 			"rapidCounter",
 			20*time.Millisecond,

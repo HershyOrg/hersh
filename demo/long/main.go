@@ -126,15 +126,6 @@ func main() {
 		fmt.Printf("❌ Initialization failed: %v\n", err)
 		os.Exit(1)
 	}
-
-	// Start user input handler (only if stdin is available)
-	go func() {
-		stat, _ := os.Stdin.Stat()
-		if (stat.Mode() & os.ModeCharDevice) != 0 {
-			handleUserInput(watcher)
-		}
-	}()
-
 	// Wait for either context timeout or OS signal
 	select {
 	case <-ctx.Done():
@@ -148,6 +139,14 @@ func main() {
 		fmt.Println("\n\n🛑 Interrupt signal received...")
 		watcher.Stop()
 	}
+
+	// Start user input handler (only if stdin is available)
+	go func() {
+		stat, _ := os.Stdin.Stat()
+		if (stat.Mode() & os.ModeCharDevice) != 0 {
+			handleUserInput(watcher)
+		}
+	}()
 
 	// Print logger summary
 	fmt.Println("\n" + strings.Repeat("═", 80))

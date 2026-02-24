@@ -27,11 +27,11 @@ func TestTriggeredSignal_WatchCall(t *testing.T) {
 
 	watcher.Manage(func(msg *shared.Message, runCtx shared.HershContext) error {
 		// WatchCall: 100ms마다 카운터 증가
-		counterHV := hersh.WatchCall(func() (manager.VarUpdateFunc, error) {
-			return func(prev shared.HershValue) (shared.HershValue, bool, error) {
+		counterHV := hersh.WatchCall(func() (manager.VarUpdateFunc, bool, error) {
+			return func(prev shared.HershValue) (shared.HershValue, error) {
 				counter++
-				return shared.HershValue{Value: counter}, true, nil
-			}, nil
+				return shared.HershValue{Value: counter}, nil
+			}, false, nil
 		}, "counter", 100*time.Millisecond, runCtx)
 
 		// 트리거 정보 확인
@@ -252,14 +252,14 @@ func TestTriggeredSignal_Mixed(t *testing.T) {
 		tick := hutil.WatchTick("ticker", 300*time.Millisecond, runCtx)
 
 		// 3. WatchCall: 카운터
-		counterHV := hersh.WatchCall(func() (manager.VarUpdateFunc, error) {
-			return func(prev shared.HershValue) (shared.HershValue, bool, error) {
+		counterHV := hersh.WatchCall(func() (manager.VarUpdateFunc, bool, error) {
+			return func(prev shared.HershValue) (shared.HershValue, error) {
 				val := 0
 				if prev.Value != nil {
 					val = prev.Value.(int)
 				}
-				return shared.HershValue{Value: val + 1}, true, nil
-			}, nil
+				return shared.HershValue{Value: val + 1}, nil
+			}, false, nil
 		}, "counter", 250*time.Millisecond, runCtx)
 
 		// 트리거 감지

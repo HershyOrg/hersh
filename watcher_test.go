@@ -25,14 +25,14 @@ func TestWatchCall_BasicFunctionality(t *testing.T) {
 
 		// WatchCall with compute function
 		val := WatchCall(
-			func() (manager.VarUpdateFunc, error) {
-				return func(prev HershValue) (HershValue, bool, error) {
+			func() (manager.VarUpdateFunc, bool, error) {
+				return func(prev HershValue) (HershValue, error) {
 					newVal := atomic.AddInt32(&varValue, 1)
 					if prev.Value == nil {
-						return HershValue{Value: newVal, Error: nil}, true, nil
+						return HershValue{Value: newVal, Error: nil}, nil
 					}
-					return HershValue{Value: newVal, Error: nil}, newVal != prev.Value.(int32), nil
-				}, nil
+					return HershValue{Value: newVal, Error: nil}, nil
+				}, false, nil
 			},
 			"testVar",
 			100*time.Millisecond,
@@ -84,10 +84,10 @@ func TestWatchCall_ValuePersistence(t *testing.T) {
 		executionCount++
 
 		val := WatchCall(
-			func() (manager.VarUpdateFunc, error) {
-				return func(prev HershValue) (HershValue, bool, error) {
-					return HershValue{Value: executionCount, Error: nil}, true, nil
-				}, nil
+			func() (manager.VarUpdateFunc, bool, error) {
+				return func(prev HershValue) (HershValue, error) {
+					return HershValue{Value: executionCount, Error: nil}, nil
+				}, false, nil
 			},
 			"counter",
 			50*time.Millisecond,
@@ -126,67 +126,6 @@ func TestWatchCall_ValuePersistence(t *testing.T) {
 	}
 
 	t.Logf("Test complete - observed values: %v", observedValues)
-}
-
-// TestWatchCall_NoChangeDoesNotTrigger tests that unchanged values don't trigger re-execution
-func TestWatchCall_NoChangeDoesNotTrigger(t *testing.T) {
-	config := DefaultWatcherConfig()
-	watcher := NewWatcher(config, nil, nil)
-
-	executeCount := int32(0)
-	computeCallCount := int32(0)
-
-	managedFunc := func(msg *Message, ctx HershContext) error {
-		atomic.AddInt32(&executeCount, 1)
-
-		val := WatchCall(
-			func() (manager.VarUpdateFunc, error) {
-				return func(prev HershValue) (HershValue, bool, error) {
-					atomic.AddInt32(&computeCallCount, 1)
-					// First call: initialize with changed=true
-					// Subsequent calls: return same value with changed=false
-					if prev.Value == nil {
-						return HershValue{Value: 42, Error: nil}, true, nil // Initialize
-					}
-					return HershValue{Value: 42, Error: nil}, false, nil // No change
-				}, nil
-			},
-			"staticVar",
-			50*time.Millisecond,
-			ctx,
-		)
-
-		t.Logf("Execution %d: val = %v", atomic.LoadInt32(&executeCount), val)
-		return nil
-	}
-
-	watcher.Manage(managedFunc, "test")
-
-	err := watcher.Start()
-	if err != nil {
-		t.Fatalf("Failed to start watcher: %v", err)
-	}
-	defer watcher.Stop()
-
-	time.Sleep(400 * time.Millisecond)
-
-	executions := atomic.LoadInt32(&executeCount)
-	computeCalls := atomic.LoadInt32(&computeCallCount)
-
-	t.Logf("Test complete - executions: %d, compute calls: %d", executions, computeCalls)
-
-	// Compute should be called multiple times (every 50ms for 400ms = ~8 times)
-	if computeCalls < 5 {
-		t.Errorf("Expected at least 5 compute calls, got %d", computeCalls)
-	}
-
-	// But executions should be minimal
-	// Only initial run during InitRun phase (val = nil)
-	// The first VarSig with changed=true initializes the variable in InitRun state
-	// After transition to Ready, all subsequent VarSigs have changed=false, so no Running transitions
-	if executions != 1 {
-		t.Errorf("Expected exactly 1 execution (only InitRun), got %d", executions)
-	}
 }
 
 // TestWatchFlow_ChannelBased tests WatchFlow with channel-based reactive programming
@@ -440,10 +379,10 @@ func TestWatcher_MultipleWatchVariables(t *testing.T) {
 		atomic.AddInt32(&executeCount, 1)
 
 		val1 := WatchCall(
-			func() (manager.VarUpdateFunc, error) {
-				return func(prev HershValue) (HershValue, bool, error) {
-					return HershValue{Value: atomic.AddInt32(&counter1, 1), Error: nil}, true, nil
-				}, nil
+			func() (manager.VarUpdateFunc, bool, error) {
+				return func(prev HershValue) (HershValue, error) {
+					return HershValue{Value: atomic.AddInt32(&counter1, 1), Error: nil}, nil
+				}, false, nil
 			},
 			"var1",
 			80*time.Millisecond,
@@ -451,10 +390,10 @@ func TestWatcher_MultipleWatchVariables(t *testing.T) {
 		)
 
 		val2 := WatchCall(
-			func() (manager.VarUpdateFunc, error) {
-				return func(prev HershValue) (HershValue, bool, error) {
-					return HershValue{Value: atomic.AddInt32(&counter2, 2), Error: nil}, true, nil
-				}, nil
+			func() (manager.VarUpdateFunc, bool, error) {
+				return func(prev HershValue) (HershValue, error) {
+					return HershValue{Value: atomic.AddInt32(&counter2, 2), Error: nil}, nil
+				}, false, nil
 			},
 			"var2",
 			80*time.Millisecond,
@@ -508,10 +447,10 @@ func TestWatcher_WatchAndMemo(t *testing.T) {
 	managedFunc := func(msg *Message, ctx HershContext) error {
 		// Watch value changes frequently
 		watchVal := WatchCall(
-			func() (manager.VarUpdateFunc, error) {
-				return func(prev HershValue) (HershValue, bool, error) {
-					return HershValue{Value: atomic.AddInt32(&watchCounter, 1), Error: nil}, true, nil
-				}, nil
+			func() (manager.VarUpdateFunc, bool, error) {
+				return func(prev HershValue) (HershValue, error) {
+					return HershValue{Value: atomic.AddInt32(&watchCounter, 1), Error: nil}, nil
+				}, false, nil
 			},
 			"frequentVar",
 			50*time.Millisecond,
@@ -574,10 +513,10 @@ func TestWatcher_HershContextAccess(t *testing.T) {
 
 		// Use Watch to verify context is working
 		val := WatchCall(
-			func() (manager.VarUpdateFunc, error) {
-				return func(prev HershValue) (HershValue, bool, error) {
-					return HershValue{Value: 42, Error: nil}, true, nil
-				}, nil
+			func() (manager.VarUpdateFunc, bool, error) {
+				return func(prev HershValue) (HershValue, error) {
+					return HershValue{Value: 42, Error: nil}, nil
+				}, false, nil
 			},
 			"contextTest",
 			100*time.Millisecond,
@@ -617,11 +556,11 @@ func TestWatcher_StopCancelsWatches(t *testing.T) {
 
 	managedFunc := func(msg *Message, ctx HershContext) error {
 		WatchCall(
-			func() (manager.VarUpdateFunc, error) {
-				return func(prev HershValue) (HershValue, bool, error) {
+			func() (manager.VarUpdateFunc, bool, error) {
+				return func(prev HershValue) (HershValue, error) {
 					atomic.AddInt32(&watchCallCount, 1)
-					return HershValue{Value: time.Now().Unix(), Error: nil}, true, nil
-				}, nil
+					return HershValue{Value: time.Now().Unix(), Error: nil}, nil
+				}, false, nil
 			},
 			"activeCheck",
 			50*time.Millisecond,
@@ -671,16 +610,16 @@ func TestWatchCall_ErrorHandling(t *testing.T) {
 
 	managedFunc := func(msg *Message, ctx HershContext) error {
 		val := WatchCall(
-			func() (manager.VarUpdateFunc, error) {
-				return func(prev HershValue) (HershValue, bool, error) {
+			func() (manager.VarUpdateFunc, bool, error) {
+				return func(prev HershValue) (HershValue, error) {
 					count := atomic.AddInt32(&errorCount, 1)
 					if count%2 == 0 {
 						// Return error on even calls
-						return HershValue{}, false, context.DeadlineExceeded
+						return HershValue{}, context.DeadlineExceeded
 					}
 					atomic.AddInt32(&successCount, 1)
-					return HershValue{Value: count, Error: nil}, true, nil
-				}, nil
+					return HershValue{Value: count, Error: nil}, nil
+				}, false, nil
 			},
 			"errorVar",
 			100*time.Millisecond,

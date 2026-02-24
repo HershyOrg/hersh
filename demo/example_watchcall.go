@@ -24,23 +24,21 @@ func main1() {
 
 		// WatchCall monitors external value and triggers re-execution on change
 		hv := hersh.WatchCall(
-			func() (manager.VarUpdateFunc, error) {
-				return func(prev hersh.HershValue) (hersh.HershValue, bool, error) {
-					// Simulate polling external data source
-					currentValue := externalCounter
-					externalCounter++
+			func() (manager.VarUpdateFunc, bool, error) {
+				// Simulate polling external data source
+				currentValue := externalCounter
+				externalCounter++
 
+				// VarUpdateFunc that updates to the new value
+				updateFunc := func(prev hersh.HershValue) (hersh.HershValue, error) {
 					fmt.Printf("  Polling: prev=%v, current=%v\n", prev.Value, currentValue)
+					return hersh.HershValue{Value: currentValue, Error: nil}, nil
+				}
 
-					// Detect change
-					if prev.Value == nil {
-						return hersh.HershValue{Value: currentValue, Error: nil}, true, nil
-					}
+				// Don't skip signal for this demo to show reactive updates
+				skipSignal := false
 
-					prevInt := prev.Value.(int)
-					changed := prevInt != currentValue
-					return hersh.HershValue{Value: currentValue, Error: nil}, changed, nil
-				}, nil
+				return updateFunc, skipSignal, nil
 			},
 			"externalCounter",
 			300*time.Millisecond, // Poll every 300ms
