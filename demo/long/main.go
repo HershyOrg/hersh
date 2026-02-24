@@ -181,14 +181,14 @@ func mainReducer(
 
 	// WatchTick: Stats ticker (1 minute interval)
 	statsTick := hutil.WatchTick("stats_ticker", StatsInterval, ctx)
-	if !statsTick.IsZero() && statsTick.IsTriggered(ctx) {
+	if statsTick.IsTriggered(ctx) {
 		statsCollector.PrintStats(stream, simulator)
 		hersh.PrintWithLog(fmt.Sprintf("   (Stats tick #%d at %s)", statsTick.TickCount, statsTick.Time.Format("15:04:05")), ctx)
 	}
 
 	// WatchTick: Rebalance ticker (1 hour interval)
 	rebalanceTick := hutil.WatchTick("rebalance_ticker", RebalanceInterval, ctx)
-	if !rebalanceTick.IsZero() && rebalanceTick.IsTriggered(ctx) {
+	if rebalanceTick.IsTriggered(ctx) {
 		hersh.PrintWithLog(fmt.Sprintf("\n⏰ Hourly rebalance triggered (tick #%d at %s)...",
 			rebalanceTick.TickCount, rebalanceTick.Time.Format("15:04:05")), ctx)
 		trades := simulator.Rebalance()
