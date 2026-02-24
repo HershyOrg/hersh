@@ -30,9 +30,7 @@ go get github.com/HershyOrg/hersh@v0.3.1
 
 ### Demo
 
-!! COMPLETE DEMO AT
-[HERSH-DEMO](hhttps://github.com/HershyOrg/hersh/blob/main/demo/long/main.go)
-!!
+!! COMPLETE DEMO AT [HERSH-DEMO](https://github.com/HershyOrg/hersh/blob/main/demo/long/main.go) !!
 
 ```go
 package main
