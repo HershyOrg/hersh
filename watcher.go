@@ -11,8 +11,6 @@ import (
 	"github.com/HershyOrg/hersh/manager"
 )
 
-var test = "a"
-
 // Watcher is the core reactive framework engine.
 // It manages reactive state through Watch, executes managed functions,
 // and provides fault tolerance through supervision.
