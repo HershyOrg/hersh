@@ -48,9 +48,11 @@ func TestManager_BasicWorkflow(t *testing.T) {
 	// Test: Send a VarSig to trigger execution
 	t.Log("Sending VarSig...")
 	signals.SendVarSig(&manager.VarSig{
-		ReceivedTime:       time.Now(),
-		TargetVarName:      "testVar",
-		VarUpdateFunc:      func(prev shared.HershValue) (shared.HershValue, error) { return shared.HershValue{Value: 42, Error: nil}, nil },
+		ReceivedTime:  time.Now(),
+		TargetVarName: "testVar",
+		VarUpdateFunc: func(prev shared.HershValue) (shared.HershValue, error) {
+			return shared.HershValue{Value: 42, Error: nil}, nil
+		},
 		IsStateIndependent: false,
 	})
 
@@ -162,9 +164,11 @@ func TestManager_ErrorHandling(t *testing.T) {
 	// Trigger execution
 	t.Log("Sending VarSig to trigger StopErr...")
 	signals.SendVarSig(&manager.VarSig{
-		ReceivedTime:       time.Now(),
-		TargetVarName:      "trigger",
-		VarUpdateFunc:      func(prev shared.HershValue) (shared.HershValue, error) { return shared.HershValue{Value: 1, Error: nil}, nil },
+		ReceivedTime:  time.Now(),
+		TargetVarName: "trigger",
+		VarUpdateFunc: func(prev shared.HershValue) (shared.HershValue, error) {
+			return shared.HershValue{Value: 1, Error: nil}, nil
+		},
 		IsStateIndependent: false,
 	})
 
@@ -203,9 +207,11 @@ func TestManager_PriorityProcessing(t *testing.T) {
 
 	// Send signals in reverse priority order
 	signals.SendVarSig(&manager.VarSig{
-		ReceivedTime:       time.Now(),
-		TargetVarName:      "var1",
-		VarUpdateFunc:      func(prev shared.HershValue) (shared.HershValue, error) { return shared.HershValue{Value: 1, Error: nil}, nil },
+		ReceivedTime:  time.Now(),
+		TargetVarName: "var1",
+		VarUpdateFunc: func(prev shared.HershValue) (shared.HershValue, error) {
+			return shared.HershValue{Value: 1, Error: nil}, nil
+		},
 		IsStateIndependent: false,
 	})
 
@@ -214,10 +220,10 @@ func TestManager_PriorityProcessing(t *testing.T) {
 		UserMessage:  &shared.Message{Content: "user"},
 	})
 
-	signals.SendWatcherSig(&manager.WatcherSig{
-		ReceivedTime:  time.Now(),
-		TargetState: shared.StateKilled,
-		Reason:      "priority test",
+	signals.SendManagerInnerSig(&manager.ManagerInnerSig{
+		ReceivedTime: time.Now(),
+		TargetState:  shared.StateKilled,
+		Reason:       "priority test",
 	})
 
 	// Process signals
@@ -237,7 +243,7 @@ func TestManager_PriorityProcessing(t *testing.T) {
 	}
 
 	firstLog := reduceLogs[0]
-	if _, ok := firstLog.Action.Signal.(*manager.WatcherSig); !ok {
+	if _, ok := firstLog.Action.Signal.(*manager.ManagerInnerSig); !ok {
 		t.Errorf("expected first processed signal to be WatcherSig, got %T", firstLog.Action.Signal)
 	}
 
@@ -270,9 +276,11 @@ func TestManager_MultipleVarBatching(t *testing.T) {
 	for i := 1; i <= 10; i++ {
 		currentVal := i * 10
 		signals.SendVarSig(&manager.VarSig{
-			ReceivedTime:       time.Now(),
-			TargetVarName:      "var" + string(rune('0'+i)),
-			VarUpdateFunc:      func(prev shared.HershValue) (shared.HershValue, error) { return shared.HershValue{Value: currentVal, Error: nil}, nil },
+			ReceivedTime:  time.Now(),
+			TargetVarName: "var" + string(rune('0'+i)),
+			VarUpdateFunc: func(prev shared.HershValue) (shared.HershValue, error) {
+				return shared.HershValue{Value: currentVal, Error: nil}, nil
+			},
 			IsStateIndependent: false,
 		})
 	}
@@ -335,9 +343,11 @@ func TestManager_FullCycle(t *testing.T) {
 	// Cycle 1: VarSig triggers execution
 	t.Log("Cycle 1: VarSig")
 	signals.SendVarSig(&manager.VarSig{
-		ReceivedTime:       time.Now(),
-		TargetVarName:      "trigger1",
-		VarUpdateFunc:      func(prev shared.HershValue) (shared.HershValue, error) { return shared.HershValue{Value: 1, Error: nil}, nil },
+		ReceivedTime:  time.Now(),
+		TargetVarName: "trigger1",
+		VarUpdateFunc: func(prev shared.HershValue) (shared.HershValue, error) {
+			return shared.HershValue{Value: 1, Error: nil}, nil
+		},
 		IsStateIndependent: false,
 	})
 	time.Sleep(200 * time.Millisecond)
@@ -353,9 +363,11 @@ func TestManager_FullCycle(t *testing.T) {
 	// Cycle 3: Another VarSig
 	t.Log("Cycle 3: VarSig again")
 	signals.SendVarSig(&manager.VarSig{
-		ReceivedTime:       time.Now(),
-		TargetVarName:      "trigger3",
-		VarUpdateFunc:      func(prev shared.HershValue) (shared.HershValue, error) { return shared.HershValue{Value: 3, Error: nil}, nil },
+		ReceivedTime:  time.Now(),
+		TargetVarName: "trigger3",
+		VarUpdateFunc: func(prev shared.HershValue) (shared.HershValue, error) {
+			return shared.HershValue{Value: 3, Error: nil}, nil
+		},
 		IsStateIndependent: false,
 	})
 	time.Sleep(200 * time.Millisecond)

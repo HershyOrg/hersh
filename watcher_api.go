@@ -91,8 +91,8 @@ func (sa *signalsAdapter) GetUserSigCount() int {
 	return len(sa.signals.UserSigChan)
 }
 
-func (sa *signalsAdapter) GetWatcherSigCount() int {
-	return len(sa.signals.WatcherSigChan)
+func (sa *signalsAdapter) GetManagerSigCount() int {
+	return len(sa.signals.ManagerInnerSigChan)
 }
 
 func (sa *signalsAdapter) PeekSignals(maxCount int) []api.SignalEntry {
@@ -101,7 +101,7 @@ func (sa *signalsAdapter) PeekSignals(maxCount int) []api.SignalEntry {
 	// Peek from each channel (non-blocking read and write back)
 	varCount := len(sa.signals.VarSigChan)
 	userCount := len(sa.signals.UserSigChan)
-	watcherCount := len(sa.signals.WatcherSigChan)
+	watcherCount := len(sa.signals.ManagerInnerSigChan)
 
 	// Distribute maxCount across channels proportionally
 	varLimit := min(varCount, maxCount/3)
@@ -142,13 +142,13 @@ func (sa *signalsAdapter) PeekSignals(maxCount int) []api.SignalEntry {
 	// Peek WatcherSig
 	for i := 0; i < watcherLimit && i < watcherCount; i++ {
 		select {
-		case sig := <-sa.signals.WatcherSigChan:
+		case sig := <-sa.signals.ManagerInnerSigChan:
 			entries = append(entries, api.SignalEntry{
 				Type:      "watcher",
 				Content:   sig.String(),
 				CreatedAt: sig.CreatedAt(),
 			})
-			sa.signals.WatcherSigChan <- sig
+			sa.signals.ManagerInnerSigChan <- sig
 		default:
 			break
 		}
@@ -273,9 +273,7 @@ func (w *Watcher) StartAPIServer() (*WatcherAPIServer, error) {
 		func() bool {
 			return w.isRunning.Load()
 		},
-		func() string {
-			return w.manager.GetEffectHandler().GetHershContext().WatcherID()
-		},
+
 		func() api.LoggerInterface {
 			return loggerAdp
 		},

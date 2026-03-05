@@ -163,12 +163,12 @@ func TestReducer_WatcherSigTransition(t *testing.T) {
 	go reducer.RunWithEffects(ctx, commander, handler)
 
 	// Send WatcherSig to transition to Ready
-	sig := &WatcherSig{
+	sig := &ManagerInnerSig{
 		ReceivedTime: time.Now(),
 		TargetState:  shared.StateReady,
 		Reason:       "execution completed",
 	}
-	signals.SendWatcherSig(sig)
+	signals.SendManagerInnerSig(sig)
 
 	time.Sleep(50 * time.Millisecond)
 
@@ -216,7 +216,7 @@ func TestReducer_PriorityOrdering(t *testing.T) {
 		ReceivedTime: time.Now(),
 		UserMessage:  &shared.Message{Content: "user"},
 	}
-	watcherSig := &WatcherSig{
+	watcherSig := &ManagerInnerSig{
 		ReceivedTime: time.Now(),
 		TargetState:  shared.StateInitRun,
 		Reason:       "init",
@@ -225,7 +225,7 @@ func TestReducer_PriorityOrdering(t *testing.T) {
 	// Send in this order: Var, User, Watcher
 	signals.SendVarSig(varSig)
 	signals.SendUserSig(userSig)
-	signals.SendWatcherSig(watcherSig)
+	signals.SendManagerInnerSig(watcherSig)
 
 	// Start processing
 	go reducer.RunWithEffects(ctx, commander, handler)
@@ -238,7 +238,7 @@ func TestReducer_PriorityOrdering(t *testing.T) {
 		t.Fatal("expected at least 1 action")
 	}
 	firstAction := reduceLogs[0].Action
-	if _, ok := firstAction.Signal.(*WatcherSig); !ok {
+	if _, ok := firstAction.Signal.(*ManagerInnerSig); !ok {
 		t.Errorf("expected WatcherSig to be processed first, got %T", firstAction.Signal)
 	}
 }
@@ -321,12 +321,12 @@ func TestReducer_CrashedIsTerminal(t *testing.T) {
 	go reducer.RunWithEffects(ctx, commander, handler)
 
 	// Try to transition from Crashed
-	sig := &WatcherSig{
+	sig := &ManagerInnerSig{
 		ReceivedTime: time.Now(),
 		TargetState:  shared.StateReady,
 		Reason:       "attempt recovery",
 	}
-	signals.SendWatcherSig(sig)
+	signals.SendManagerInnerSig(sig)
 
 	time.Sleep(50 * time.Millisecond)
 
@@ -370,12 +370,12 @@ func TestReducer_InitRunClearsVarState(t *testing.T) {
 	go reducer.RunWithEffects(ctx, commander, handler)
 
 	// Send InitRun signal
-	sig := &WatcherSig{
+	sig := &ManagerInnerSig{
 		ReceivedTime: time.Now(),
 		TargetState:  shared.StateInitRun,
 		Reason:       "initialization",
 	}
-	signals.SendWatcherSig(sig)
+	signals.SendManagerInnerSig(sig)
 
 	time.Sleep(100 * time.Millisecond)
 

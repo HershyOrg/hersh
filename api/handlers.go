@@ -11,16 +11,15 @@ import (
 // WatcherAPIHandlers provides HTTP handlers for WatcherServer API
 type WatcherAPIHandlers struct {
 	// Using interface{} to avoid circular dependency with hersh package
-	getState     func() string
-	isRunning    func() bool
-	getWatcherID func() string
-	getLogger    func() LoggerInterface
-	getSignals   func() SignalsInterface
-	sendMessage  func(string) error
-	getManager   func() ManagerInterface
-	getVarState  func() VarStateInterface
-	getConfig    func() ConfigInterface
-	startTime    time.Time
+	getState    func() string
+	isRunning   func() bool
+	getLogger   func() LoggerInterface
+	getSignals  func() SignalsInterface
+	sendMessage func(string) error
+	getManager  func() ManagerInterface
+	getVarState func() VarStateInterface
+	getConfig   func() ConfigInterface
+	startTime   time.Time
 }
 
 // LoggerInterface defines methods needed from manager.Logger
@@ -37,7 +36,7 @@ type LoggerInterface interface {
 type SignalsInterface interface {
 	GetVarSigCount() int
 	GetUserSigCount() int
-	GetWatcherSigCount() int
+	GetManagerSigCount() int
 	// For peek functionality
 	PeekSignals(maxCount int) []SignalEntry
 }
@@ -75,7 +74,6 @@ type ConfigInterface interface {
 func NewWatcherAPIHandlers(
 	getState func() string,
 	isRunning func() bool,
-	getWatcherID func() string,
 	getLogger func() LoggerInterface,
 	getSignals func() SignalsInterface,
 	sendMessage func(string) error,
@@ -84,16 +82,15 @@ func NewWatcherAPIHandlers(
 	getConfig func() ConfigInterface,
 ) *WatcherAPIHandlers {
 	return &WatcherAPIHandlers{
-		getState:     getState,
-		isRunning:    isRunning,
-		getWatcherID: getWatcherID,
-		getLogger:    getLogger,
-		getSignals:   getSignals,
-		sendMessage:  sendMessage,
-		getManager:   getManager,
-		getVarState:  getVarState,
-		getConfig:    getConfig,
-		startTime:    time.Now(),
+		getState:    getState,
+		isRunning:   isRunning,
+		getLogger:   getLogger,
+		getSignals:  getSignals,
+		sendMessage: sendMessage,
+		getManager:  getManager,
+		getVarState: getVarState,
+		getConfig:   getConfig,
+		startTime:   time.Now(),
 	}
 }
 
@@ -106,7 +103,6 @@ func (h *WatcherAPIHandlers) HandleStatus(w http.ResponseWriter, r *http.Request
 	response := StatusResponse{
 		State:      h.getState(),
 		IsRunning:  h.isRunning(),
-		WatcherID:  h.getWatcherID(),
 		Uptime:     uptime,
 		LastUpdate: time.Now(),
 	}
@@ -219,7 +215,7 @@ func (h *WatcherAPIHandlers) HandleSignals(w http.ResponseWriter, r *http.Reques
 
 	varCount := signals.GetVarSigCount()
 	userCount := signals.GetUserSigCount()
-	watcherCount := signals.GetWatcherSigCount()
+	managerCount := signals.GetManagerSigCount()
 
 	// Peek recent signals (max 30)
 	recentSignals := signals.PeekSignals(30)
@@ -227,8 +223,8 @@ func (h *WatcherAPIHandlers) HandleSignals(w http.ResponseWriter, r *http.Reques
 	response := SignalsResponse{
 		VarSigCount:     varCount,
 		UserSigCount:    userCount,
-		WatcherSigCount: watcherCount,
-		TotalPending:    varCount + userCount + watcherCount,
+		ManagerSigCount: managerCount,
+		TotalPending:    varCount + userCount + managerCount,
 		RecentSignals:   recentSignals,
 		Timestamp:       time.Now(),
 	}

@@ -9,7 +9,6 @@ import (
 type StatusResponse struct {
 	State      string    `json:"state"`
 	IsRunning  bool      `json:"isRunning"`
-	WatcherID  string    `json:"watcherID"`
 	Uptime     string    `json:"uptime"`
 	LastUpdate time.Time `json:"lastUpdate"`
 }
@@ -28,7 +27,7 @@ type LogsResponse struct {
 type SignalsResponse struct {
 	VarSigCount     int           `json:"varSigCount"`
 	UserSigCount    int           `json:"userSigCount"`
-	WatcherSigCount int           `json:"watcherSigCount"`
+	ManagerSigCount int           `json:"managerSigCount"`
 	TotalPending    int           `json:"totalPending"`
 	RecentSignals   []SignalEntry `json:"recentSignals"` // Recent signals (max 30)
 	Timestamp       time.Time     `json:"timestamp"`

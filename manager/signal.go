@@ -62,41 +62,41 @@ func (s *UserSig) String() string {
 		msgContent, s.ReceivedTime.Format(time.RFC3339))
 }
 
-// WatcherSig represents a change in the Watcher's state.
-type WatcherSig struct {
+// ManagerInnerSig represents a change in the Managers's state.
+type ManagerInnerSig struct {
 	ReceivedTime time.Time
 	TargetState  shared.ManagerInnerState
 	Reason       string // Why this transition is happening
 }
 
-func (s *WatcherSig) Priority() shared.SignalPriority {
+func (s *ManagerInnerSig) Priority() shared.SignalPriority {
 	return shared.PriorityManagerInner
 }
 
-func (s *WatcherSig) CreatedAt() time.Time {
+func (s *ManagerInnerSig) CreatedAt() time.Time {
 	return s.ReceivedTime
 }
 
-func (s *WatcherSig) String() string {
-	return fmt.Sprintf("WatcherSig{target=%s, reason=%s, time=%s}",
+func (s *ManagerInnerSig) String() string {
+	return fmt.Sprintf("ManagerSig{target=%s, reason=%s, time=%s}",
 		s.TargetState, s.Reason, s.ReceivedTime.Format(time.RFC3339))
 }
 
 // SignalChannels holds all signal channels for the Manager.
 type SignalChannels struct {
-	VarSigChan     chan *VarSig
-	UserSigChan    chan *UserSig
-	WatcherSigChan chan *WatcherSig
-	NewSigAppended chan struct{} // Notifies when any signal is added
+	VarSigChan          chan *VarSig
+	UserSigChan         chan *UserSig
+	ManagerInnerSigChan chan *ManagerInnerSig
+	NewSigAppended      chan struct{} // Notifies when any signal is added
 }
 
 // NewSignalChannels creates a new SignalChannels with buffered channels.
 func NewSignalChannels(bufferSize int) *SignalChannels {
 	return &SignalChannels{
-		VarSigChan:     make(chan *VarSig, bufferSize),
-		UserSigChan:    make(chan *UserSig, bufferSize),
-		WatcherSigChan: make(chan *WatcherSig, bufferSize),
-		NewSigAppended: make(chan struct{}, bufferSize*3), // Can hold all possible signals
+		VarSigChan:          make(chan *VarSig, bufferSize),
+		UserSigChan:         make(chan *UserSig, bufferSize),
+		ManagerInnerSigChan: make(chan *ManagerInnerSig, bufferSize),
+		NewSigAppended:      make(chan struct{}, bufferSize*3), // Can hold all possible signals
 	}
 }
 
@@ -119,9 +119,9 @@ func (sc *SignalChannels) SendUserSig(sig *UserSig) {
 	}
 }
 
-// SendWatcherSig sends a WatcherSig and notifies of new signal.
-func (sc *SignalChannels) SendWatcherSig(sig *WatcherSig) {
-	sc.WatcherSigChan <- sig
+// SendManagerInnerSig sends a WatcherSig and notifies of new signal.
+func (sc *SignalChannels) SendManagerInnerSig(sig *ManagerInnerSig) {
+	sc.ManagerInnerSigChan <- sig
 	select {
 	case sc.NewSigAppended <- struct{}{}:
 	default:
@@ -132,6 +132,6 @@ func (sc *SignalChannels) SendWatcherSig(sig *WatcherSig) {
 func (sc *SignalChannels) Close() {
 	close(sc.VarSigChan)
 	close(sc.UserSigChan)
-	close(sc.WatcherSigChan)
+	close(sc.ManagerInnerSigChan)
 	close(sc.NewSigAppended)
 }

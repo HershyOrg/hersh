@@ -155,10 +155,10 @@ func (w *Watcher) Start() error {
 	w.apiServer = apiServer
 
 	// Send InitRun signal to start initialization
-	w.manager.GetSignals().SendWatcherSig(&manager.WatcherSig{
+	w.manager.GetSignals().SendManagerInnerSig(&manager.ManagerInnerSig{
 		ReceivedTime: time.Now(),
 		TargetState:  StateInitRun,
-		Reason:       "watcher start",
+		Reason:       "Manager start",
 	})
 
 	return nil
@@ -178,7 +178,7 @@ func (w *Watcher) Stop() error {
 	}
 
 	// Send Stop signal
-	w.manager.GetSignals().SendWatcherSig(&manager.WatcherSig{
+	w.manager.GetSignals().SendManagerInnerSig(&manager.ManagerInnerSig{
 		ReceivedTime: time.Now(),
 		TargetState:  StateStopped,
 		Reason:       "user requested stop",

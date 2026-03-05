@@ -8,6 +8,8 @@ import (
 	"github.com/HershyOrg/hersh/shared"
 )
 
+const defaultBufferSize = 10
+
 // WatchTick monitors time-based intervals and returns a HershTick with timestamp and count.
 //
 // This is a convenience wrapper around WatchFlow that simplifies time-based operations.

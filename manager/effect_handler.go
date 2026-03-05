@@ -56,7 +56,7 @@ func NewEffectHandler(
 	bgCtx, cancel := context.WithCancel(context.Background())
 
 	// Create persistent HershContext
-	hershCtx := hctx.New(bgCtx, "effect Handler ctx", logger.(hctx.Logger))
+	hershCtx := hctx.New(bgCtx, logger.(hctx.Logger))
 
 	return &EffectHandler{
 		managedFunc:   managedFunc,
@@ -123,15 +123,15 @@ func (eh *EffectHandler) GetHershContext() shared.HershContext {
 // ExecuteEffect executes an effect and returns the resulting WatcherSig (if any).
 // This is called synchronously by the Reducer.
 // Returns nil if no further state transition is needed.
-func (eh *EffectHandler) ExecuteEffect(effect EffectDefinition) *WatcherSig {
+func (eh *EffectHandler) ExecuteEffect(effect EffectDefinition) *ManagerInnerSig {
 	return eh.executeEffect(effect)
 }
 
 // executeEffect executes the effect and returns the resulting WatcherSig.
 // Returns nil if no state transition is needed.
-func (eh *EffectHandler) executeEffect(effect EffectDefinition) *WatcherSig {
+func (eh *EffectHandler) executeEffect(effect EffectDefinition) *ManagerInnerSig {
 	var result *EffectResult
-	var sig *WatcherSig
+	var sig *ManagerInnerSig
 
 	switch e := effect.(type) {
 	case *RunScriptEffect:
@@ -165,7 +165,7 @@ func (eh *EffectHandler) executeEffect(effect EffectDefinition) *WatcherSig {
 
 // runScript executes the managed function.
 // Returns (result, sig) where sig is the state transition signal.
-func (eh *EffectHandler) runScript(effect *RunScriptEffect) (*EffectResult, *WatcherSig) {
+func (eh *EffectHandler) runScript(effect *RunScriptEffect) (*EffectResult, *ManagerInnerSig) {
 	result := &EffectResult{
 		Effect:    effect,
 		Timestamp: time.Now(),
@@ -203,13 +203,13 @@ func (eh *EffectHandler) runScript(effect *RunScriptEffect) (*EffectResult, *Wat
 
 	// Wait for completion or timeout
 	// Priority: timeout signal takes precedence over goroutine completion
-	var sig *WatcherSig
+	var sig *ManagerInnerSig
 	select {
 	case <-execCtx.Done():
 		// Timeout occurred - this is checked first for immediate response
 		result.Success = false
 		result.Error = execCtx.Err()
-		sig = &WatcherSig{
+		sig = &ManagerInnerSig{
 			ReceivedTime: time.Now(),
 			TargetState:  shared.StateReady,
 			Reason:       "execution timeout",
@@ -224,7 +224,7 @@ func (eh *EffectHandler) runScript(effect *RunScriptEffect) (*EffectResult, *Wat
 			sig = eh.handleScriptError(err)
 		} else {
 			result.Success = true
-			sig = &WatcherSig{
+			sig = &ManagerInnerSig{
 				ReceivedTime: time.Now(),
 				TargetState:  shared.StateReady,
 				Reason:       "execution completed successfully",
@@ -238,16 +238,16 @@ func (eh *EffectHandler) runScript(effect *RunScriptEffect) (*EffectResult, *Wat
 // handleScriptError processes errors from managed function execution.
 // Returns the appropriate WatcherSig based on error type and recovery policy.
 // Part 2: Determines state transition AFTER execution (delay was already applied in runScript)
-func (eh *EffectHandler) handleScriptError(err error) *WatcherSig {
+func (eh *EffectHandler) handleScriptError(err error) *ManagerInnerSig {
 	switch err.(type) {
 	case *shared.KillError:
-		return &WatcherSig{
+		return &ManagerInnerSig{
 			ReceivedTime: time.Now(),
 			TargetState:  shared.StateKilled,
 			Reason:       err.Error(),
 		}
 	case *shared.StopError:
-		return &WatcherSig{
+		return &ManagerInnerSig{
 			ReceivedTime: time.Now(),
 			TargetState:  shared.StateStopped,
 			Reason:       err.Error(),
@@ -263,7 +263,7 @@ func (eh *EffectHandler) handleScriptError(err error) *WatcherSig {
 				time.Sleep(delay)
 			}
 
-			return &WatcherSig{
+			return &ManagerInnerSig{
 				ReceivedTime: time.Now(),
 				TargetState:  shared.StateReady,
 				Reason: fmt.Sprintf("error suppressed (%d/%d) after %v delay: %v",
@@ -272,7 +272,7 @@ func (eh *EffectHandler) handleScriptError(err error) *WatcherSig {
 		}
 
 		// Too many consecutive failures - enter recovery mode
-		return &WatcherSig{
+		return &ManagerInnerSig{
 			ReceivedTime: time.Now(),
 			TargetState:  shared.StateWaitRecover,
 			Reason: fmt.Sprintf("consecutive failures (%d) >= threshold (%d): %v",
@@ -283,7 +283,7 @@ func (eh *EffectHandler) handleScriptError(err error) *WatcherSig {
 
 // initRunScript performs initialization run.
 // Returns (result, sig).
-func (eh *EffectHandler) initRunScript(effect *InitRunScriptEffect) (*EffectResult, *WatcherSig) {
+func (eh *EffectHandler) initRunScript(effect *InitRunScriptEffect) (*EffectResult, *ManagerInnerSig) {
 	result := &EffectResult{
 		Effect:    effect,
 		Timestamp: time.Now(),
@@ -309,7 +309,7 @@ func (eh *EffectHandler) initRunScript(effect *InitRunScriptEffect) (*EffectResu
 	// If no variables to initialize, transition to Ready immediately
 	if len(eh.expectedVars) == 0 {
 		result.Success = true
-		sig := &WatcherSig{
+		sig := &ManagerInnerSig{
 			ReceivedTime: time.Now(),
 			TargetState:  shared.StateReady,
 			Reason:       "initialization complete (no variables to watch)",
@@ -320,7 +320,7 @@ func (eh *EffectHandler) initRunScript(effect *InitRunScriptEffect) (*EffectResu
 	// Check if all variables are already initialized (from the first run)
 	if eh.state.VarState.AllInitialized(eh.expectedVars) {
 		result.Success = true
-		sig := &WatcherSig{
+		sig := &ManagerInnerSig{
 			ReceivedTime: time.Now(),
 			TargetState:  shared.StateReady,
 			Reason:       "initialization complete",
@@ -377,7 +377,7 @@ func (eh *EffectHandler) runScriptOnce() *EffectResult {
 
 // clearRunScript executes cleanup.
 // Returns (result, sig).
-func (eh *EffectHandler) clearRunScript(hookState shared.ManagerInnerState) (*EffectResult, *WatcherSig) {
+func (eh *EffectHandler) clearRunScript(hookState shared.ManagerInnerState) (*EffectResult, *ManagerInnerSig) {
 	result := &EffectResult{
 		Effect:    &ClearRunScriptEffect{HookState: hookState},
 		Timestamp: time.Now(),
@@ -416,7 +416,7 @@ func (eh *EffectHandler) clearRunScript(hookState shared.ManagerInnerState) (*Ef
 	}
 
 	// Return signal to transition to hook state
-	sig := &WatcherSig{
+	sig := &ManagerInnerSig{
 		ReceivedTime: time.Now(),
 		TargetState:  hookState,
 		Reason:       fmt.Sprintf("cleanup completed for %s", hookState),
@@ -433,8 +433,8 @@ func (eh *EffectHandler) GetCleanupDone() <-chan struct{} {
 
 // justKill returns Kill signal without cleanup.
 // Returns (result, sig).
-func (eh *EffectHandler) justKill() (*EffectResult, *WatcherSig) {
-	sig := &WatcherSig{
+func (eh *EffectHandler) justKill() (*EffectResult, *ManagerInnerSig) {
+	sig := &ManagerInnerSig{
 		ReceivedTime: time.Now(),
 		TargetState:  shared.StateKilled,
 		Reason:       "kill requested",
@@ -449,8 +449,8 @@ func (eh *EffectHandler) justKill() (*EffectResult, *WatcherSig) {
 
 // justCrash returns Crash signal without cleanup.
 // Returns (result, sig).
-func (eh *EffectHandler) justCrash() (*EffectResult, *WatcherSig) {
-	sig := &WatcherSig{
+func (eh *EffectHandler) justCrash() (*EffectResult, *ManagerInnerSig) {
+	sig := &ManagerInnerSig{
 		ReceivedTime: time.Now(),
 		TargetState:  shared.StateCrashed,
 		Reason:       "crash requested",
@@ -465,7 +465,7 @@ func (eh *EffectHandler) justCrash() (*EffectResult, *WatcherSig) {
 
 // recover implements the recovery logic (Erlang Supervisor pattern).
 // Returns (result, sig).
-func (eh *EffectHandler) recover() (*EffectResult, *WatcherSig) {
+func (eh *EffectHandler) recover() (*EffectResult, *ManagerInnerSig) {
 	result := &EffectResult{
 		Effect:    &RecoverEffect{},
 		Timestamp: time.Now(),
@@ -478,7 +478,7 @@ func (eh *EffectHandler) recover() (*EffectResult, *WatcherSig) {
 		// Too many failures - crash
 		result.Success = false
 		result.Error = fmt.Errorf("max consecutive failures reached: %d", consecutiveFails)
-		sig := &WatcherSig{
+		sig := &ManagerInnerSig{
 			ReceivedTime: time.Now(),
 			TargetState:  shared.StateCrashed,
 			Reason:       "max consecutive failures exceeded",
@@ -492,7 +492,7 @@ func (eh *EffectHandler) recover() (*EffectResult, *WatcherSig) {
 
 	// Attempt recovery - return InitRun signal
 	result.Success = true
-	sig := &WatcherSig{
+	sig := &ManagerInnerSig{
 		ReceivedTime: time.Now(),
 		TargetState:  shared.StateInitRun,
 		Reason:       fmt.Sprintf("recovery attempt after %d failures (backoff: %v)", consecutiveFails, delay),

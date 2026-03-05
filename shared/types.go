@@ -126,9 +126,6 @@ func (ts *TriggeredSignal) HasVarTrigger(varName string) bool {
 type HershContext interface {
 	context.Context
 
-	// WatcherID returns the unique identifier of the current Watcher
-	WatcherID() string
-
 	// Message returns the current user message (nil if none)
 	Message() *Message
 

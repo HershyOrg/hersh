@@ -19,7 +19,6 @@ type Logger interface {
 // messages, watcher reference, and user-defined values.
 type HershContext struct {
 	context.Context
-	watcherID       string
 	message         *shared.Message
 	triggeredSignal *shared.TriggeredSignal
 	watcher         any // Watcher reference (stored as any to avoid circular dependency with hersh package)
@@ -30,20 +29,15 @@ type HershContext struct {
 }
 
 // New creates a new HershContext with the given parameters.
-func New(ctx context.Context, watcherID string, logger Logger) *HershContext {
+func New(ctx context.Context, logger Logger) *HershContext {
 	return &HershContext{
 		Context:    ctx,
-		watcherID:  watcherID,
 		message:    nil,
 		watcher:    nil,
 		valueStore: make(map[string]any),
 		envVarMap:  make(map[string]string),
 		logger:     logger,
 	}
-}
-
-func (hc *HershContext) WatcherID() string {
-	return hc.watcherID
 }
 
 func (hc *HershContext) Message() *shared.Message {

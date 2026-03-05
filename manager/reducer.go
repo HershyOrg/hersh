@@ -108,7 +108,7 @@ func (r *Reducer) tryProcessNextSignalWithEffects(commander *EffectCommander, ha
 
 	// Priority 1: WatcherSig (highest)
 	select {
-	case sig := <-r.signals.WatcherSigChan:
+	case sig := <-r.signals.ManagerInnerSigChan:
 		r.reduceAndExecuteEffect(sig, commander, handler)
 		return true
 	default:
@@ -145,8 +145,8 @@ func (r *Reducer) reduceAndExecuteEffect(sig shared.Signal, commander *EffectCom
 	var triggeredSig *shared.TriggeredSignal
 
 	switch s := sig.(type) {
-	case *WatcherSig:
-		triggeredSig = r.reduceWatcherSig(s)
+	case *ManagerInnerSig:
+		triggeredSig = r.reduceManagerInnerSig(s)
 	case *UserSig:
 		triggeredSig = r.reduceUserSig(s)
 	case *VarSig:
@@ -174,7 +174,7 @@ func (r *Reducer) reduceAndExecuteEffect(sig shared.Signal, commander *EffectCom
 	if r.state.GetManagerInnerState() == shared.StateInitRun {
 		if _, ok := sig.(*VarSig); ok && handler.CheckInitializationComplete() {
 			// All variables initialized - transition to Ready immediately
-			initCompleteSig := &WatcherSig{
+			initCompleteSig := &ManagerInnerSig{
 				ReceivedTime: time.Now(),
 				TargetState:  shared.StateReady,
 				Reason:       "initialization complete (all variables initialized)",
@@ -209,8 +209,8 @@ func (r *Reducer) tryProcessNextSignal() bool {
 
 	// Priority 1: WatcherSig (highest)
 	select {
-	case sig := <-r.signals.WatcherSigChan:
-		r.reduceWatcherSig(sig)
+	case sig := <-r.signals.ManagerInnerSigChan:
+		r.reduceManagerInnerSig(sig)
 		return true
 	default:
 	}
@@ -407,10 +407,10 @@ func (r *Reducer) reduceUserSig(sig *UserSig) *shared.TriggeredSignal {
 	}
 }
 
-// reduceWatcherSig handles WatcherSig according to transition rules.
+// reduceManagerInnerSig handles WatcherSig according to transition rules.
 // Logging is handled by reduceAndExecuteEffect.
 // Returns TriggeredSignal indicating WatcherSig was triggered.
-func (r *Reducer) reduceWatcherSig(sig *WatcherSig) *shared.TriggeredSignal {
+func (r *Reducer) reduceManagerInnerSig(sig *ManagerInnerSig) *shared.TriggeredSignal {
 	currentState := r.state.GetManagerInnerState()
 	targetState := sig.TargetState
 

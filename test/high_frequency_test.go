@@ -51,9 +51,11 @@ func TestHighFrequency_FastWatchSlowFunction(t *testing.T) {
 	for i := 1; i <= totalSignals; i++ {
 		currentI := int32(i)
 		signals.SendVarSig(&manager.VarSig{
-			ReceivedTime:       time.Now(),
-			TargetVarName:      "highFreqVar",
-			VarUpdateFunc:      func(prev shared.HershValue) (shared.HershValue, error) { return shared.HershValue{Value: currentI, Error: nil}, nil },
+			ReceivedTime:  time.Now(),
+			TargetVarName: "highFreqVar",
+			VarUpdateFunc: func(prev shared.HershValue) (shared.HershValue, error) {
+				return shared.HershValue{Value: currentI, Error: nil}, nil
+			},
 			IsStateIndependent: false,
 		})
 		lastVarValue.Store(int32(i))
@@ -130,9 +132,11 @@ func TestHighFrequency_ConcurrentSignalsAndMessages(t *testing.T) {
 		for i := 1; i <= totalVarSigs; i++ {
 			currentI := i
 			signals.SendVarSig(&manager.VarSig{
-				ReceivedTime:       time.Now(),
-				TargetVarName:      "concurrentVar",
-				VarUpdateFunc:      func(prev shared.HershValue) (shared.HershValue, error) { return shared.HershValue{Value: currentI, Error: nil}, nil },
+				ReceivedTime:  time.Now(),
+				TargetVarName: "concurrentVar",
+				VarUpdateFunc: func(prev shared.HershValue) (shared.HershValue, error) {
+					return shared.HershValue{Value: currentI, Error: nil}, nil
+				},
 				IsStateIndependent: false,
 			})
 			varSigCount.Add(1)
@@ -223,9 +227,11 @@ func TestHighFrequency_SignalBurst(t *testing.T) {
 			varName := "burstVar"
 			currentVal := val
 			signals.SendVarSig(&manager.VarSig{
-				ReceivedTime:       time.Now(),
-				TargetVarName:      varName,
-				VarUpdateFunc:      func(prev shared.HershValue) (shared.HershValue, error) { return shared.HershValue{Value: currentVal, Error: nil}, nil },
+				ReceivedTime:  time.Now(),
+				TargetVarName: varName,
+				VarUpdateFunc: func(prev shared.HershValue) (shared.HershValue, error) {
+					return shared.HershValue{Value: currentVal, Error: nil}, nil
+				},
 				IsStateIndependent: false,
 			})
 			processedVars.Store(val, true)
@@ -282,7 +288,7 @@ func TestHighFrequency_SignalsWithTimeout(t *testing.T) {
 	}
 
 	config := shared.DefaultWatcherConfig()
-	config.ServerPort = 0 // Random port for test isolation
+	config.ServerPort = 0                          // Random port for test isolation
 	config.DefaultTimeout = 150 * time.Millisecond // Short timeout
 
 	handler := manager.NewEffectHandler(
@@ -306,9 +312,11 @@ func TestHighFrequency_SignalsWithTimeout(t *testing.T) {
 	for i := 1; i <= totalSignals; i++ {
 		currentI := i
 		signals.SendVarSig(&manager.VarSig{
-			ReceivedTime:       time.Now(),
-			TargetVarName:      "timeoutVar",
-			VarUpdateFunc:      func(prev shared.HershValue) (shared.HershValue, error) { return shared.HershValue{Value: currentI, Error: nil}, nil },
+			ReceivedTime:  time.Now(),
+			TargetVarName: "timeoutVar",
+			VarUpdateFunc: func(prev shared.HershValue) (shared.HershValue, error) {
+				return shared.HershValue{Value: currentI, Error: nil}, nil
+			},
 			IsStateIndependent: false,
 		})
 		time.Sleep(40 * time.Millisecond)
@@ -384,9 +392,11 @@ func TestHighFrequency_MultipleWatchVariables(t *testing.T) {
 			for i := 1; i <= signalsPerVar; i++ {
 				currentI := i
 				signals.SendVarSig(&manager.VarSig{
-					ReceivedTime:       time.Now(),
-					TargetVarName:      vName,
-					VarUpdateFunc:      func(prev shared.HershValue) (shared.HershValue, error) { return shared.HershValue{Value: currentI, Error: nil}, nil },
+					ReceivedTime:  time.Now(),
+					TargetVarName: vName,
+					VarUpdateFunc: func(prev shared.HershValue) (shared.HershValue, error) {
+						return shared.HershValue{Value: currentI, Error: nil}, nil
+					},
 					IsStateIndependent: false,
 				})
 				counter.Add(1)
@@ -474,9 +484,11 @@ func TestHighFrequency_PriorityUnderLoad(t *testing.T) {
 		for i := 0; i < 50; i++ {
 			currentI := i
 			signals.SendVarSig(&manager.VarSig{
-				ReceivedTime:       time.Now(),
-				TargetVarName:      "priorityVar",
-				VarUpdateFunc:      func(prev shared.HershValue) (shared.HershValue, error) { return shared.HershValue{Value: currentI, Error: nil}, nil },
+				ReceivedTime:  time.Now(),
+				TargetVarName: "priorityVar",
+				VarUpdateFunc: func(prev shared.HershValue) (shared.HershValue, error) {
+					return shared.HershValue{Value: currentI, Error: nil}, nil
+				},
 				IsStateIndependent: false,
 			})
 			varSigProcessed.Add(1)
@@ -506,10 +518,10 @@ func TestHighFrequency_PriorityUnderLoad(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		for i := 0; i < 10; i++ {
-			signals.SendWatcherSig(&manager.WatcherSig{
-				ReceivedTime:  time.Now(),
-				TargetState: shared.StateReady,
-				Reason:      "priority test",
+			signals.SendManagerInnerSig(&manager.ManagerInnerSig{
+				ReceivedTime: time.Now(),
+				TargetState:  shared.StateReady,
+				Reason:       "priority test",
 			})
 			watcherSigProcessed.Add(1)
 			time.Sleep(100 * time.Millisecond)
@@ -530,7 +542,7 @@ func TestHighFrequency_PriorityUnderLoad(t *testing.T) {
 	reduceLogs := logger.GetReduceLog()
 	watcherFirst := 0
 	for i := 0; i < len(reduceLogs) && i < 100; i++ {
-		if _, ok := reduceLogs[i].Action.Signal.(*manager.WatcherSig); ok {
+		if _, ok := reduceLogs[i].Action.Signal.(*manager.ManagerInnerSig); ok {
 			watcherFirst++
 		}
 	}
@@ -591,9 +603,11 @@ func TestHighFrequency_StressTest(t *testing.T) {
 			for i := 0; i < signalsPerSender; i++ {
 				currentVal := senderID*1000 + i
 				signals.SendVarSig(&manager.VarSig{
-					ReceivedTime:       time.Now(),
-					TargetVarName:      "stressVar",
-					VarUpdateFunc:      func(prev shared.HershValue) (shared.HershValue, error) { return shared.HershValue{Value: currentVal, Error: nil}, nil },
+					ReceivedTime:  time.Now(),
+					TargetVarName: "stressVar",
+					VarUpdateFunc: func(prev shared.HershValue) (shared.HershValue, error) {
+						return shared.HershValue{Value: currentVal, Error: nil}, nil
+					},
 					IsStateIndependent: false,
 				})
 				signalsSent.Add(1)
