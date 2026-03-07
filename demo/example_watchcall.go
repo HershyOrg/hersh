@@ -47,10 +47,10 @@ func main1() {
 		)
 
 		// React to the watched value
-		if hv.Value == 0 && hv.Error == nil {
+		if hv.Value == 0 && err == nil {
 			fmt.Println("  Status: Waiting for first value...")
-		} else if hv.Error != nil {
-			fmt.Printf("  ⚠️ Error: %v\n", hv.Error)
+		} else if err != nil {
+			fmt.Printf("  ⚠️ Error: %v\n", err)
 		} else {
 			counter := hv.Value // Type-safe, no assertion needed
 			fmt.Printf("  Watched Value: %d\n", counter)

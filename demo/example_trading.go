@@ -105,7 +105,7 @@ func tradingFunc(msg *hersh.Message, ctx hersh.ManageContext) error {
 	)
 
 	// Process price data if monitoring is enabled
-	if monitoringEnabled && priceHV.Value > 0 && priceHV.Error == nil {
+	if monitoringEnabled && priceHV.Value > 0 && priceErr == nil {
 		currentPrice := priceHV.Value // Type-safe, no assertion needed
 
 		fmt.Printf("\n📊 Current Bitcoin Price: $%.2f\n", currentPrice)

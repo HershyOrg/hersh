@@ -39,7 +39,7 @@ func TestTriggeredSignal_WatchCall(t *testing.T) {
 		if trigger != nil && trigger.HasVarTrigger("counter") {
 			triggeredVars = append(triggeredVars, "counter")
 
-			if !counterHV.IsError() {
+			if err == nil {
 				t.Logf("✅ Counter triggered: value=%d", counterHV.Value)
 			}
 
@@ -136,7 +136,7 @@ func TestTriggeredSignal_WatchFlow(t *testing.T) {
 		if trigger != nil && trigger.HasVarTrigger("price") {
 			flowTriggered++
 
-			if !priceHV.IsError() {
+			if err == nil {
 				t.Logf("✅ Price triggered: value=%.2f", priceHV.Value)
 			}
 
@@ -268,12 +268,12 @@ func TestTriggeredSignal_Mixed(t *testing.T) {
 				t.Logf("✅ User triggered: '%s'", msg.String())
 			}
 
-			if trigger.HasVarTrigger("price") && !priceHV.IsError() {
+			if trigger.HasVarTrigger("price") && priceErr == nil {
 				triggerLog = append(triggerLog, "price")
 				t.Logf("✅ Price triggered: %.2f", priceHV.Value)
 			}
 
-			if trigger.HasVarTrigger("counter") && !counterHV.IsError() {
+			if trigger.HasVarTrigger("counter") && counterErr == nil {
 				triggerLog = append(triggerLog, "counter")
 				t.Logf("✅ Counter triggered: %d", counterHV.Value)
 			}

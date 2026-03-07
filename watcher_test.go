@@ -36,7 +36,7 @@ func TestWatchCall_BasicFunctionality(t *testing.T) {
 			ctx,
 		)
 
-		if !val.IsError() {
+		if err == nil {
 			t.Logf("WatchCall returned: %v", val.Value)
 		}
 
@@ -91,7 +91,7 @@ func TestWatchCall_ValuePersistence(t *testing.T) {
 			ctx,
 		)
 
-		if !val.IsError() {
+		if err == nil {
 			observedValues = append(observedValues, val.Value)
 			t.Logf("Execution %d: observed value = %v", executionCount, val.Value)
 		}
@@ -164,7 +164,7 @@ func TestWatchFlow_ChannelBased(t *testing.T) {
 
 		val := WatchFlow[int](0, getChannelFunc, "flowVar", ctx)
 
-		if !val.IsError() {
+		if err == nil {
 			receivedValues = append(receivedValues, val.Value)
 			t.Logf("Execution %d: received value = %v", atomic.LoadInt32(&executeCount), val.Value)
 		}
@@ -397,7 +397,7 @@ func TestWatcher_MultipleWatchVariables(t *testing.T) {
 			ctx,
 		)
 
-		if !val1.IsError() && !val2.IsError() {
+		if err1 == nil && err2 == nil {
 			t.Logf("Execution %d: var1=%v, var2=%v", atomic.LoadInt32(&executeCount), val1.Value, val2.Value)
 		}
 
@@ -520,7 +520,7 @@ func TestWatcher_HershContextAccess(t *testing.T) {
 			ctx,
 		)
 
-		if !val.IsError() {
+		if err == nil {
 			t.Logf("Watch value: %v", val.Value)
 		}
 
@@ -623,7 +623,7 @@ func TestWatchCall_ErrorHandling(t *testing.T) {
 			ctx,
 		)
 
-		if !val.IsError() {
+		if err == nil {
 			t.Logf("Received value despite errors: %v", val.Value)
 		}
 
