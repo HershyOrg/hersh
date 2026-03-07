@@ -44,13 +44,13 @@ func TestWatchFlowBasic(t *testing.T) {
 	}
 
 	// Register managed function
-	watcher.Manage(func(msg *Message, ctx HershContext) error {
+	watcher.Manage(func(msg *Message, ctx ManageContext) error {
 		executionCount++
 		fmt.Printf("[Reducer #%d] Called\n", executionCount)
 
 		// WatchFlow
-		val := WatchFlow[int](getChannelFunc, "test_value", ctx)
-		if !val.IsError() {
+		val, err := WatchFlow[int](getChannelFunc, "test_value", ctx)
+		if err == nil {
 			fmt.Printf("[Reducer #%d] Received value: %v\n", executionCount, val.Value)
 		} else {
 			fmt.Printf("[Reducer #%d] WatchFlow returned error or zero value\n", executionCount)

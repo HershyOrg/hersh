@@ -78,10 +78,11 @@ func WatchTick(varName string, tickInterval time.Duration, runCtx shared.ManageC
 	}
 
 	// Use WatchFlow with the ticker channel function (generic version)
-	hv := hersh.WatchFlow[shared.HershTick](getChannelFunc, varName, runCtx)
+	// WatchFlow now returns (value, error) following Go conventions
+	hv, err := hersh.WatchFlow[shared.HershTick](getChannelFunc, varName, runCtx)
 
 	// Return HershTick (zero value if not initialized or error)
-	if hv.Error != nil {
+	if err != nil {
 		return shared.HershTick{}
 	}
 

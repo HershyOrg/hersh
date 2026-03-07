@@ -19,7 +19,8 @@ func getWatcherFromContext(ctx shared.ManageContext) *Watcher {
 }
 
 // WatchCall monitors a value by periodically generating computation functions (generic version).
-// Returns the current HershValue[T] or a zero-value HershValue[T] if not yet initialized.
+// Returns (HershValue[T], error) following Go conventions.
+// The HershValue[T] contains the current value, and error is returned separately.
 //
 // The getComputationFunc is called on each tick and returns:
 // - A VarUpdateFunc[T] that computes the next state from the previous state
@@ -37,7 +38,7 @@ func WatchCall[T any](
 	varName string,
 	tick time.Duration,
 	runCtx shared.ManageContext,
-) shared.HershValue[T] {
+) (shared.HershValue[T], error) {
 	w := getWatcherFromContext(runCtx)
 	if w == nil {
 		panic("WatchCall called with invalid ManageContext")
@@ -104,7 +105,7 @@ func WatchCall[T any](
 
 		// Return zero-value HershValue[T] on first call (not yet initialized)
 		var zero T
-		return shared.HershValue[T]{Value: zero, VarName: varName}
+		return shared.HershValue[T]{Value: zero, VarName: varName}, nil
 	}
 
 	// Get current RawHershValue from VarState
@@ -113,7 +114,7 @@ func WatchCall[T any](
 		if !ok {
 			// Not initialized yet - return zero value
 			var zero T
-			return shared.HershValue[T]{Value: zero, VarName: varName}
+			return shared.HershValue[T]{Value: zero, VarName: varName}, nil
 		}
 
 		// Convert RawHershValue to HershValue[T] with type assertion
@@ -130,15 +131,15 @@ func WatchCall[T any](
 			}
 		}
 
+		// Return value and error separately
 		return shared.HershValue[T]{
 			Value:   typedVal,
-			Error:   rawHV.Error,
 			VarName: varName,
-		}
+		}, rawHV.Error
 	}
 
 	var zero T
-	return shared.HershValue[T]{Value: zero, VarName: varName}
+	return shared.HershValue[T]{Value: zero, VarName: varName}, nil
 }
 
 // tickWatchLoop runs the tick-based Watch monitoring loop.
@@ -178,12 +179,13 @@ func tickWatchLoop(w *Watcher, handle *manager.TickHandle, rootCtx context.Conte
 // WatchFlow monitors a channel and emits VarSig when values arrive (generic version).
 // This is for event-driven reactive programming.
 //
-// Returns the latest HershValue[T] from the channel or a zero-value HershValue[T] if none received.
+// Returns (HershValue[T], error) following Go conventions.
+// The HershValue[T] contains the latest value from the channel, error is returned separately.
 func WatchFlow[T any](
 	getChannelFunc func(ctx context.Context) (<-chan shared.FlowValue[T], error),
 	varName string,
 	runCtx shared.ManageContext,
-) shared.HershValue[T] {
+) (shared.HershValue[T], error) {
 	w := getWatcherFromContext(runCtx)
 	if w == nil {
 		panic("WatchFlow called with invalid ManageContext")
@@ -232,9 +234,9 @@ func WatchFlow[T any](
 			errorHV := shared.RawHershValue{Value: nil, Error: err, VarName: varName}
 			w.manager.GetState().VarState.Set(varName, errorHV)
 
-			// Return error as HershValue[T]
+			// Return zero value and error separately
 			var zero T
-			return shared.HershValue[T]{Value: zero, Error: err, VarName: varName}
+			return shared.HershValue[T]{Value: zero, VarName: varName}, err
 		}
 
 		flowHandle := &manager.FlowHandle{
@@ -251,9 +253,9 @@ func WatchFlow[T any](
 		// Start watching channel
 		go flowWatchLoop(w, flowHandle, flowCtx, sourceChan)
 
-		// Return zero-value HershValue[T]
+		// Return zero-value HershValue[T] on first call
 		var zero T
-		return shared.HershValue[T]{Value: zero, VarName: varName}
+		return shared.HershValue[T]{Value: zero, VarName: varName}, nil
 	}
 
 	// Get current RawHershValue from VarState
@@ -261,7 +263,7 @@ func WatchFlow[T any](
 		rawHV, ok := w.manager.GetState().VarState.Get(varName)
 		if !ok {
 			var zero T
-			return shared.HershValue[T]{Value: zero, VarName: varName}
+			return shared.HershValue[T]{Value: zero, VarName: varName}, nil
 		}
 
 		// Convert RawHershValue to HershValue[T] with type assertion
@@ -278,15 +280,15 @@ func WatchFlow[T any](
 			}
 		}
 
+		// Return value and error separately
 		return shared.HershValue[T]{
 			Value:   typedVal,
-			Error:   rawHV.Error,
 			VarName: varName,
-		}
+		}, rawHV.Error
 	}
 
 	var zero T
-	return shared.HershValue[T]{Value: zero, VarName: varName}
+	return shared.HershValue[T]{Value: zero, VarName: varName}, nil
 }
 
 // flowWatchLoop monitors a channel and sends VarSig on updates.

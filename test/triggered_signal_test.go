@@ -27,7 +27,7 @@ func TestTriggeredSignal_WatchCall(t *testing.T) {
 
 	watcher.Manage(func(msg *shared.Message, runCtx shared.ManageContext) error {
 		// WatchCall: 100ms마다 카운터 증가
-		counterHV := hersh.WatchCall[int](func() (manager.VarUpdateFunc[int], bool, error) {
+		counterHV, err := hersh.WatchCall[int](func() (manager.VarUpdateFunc[int], bool, error) {
 			return func(prev int) (int, error) {
 				counter++
 				return counter, nil
@@ -39,7 +39,7 @@ func TestTriggeredSignal_WatchCall(t *testing.T) {
 		if trigger != nil && trigger.HasVarTrigger("counter") {
 			triggeredVars = append(triggeredVars, "counter")
 
-			if !counterHV.IsError() {
+			if err == nil {
 				t.Logf("✅ Counter triggered: value=%d", counterHV.Value)
 			}
 
@@ -128,7 +128,7 @@ func TestTriggeredSignal_WatchFlow(t *testing.T) {
 
 	watcher.Manage(func(msg *shared.Message, runCtx shared.ManageContext) error {
 		// WatchFlow: 채널에서 가격 스트림 감시
-		priceHV := hersh.WatchFlow[float64](func(ctx context.Context) (<-chan shared.FlowValue[float64], error) {
+		priceHV, err := hersh.WatchFlow[float64](func(ctx context.Context) (<-chan shared.FlowValue[float64], error) {
 			return priceChan, nil
 		}, "price", runCtx)
 
@@ -136,7 +136,7 @@ func TestTriggeredSignal_WatchFlow(t *testing.T) {
 		if trigger != nil && trigger.HasVarTrigger("price") {
 			flowTriggered++
 
-			if !priceHV.IsError() {
+			if err == nil {
 				t.Logf("✅ Price triggered: value=%.2f", priceHV.Value)
 			}
 
@@ -244,7 +244,7 @@ func TestTriggeredSignal_Mixed(t *testing.T) {
 
 	watcher.Manage(func(msg *shared.Message, runCtx shared.ManageContext) error {
 		// 1. WatchFlow: 가격
-		priceHV := hersh.WatchFlow[float64](func(ctx context.Context) (<-chan shared.FlowValue[float64], error) {
+		priceHV, priceErr := hersh.WatchFlow[float64](func(ctx context.Context) (<-chan shared.FlowValue[float64], error) {
 			return priceChan, nil
 		}, "price", runCtx)
 
@@ -252,7 +252,7 @@ func TestTriggeredSignal_Mixed(t *testing.T) {
 		tick := util.WatchTick("ticker", 300*time.Millisecond, runCtx)
 
 		// 3. WatchCall: 카운터
-		counterHV := hersh.WatchCall[int](func() (manager.VarUpdateFunc[int], bool, error) {
+		counterHV, counterErr := hersh.WatchCall[int](func() (manager.VarUpdateFunc[int], bool, error) {
 			return func(prev int) (int, error) {
 				return prev + 1, nil
 			}, false, nil
@@ -266,12 +266,12 @@ func TestTriggeredSignal_Mixed(t *testing.T) {
 				t.Logf("✅ User triggered: '%s'", msg.String())
 			}
 
-			if trigger.HasVarTrigger("price") && !priceHV.IsError() {
+			if trigger.HasVarTrigger("price") && priceErr == nil {
 				triggerLog = append(triggerLog, "price")
 				t.Logf("✅ Price triggered: %.2f", priceHV.Value)
 			}
 
-			if trigger.HasVarTrigger("counter") && !counterHV.IsError() {
+			if trigger.HasVarTrigger("counter") && counterErr == nil {
 				triggerLog = append(triggerLog, "counter")
 				t.Logf("✅ Counter triggered: %d", counterHV.Value)
 			}
@@ -364,13 +364,13 @@ func TestTriggeredSignal_BatchVarSigs(t *testing.T) {
 	watcher.Manage(func(msg *shared.Message, runCtx shared.ManageContext) error {
 		time.Sleep(100 * time.Microsecond)
 		// 3개 WatchFlow 동시 등록
-		hersh.WatchFlow[int](func(ctx context.Context) (<-chan shared.FlowValue[int], error) {
+		_, _ = hersh.WatchFlow[int](func(ctx context.Context) (<-chan shared.FlowValue[int], error) {
 			return ch1, nil
 		}, "var1", runCtx)
-		hersh.WatchFlow[int](func(ctx context.Context) (<-chan shared.FlowValue[int], error) {
+		_, _ = hersh.WatchFlow[int](func(ctx context.Context) (<-chan shared.FlowValue[int], error) {
 			return ch2, nil
 		}, "var2", runCtx)
-		hersh.WatchFlow[int](func(ctx context.Context) (<-chan shared.FlowValue[int], error) {
+		_, _ = hersh.WatchFlow[int](func(ctx context.Context) (<-chan shared.FlowValue[int], error) {
 			return ch3, nil
 		}, "var3", runCtx)
 

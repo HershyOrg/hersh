@@ -40,7 +40,7 @@ type EffectHandler struct {
 	rootCtx          context.Context
 	rootCtxCancel    context.CancelFunc
 	consecutiveFails int
-	hershCtx         *mctx.ManageContext // Persistent HershContext across executions
+	manageCtx         *mctx.ManageContext // Persistent HershContext across executions
 	cleanupDone      chan struct{}       // Signals when cleanup completes
 }
 
@@ -68,7 +68,7 @@ func NewEffectHandler(
 		expectedVars:  make([]string, 0),
 		rootCtx:       bgCtx,
 		rootCtxCancel: cancel,
-		hershCtx:      hershCtx,
+		manageCtx:      hershCtx,
 		cleanupDone:   make(chan struct{}, 1), // Buffered to avoid blocking
 	}
 }
@@ -91,7 +91,7 @@ func (eh *EffectHandler) CheckInitializationComplete() bool {
 // This must be called before running any effects.
 // The watcher parameter should be of type *Watcher from hersh package.
 func (eh *EffectHandler) SetWatcher(watcher any) {
-	eh.hershCtx.SetWatcher(watcher)
+	eh.manageCtx.SetWatcher(watcher)
 }
 
 // SetManagedFunc sets the managed function.
@@ -117,7 +117,7 @@ func (eh *EffectHandler) HasManagedFunc() bool {
 
 // GetHershContext returns the persistent HershContext.
 func (eh *EffectHandler) GetHershContext() shared.ManageContext {
-	return eh.hershCtx
+	return eh.manageCtx
 }
 
 // ExecuteEffect executes an effect and returns the resulting WatcherSig (if any).
@@ -181,9 +181,9 @@ func (eh *EffectHandler) runScript(effect *RunScriptEffect) (*EffectResult, *Man
 
 	// Update persistent HershContext with new context, message, and triggered signal
 	// All Watch calls will use this context and respect the timeout
-	eh.hershCtx.UpdateContext(execCtx)
-	eh.hershCtx.SetMessage(msg)
-	eh.hershCtx.SetTriggeredSignal(effect.TriggeredSignal)
+	eh.manageCtx.UpdateContext(execCtx)
+	eh.manageCtx.SetMessage(msg)
+	eh.manageCtx.SetTriggeredSignal(effect.TriggeredSignal)
 
 	// Get managedFunc with read lock
 	eh.mu.RLock()
@@ -198,7 +198,7 @@ func (eh *EffectHandler) runScript(effect *RunScriptEffect) (*EffectResult, *Man
 				done <- fmt.Errorf("panic: %v", r)
 			}
 		}()
-		done <- fn(msg, eh.hershCtx)
+		done <- fn(msg, eh.manageCtx)
 	}()
 
 	// Wait for completion or timeout
@@ -290,7 +290,7 @@ func (eh *EffectHandler) initRunScript(effect *InitRunScriptEffect) (*EffectResu
 	}
 
 	// Set triggered signal for initialization
-	eh.hershCtx.SetTriggeredSignal(effect.TriggeredSignal)
+	eh.manageCtx.SetTriggeredSignal(effect.TriggeredSignal)
 
 	// Phase 1: Run once to trigger Watch registrations
 	phase1Result := eh.runScriptOnce()
@@ -345,8 +345,8 @@ func (eh *EffectHandler) runScriptOnce() *EffectResult {
 	defer cancel()
 
 	// Update persistent HershContext
-	eh.hershCtx.UpdateContext(execCtx)
-	eh.hershCtx.SetMessage(nil)
+	eh.manageCtx.UpdateContext(execCtx)
+	eh.manageCtx.SetMessage(nil)
 
 	// Get managedFunc with read lock
 	eh.mu.RLock()
@@ -360,7 +360,7 @@ func (eh *EffectHandler) runScriptOnce() *EffectResult {
 				done <- fmt.Errorf("panic: %v", r)
 			}
 		}()
-		done <- fn(nil, eh.hershCtx)
+		done <- fn(nil, eh.manageCtx)
 	}()
 
 	select {
@@ -394,9 +394,9 @@ func (eh *EffectHandler) clearRunScript(hookState shared.ManagerInnerState) (*Ef
 		// Update context with 5-minute timeout for cleanup
 		cleanCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancel()
-		eh.hershCtx.UpdateContext(cleanCtx)
+		eh.manageCtx.UpdateContext(cleanCtx)
 
-		err := eh.cleaner.ClearRun(eh.hershCtx)
+		err := eh.cleaner.ClearRun(eh.manageCtx)
 		if err != nil {
 			result.Success = false
 			result.Error = err
