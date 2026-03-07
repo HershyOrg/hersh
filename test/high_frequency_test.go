@@ -53,8 +53,8 @@ func TestHighFrequency_FastWatchSlowFunction(t *testing.T) {
 		signals.SendVarSig(&manager.VarSig{
 			ReceivedTime:  time.Now(),
 			TargetVarName: "highFreqVar",
-			VarUpdateFunc: func(prev shared.RawHershValue) (shared.RawHershValue, error) {
-				return shared.RawHershValue{Value: currentI, Error: nil}, nil
+			VarUpdateFunc: func(prev shared.RawWatchValue) (shared.RawWatchValue, error) {
+				return shared.RawWatchValue{Value: currentI, Error: nil}, nil
 			},
 			IsStateIndependent: false,
 		})
@@ -134,8 +134,8 @@ func TestHighFrequency_ConcurrentSignalsAndMessages(t *testing.T) {
 			signals.SendVarSig(&manager.VarSig{
 				ReceivedTime:  time.Now(),
 				TargetVarName: "concurrentVar",
-				VarUpdateFunc: func(prev shared.RawHershValue) (shared.RawHershValue, error) {
-					return shared.RawHershValue{Value: currentI, Error: nil}, nil
+				VarUpdateFunc: func(prev shared.RawWatchValue) (shared.RawWatchValue, error) {
+					return shared.RawWatchValue{Value: currentI, Error: nil}, nil
 				},
 				IsStateIndependent: false,
 			})
@@ -229,8 +229,8 @@ func TestHighFrequency_SignalBurst(t *testing.T) {
 			signals.SendVarSig(&manager.VarSig{
 				ReceivedTime:  time.Now(),
 				TargetVarName: varName,
-				VarUpdateFunc: func(prev shared.RawHershValue) (shared.RawHershValue, error) {
-					return shared.RawHershValue{Value: currentVal, Error: nil}, nil
+				VarUpdateFunc: func(prev shared.RawWatchValue) (shared.RawWatchValue, error) {
+					return shared.RawWatchValue{Value: currentVal, Error: nil}, nil
 				},
 				IsStateIndependent: false,
 			})
@@ -314,8 +314,8 @@ func TestHighFrequency_SignalsWithTimeout(t *testing.T) {
 		signals.SendVarSig(&manager.VarSig{
 			ReceivedTime:  time.Now(),
 			TargetVarName: "timeoutVar",
-			VarUpdateFunc: func(prev shared.RawHershValue) (shared.RawHershValue, error) {
-				return shared.RawHershValue{Value: currentI, Error: nil}, nil
+			VarUpdateFunc: func(prev shared.RawWatchValue) (shared.RawWatchValue, error) {
+				return shared.RawWatchValue{Value: currentI, Error: nil}, nil
 			},
 			IsStateIndependent: false,
 		})
@@ -394,8 +394,8 @@ func TestHighFrequency_MultipleWatchVariables(t *testing.T) {
 				signals.SendVarSig(&manager.VarSig{
 					ReceivedTime:  time.Now(),
 					TargetVarName: vName,
-					VarUpdateFunc: func(prev shared.RawHershValue) (shared.RawHershValue, error) {
-						return shared.RawHershValue{Value: currentI, Error: nil}, nil
+					VarUpdateFunc: func(prev shared.RawWatchValue) (shared.RawWatchValue, error) {
+						return shared.RawWatchValue{Value: currentI, Error: nil}, nil
 					},
 					IsStateIndependent: false,
 				})
@@ -486,8 +486,8 @@ func TestHighFrequency_PriorityUnderLoad(t *testing.T) {
 			signals.SendVarSig(&manager.VarSig{
 				ReceivedTime:  time.Now(),
 				TargetVarName: "priorityVar",
-				VarUpdateFunc: func(prev shared.RawHershValue) (shared.RawHershValue, error) {
-					return shared.RawHershValue{Value: currentI, Error: nil}, nil
+				VarUpdateFunc: func(prev shared.RawWatchValue) (shared.RawWatchValue, error) {
+					return shared.RawWatchValue{Value: currentI, Error: nil}, nil
 				},
 				IsStateIndependent: false,
 			})
@@ -605,8 +605,8 @@ func TestHighFrequency_StressTest(t *testing.T) {
 				signals.SendVarSig(&manager.VarSig{
 					ReceivedTime:  time.Now(),
 					TargetVarName: "stressVar",
-					VarUpdateFunc: func(prev shared.RawHershValue) (shared.RawHershValue, error) {
-						return shared.RawHershValue{Value: currentVal, Error: nil}, nil
+					VarUpdateFunc: func(prev shared.RawWatchValue) (shared.RawWatchValue, error) {
+						return shared.RawWatchValue{Value: currentVal, Error: nil}, nil
 					},
 					IsStateIndependent: false,
 				})

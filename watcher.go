@@ -118,7 +118,7 @@ func (w *Watcher) Manage(fn manager.ManagedFunc, name string) *CleanupBuilder {
 	}
 
 	// Wrap the managed function
-	wrappedFn := func(msg *Message, ctx HershContext) error {
+	wrappedFn := func(msg *Message, ctx ManageContext) error {
 		return fn(msg, ctx)
 	}
 
@@ -351,7 +351,7 @@ type CleanupBuilder struct {
 }
 
 // Cleanup registers a cleanup function to be called on Stop/Kill/Crash.
-func (cb *CleanupBuilder) Cleanup(cleanupFn func(ctx HershContext)) *Watcher {
+func (cb *CleanupBuilder) Cleanup(cleanupFn func(ctx ManageContext)) *Watcher {
 	cleaner := &cleanupAdapter{
 		cleanupFn: cleanupFn,
 	}
@@ -364,10 +364,10 @@ func (cb *CleanupBuilder) Cleanup(cleanupFn func(ctx HershContext)) *Watcher {
 
 // cleanupAdapter adapts the user's cleanup function to the Cleaner interface.
 type cleanupAdapter struct {
-	cleanupFn func(ctx HershContext)
+	cleanupFn func(ctx ManageContext)
 }
 
-func (ca *cleanupAdapter) ClearRun(ctx HershContext) error {
+func (ca *cleanupAdapter) ClearRun(ctx ManageContext) error {
 	// Simply call the cleanup function with HershContext
 	ca.cleanupFn(ctx)
 	return nil

@@ -18,7 +18,7 @@ func main2() {
 
 	// Managed function with reactive state
 	counter := 0
-	managedFunc := func(msg *hersh.Message, ctx hersh.HershContext) error {
+	managedFunc := func(msg *hersh.Message, ctx hersh.ManageContext) error {
 		counter++
 		fmt.Printf("[Execution %d]\n", counter)
 
@@ -53,7 +53,7 @@ func main2() {
 	}
 
 	// Register managed function with cleanup
-	watcher.Manage(managedFunc, "counterExample").Cleanup(func(ctx hersh.HershContext) {
+	watcher.Manage(managedFunc, "counterExample").Cleanup(func(ctx hersh.ManageContext) {
 		fmt.Println("\n[Cleanup] Watcher is shutting down")
 		fmt.Printf("[Cleanup] Final state - Counter: %d\n", counter)
 	})

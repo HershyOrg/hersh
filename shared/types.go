@@ -235,9 +235,9 @@ type RawFlowValue struct {
 	SkipSignal bool  // Skip signal flag
 }
 
-// HershValue represents a value or error from Watch variables (generic version).
+// WatchValue represents a value or error from Watch variables (generic version).
 // This allows users to work with type-safe values while internally using any.
-type HershValue[T any] struct {
+type WatchValue[T any] struct {
 	Value      T      // The actual value (type-safe)
 	Error      error  // Error that occurred during computation (nil if no error)
 	VarName    string // Name of the watched variable (empty if not from Watch)
@@ -245,52 +245,47 @@ type HershValue[T any] struct {
 }
 
 // IsError returns true if this HershValue contains an error.
-func (hv HershValue[T]) IsError() bool {
-	return hv.Error != nil
+func (wv WatchValue[T]) IsError() bool {
+	return wv.Error != nil
 }
 
 // IsUpdated returns true if this value has been updated (not initial).
-func (hv HershValue[T]) IsUpdated() bool {
-	return !hv.NotUpdated
+func (wv WatchValue[T]) IsUpdated() bool {
+	return !wv.NotUpdated
 }
 
-// IsInitial returns true if this is an initial value (not yet updated).
-func (hv HershValue[T]) IsInitial() bool {
-	return hv.NotUpdated
-}
-
-// IsValid returns true if !IsError && IsUpdated
-func (hv HershValue[T]) IsValid() bool {
-	return !hv.IsError() && !hv.NotUpdated
+// IsUpdatedValide returns true if !IsError && IsUpdated
+func (wv WatchValue[T]) IsUpdatedValide() bool {
+	return !wv.IsError() && !wv.NotUpdated
 }
 
 // Get returns the value and error separately (Go idiomatic pattern).
-func (hv HershValue[T]) Get() (T, error) {
-	return hv.Value, hv.Error
+func (wv WatchValue[T]) Get() (T, error) {
+	return wv.Value, wv.Error
 }
 
 // MustGet returns the value or panics if there's an error.
 // Use this only when you're certain there won't be an error.
-func (hv HershValue[T]) MustGet() T {
-	if hv.Error != nil {
-		panic("HershValue contains error: " + hv.Error.Error())
+func (wv WatchValue[T]) MustGet() T {
+	if wv.Error != nil {
+		panic("HershValue contains error: " + wv.Error.Error())
 	}
-	return hv.Value
+	return wv.Value
 }
 
 // GetOr returns the value if no error, otherwise returns the default value.
-func (hv HershValue[T]) GetOr(defaultVal T) T {
-	if hv.Error != nil {
+func (wv WatchValue[T]) GetOr(defaultVal T) T {
+	if wv.Error != nil {
 		return defaultVal
 	}
-	return hv.Value
+	return wv.Value
 }
 
 // IsTriggered returns true if this variable was triggered in the current execution.
 // Requires a valid ManageContext to check the TriggeredSignal.
 // Returns false if VarName is empty or if no trigger information is available.
-func (hv HershValue[T]) IsTriggered(ctx ManageContext) bool {
-	if hv.VarName == "" {
+func (wv WatchValue[T]) IsTriggered(ctx ManageContext) bool {
+	if wv.VarName == "" {
 		return false // Not a watched variable
 	}
 
@@ -299,30 +294,30 @@ func (hv HershValue[T]) IsTriggered(ctx ManageContext) bool {
 		return false
 	}
 
-	return trigger.HasVarTrigger(hv.VarName)
+	return trigger.HasVarTrigger(wv.VarName)
 }
 
 // ToRaw converts HershValue[T] to RawHershValue for internal storage.
-func (hv HershValue[T]) ToRaw() RawHershValue {
-	return RawHershValue{
-		Value:      any(hv.Value),
-		Error:      hv.Error,
-		VarName:    hv.VarName,
-		NotUpdated: hv.NotUpdated,
+func (wv WatchValue[T]) ToRaw() RawWatchValue {
+	return RawWatchValue{
+		Value:      any(wv.Value),
+		Error:      wv.Error,
+		VarName:    wv.VarName,
+		NotUpdated: wv.NotUpdated,
 	}
 }
 
-// RawHershValue is the internal non-generic version used by VarState for storage.
-type RawHershValue struct {
+// RawWatchValue is the internal non-generic version used by VarState for storage.
+type RawWatchValue struct {
 	Value      any    // The actual value stored as any
 	Error      error  // Error that occurred during computation
 	VarName    string // Name of the watched variable
 	NotUpdated bool   // true if this is an initial value, false if actually updated
 }
 
-// HershTick represents a time-based tick event with count tracking.
+// TickValue represents a time-based tick event with count tracking.
 // Used by WatchTick to provide both timestamp and tick count information.
-type HershTick struct {
+type TickValue struct {
 	Time       time.Time // Current tick timestamp
 	TickCount  int       // Total number of ticks occurred (starts from 1)
 	VarName    string    // Name of the watched variable (empty if not from WatchTick)
@@ -330,20 +325,20 @@ type HershTick struct {
 }
 
 // IsUpdated returns true if this tick has been updated (not initial).
-func (ht HershTick) IsUpdated() bool {
-	return !ht.NotUpdated
+func (tv TickValue) IsUpdated() bool {
+	return !tv.NotUpdated
 }
 
 // IsInitial returns true if this is an initial tick value (not yet updated).
-func (ht HershTick) IsInitial() bool {
-	return ht.NotUpdated
+func (tv TickValue) IsInitial() bool {
+	return tv.NotUpdated
 }
 
 // IsTriggered returns true if this ticker was triggered in the current execution.
-// Requires a valid HershContext to check the TriggeredSignal.
+// Requires a valid ManageContext to check the TriggeredSignal.
 // Returns false if VarName is empty or if no trigger information is available.
-func (ht HershTick) IsTriggered(ctx ManageContext) bool {
-	if ht.VarName == "" {
+func (tv TickValue) IsTriggered(ctx ManageContext) bool {
+	if tv.VarName == "" {
 		return false // Not a watched variable
 	}
 
@@ -352,7 +347,7 @@ func (ht HershTick) IsTriggered(ctx ManageContext) bool {
 		return false
 	}
 
-	return trigger.HasVarTrigger(ht.VarName)
+	return trigger.HasVarTrigger(tv.VarName)
 }
 
 // DefaultWatcherConfig returns default configuration.

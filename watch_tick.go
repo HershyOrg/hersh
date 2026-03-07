@@ -13,9 +13,9 @@ func WatchTick(
 	varName string,
 	tick time.Duration,
 	runCtx shared.ManageContext,
-) shared.HershValue[shared.HershTick] {
+) shared.WatchValue[shared.TickValue] {
 	// Create initial tick with current time
-	init := shared.HershTick{
+	init := shared.TickValue{
 		Time:       time.Now(),
 		TickCount:  0,
 		VarName:    varName,
@@ -25,9 +25,9 @@ func WatchTick(
 	// Use WatchCall with tick generation function
 	return WatchCall(
 		init,
-		func() (manager.VarUpdateFunc[shared.HershTick], bool, error) {
-			return func(prev shared.HershTick) (shared.HershTick, error) {
-				return shared.HershTick{
+		func() (manager.VarUpdateFunc[shared.TickValue], bool, error) {
+			return func(prev shared.TickValue) (shared.TickValue, error) {
+				return shared.TickValue{
 					Time:       time.Now(),
 					TickCount:  prev.TickCount + 1,
 					VarName:    varName,

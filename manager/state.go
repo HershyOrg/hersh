@@ -10,18 +10,18 @@ import (
 // map[varName]RawHershValue (internal non-generic storage)
 type VarState struct {
 	mu     sync.RWMutex
-	values map[string]shared.RawHershValue
+	values map[string]shared.RawWatchValue
 }
 
 // NewVarState creates a new VarState.
 func NewVarState() *VarState {
 	return &VarState{
-		values: make(map[string]shared.RawHershValue),
+		values: make(map[string]shared.RawWatchValue),
 	}
 }
 
 // Get retrieves a variable's RawHershValue.
-func (vs *VarState) Get(name string) (shared.RawHershValue, bool) {
+func (vs *VarState) Get(name string) (shared.RawWatchValue, bool) {
 	vs.mu.RLock()
 	defer vs.mu.RUnlock()
 	val, ok := vs.values[name]
@@ -29,14 +29,14 @@ func (vs *VarState) Get(name string) (shared.RawHershValue, bool) {
 }
 
 // Set updates a variable's RawHershValue.
-func (vs *VarState) Set(name string, value shared.RawHershValue) {
+func (vs *VarState) Set(name string, value shared.RawWatchValue) {
 	vs.mu.Lock()
 	defer vs.mu.Unlock()
 	vs.values[name] = value
 }
 
 // BatchSet updates multiple variables atomically.
-func (vs *VarState) BatchSet(updates map[string]shared.RawHershValue) {
+func (vs *VarState) BatchSet(updates map[string]shared.RawWatchValue) {
 	vs.mu.Lock()
 	defer vs.mu.Unlock()
 	for name, value := range updates {
@@ -45,10 +45,10 @@ func (vs *VarState) BatchSet(updates map[string]shared.RawHershValue) {
 }
 
 // GetAll returns a snapshot of all variable values.
-func (vs *VarState) GetAll() map[string]shared.RawHershValue {
+func (vs *VarState) GetAll() map[string]shared.RawWatchValue {
 	vs.mu.RLock()
 	defer vs.mu.RUnlock()
-	snapshot := make(map[string]shared.RawHershValue, len(vs.values))
+	snapshot := make(map[string]shared.RawWatchValue, len(vs.values))
 	for k, v := range vs.values {
 		snapshot[k] = v
 	}
@@ -59,9 +59,8 @@ func (vs *VarState) GetAll() map[string]shared.RawHershValue {
 func (vs *VarState) Clear() {
 	vs.mu.Lock()
 	defer vs.mu.Unlock()
-	vs.values = make(map[string]shared.RawHershValue)
+	vs.values = make(map[string]shared.RawWatchValue)
 }
-
 
 // UserState holds the current user message state.
 type UserState struct {
@@ -159,7 +158,7 @@ func (ms *ManagerState) WaitStoppedAfterCleanup() <-chan struct{} {
 
 // Snapshot returns a complete state snapshot for logging.
 type StateSnapshot struct {
-	VarState          map[string]shared.RawHershValue
+	VarState          map[string]shared.RawWatchValue
 	UserMessage       *shared.Message
 	ManagerInnerState shared.ManagerInnerState
 }

@@ -99,7 +99,7 @@ func main() {
 	fmt.Println("   ✅ Watcher created with 10-minute timeout context")
 
 	// Register managed function with closure
-	watcher.Manage(func(msg *hersh.Message, ctx hersh.HershContext) error {
+	watcher.Manage(func(msg *hersh.Message, ctx hersh.ManageContext) error {
 		return mainReducer(
 			msg, ctx,
 			stream,
@@ -107,7 +107,7 @@ func main() {
 			statsCollector,
 			commandHandler,
 		)
-	}, "TradingSimulator").Cleanup(func(ctx hersh.HershContext) {
+	}, "TradingSimulator").Cleanup(func(ctx hersh.ManageContext) {
 		cleanup(ctx, stream, simulator, statsCollector)
 	})
 
@@ -161,7 +161,7 @@ func main() {
 // mainReducer is the main managed function for the Watcher
 func mainReducer(
 	msg *hersh.Message,
-	ctx hersh.HershContext,
+	ctx hersh.ManageContext,
 	stream *BinanceStream,
 	simulator *TradingSimulator,
 	statsCollector *StatsCollector,
@@ -176,10 +176,10 @@ func mainReducer(
 	// WatchTick: Rebalance ticker (1 hour interval)
 	rebalanceTick := util.WatchTick("rebalance_ticker", RebalanceInterval, ctx)
 
-	if btcHV.IsValid() {
+	if btcHV.IsUpdatedValide() {
 		simulator.UpdatePrice("BTC", btcHV.Value)
 	}
-	if ethHV.IsValid() {
+	if ethHV.IsUpdatedValide() {
 		simulator.UpdatePrice("ETH", ethHV.Value)
 	}
 
@@ -232,7 +232,7 @@ func mainReducer(
 
 // cleanup is called when the Watcher stops
 func cleanup(
-	ctx hersh.HershContext,
+	ctx hersh.ManageContext,
 	stream *BinanceStream,
 	simulator *TradingSimulator,
 	statsCollector *StatsCollector,

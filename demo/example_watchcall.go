@@ -19,7 +19,7 @@ func main1() {
 	// Simulated external data source
 	externalCounter := 0
 
-	managedFunc := func(msg *hersh.Message, ctx hersh.HershContext) error {
+	managedFunc := func(msg *hersh.Message, ctx hersh.ManageContext) error {
 		fmt.Printf("\n[Managed Function Execution]\n")
 
 		// WatchCall monitors external value and triggers re-execution on change (generic version)
@@ -70,7 +70,7 @@ func main1() {
 		return nil
 	}
 
-	watcher.Manage(managedFunc, "watchCallExample").Cleanup(func(ctx hersh.HershContext) {
+	watcher.Manage(managedFunc, "watchCallExample").Cleanup(func(ctx hersh.ManageContext) {
 		fmt.Println("\n[Cleanup] Shutting down watcher")
 	})
 

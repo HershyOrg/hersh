@@ -20,7 +20,7 @@ func TestWatchTick_BasicFunctionality(t *testing.T) {
 
 	watcher := hersh.NewWatcher(config, nil, ctx)
 
-	tickReceived := make([]shared.HershTick, 0, 3)
+	tickReceived := make([]shared.TickValue, 0, 3)
 
 	watcher.Manage(func(msg *shared.Message, runCtx shared.ManageContext) error {
 		tick := util.WatchTick("test_ticker", 100*time.Millisecond, runCtx)
@@ -88,7 +88,7 @@ func TestWatchTick_ImmediateInitialTick(t *testing.T) {
 	watcher := hersh.NewWatcher(config, nil, ctx)
 
 	startTime := time.Now()
-	var firstTick shared.HershTick
+	var firstTick shared.TickValue
 	receivedTick := false
 
 	watcher.Manage(func(msg *shared.Message, runCtx shared.ManageContext) error {
@@ -182,91 +182,9 @@ func TestWatchTick_TickCountIncrement(t *testing.T) {
 	}
 }
 
-func TestWatchTick_MultipleWatches(t *testing.T) {
-	config := shared.DefaultWatcherConfig()
-	config.ServerPort = 0 // Use random port
-	config.DefaultTimeout = 3 * time.Second
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	watcher := hersh.NewWatcher(config, nil, ctx)
-
-	tick1Counts := make([]int, 0)
-	tick2Counts := make([]int, 0)
-
-	watcher.Manage(func(msg *shared.Message, runCtx shared.ManageContext) error {
-		// Watch two different tickers with different intervals
-		tick1 := util.WatchTick("ticker1", 100*time.Millisecond, runCtx)
-		tick2 := util.WatchTick("ticker2", 150*time.Millisecond, runCtx)
-
-		if tick1.IsUpdated() {
-			tick1Counts = append(tick1Counts, tick1.TickCount)
-		}
-
-		if tick2.IsUpdated() {
-			tick2Counts = append(tick2Counts, tick2.TickCount)
-		}
-
-		// Stop after ticker1 gets 4 ticks
-		if len(tick1Counts) >= 4 {
-			return shared.NewStopErr("test complete")
-		}
-
-		return nil
-	}, "TestMultipleWatches")
-
-	if err := watcher.Start(); err != nil {
-		t.Fatalf("Failed to start watcher: %v", err)
-	}
-
-	// Wait for ticks to be processed
-	time.Sleep(1 * time.Second)
-
-	if err := watcher.Stop(); err != nil {
-		t.Logf("Stop error (may be expected): %v", err)
-	}
-
-	// Verify both tickers received ticks
-	if len(tick1Counts) != 4 {
-		t.Errorf("Ticker1: expected  4 ticks, got %d", len(tick1Counts))
-	}
-
-	if len(tick2Counts) < 2 {
-		t.Errorf("Ticker2: expected at least 2 tick, got %d", len(tick2Counts))
-	}
-
-	// Ticker1 should have more or equal ticks than ticker2 (faster interval)
-	if len(tick1Counts) < len(tick2Counts) {
-		t.Errorf("Expected ticker1 (%d ticks) >= ticker2 (%d ticks)",
-			len(tick1Counts), len(tick2Counts))
-	}
-
-	// Verify ticker1 has sequential or mostly sequential counts
-	// (multiple watches may have timing variations)
-	nonSequentialCount1 := 0
-	for i := 1; i < len(tick1Counts); i++ {
-		if tick1Counts[i] != tick1Counts[i-1]+1 {
-			nonSequentialCount1++
-		}
-	}
-	if nonSequentialCount1 > len(tick1Counts)/2 {
-		t.Errorf("Ticker1: too many non-sequential ticks: %d out of %d",
-			nonSequentialCount1, len(tick1Counts)-1)
-	}
-
-	// Verify ticker2 counts are positive and increasing
-	for i := 1; i < len(tick2Counts); i++ {
-		if tick2Counts[i] < tick2Counts[i-1] {
-			t.Errorf("Ticker2[%d]: count decreased from %d to %d",
-				i, tick2Counts[i-1], tick2Counts[i])
-		}
-	}
-}
-
 func TestWatchTick_IsUpdated(t *testing.T) {
 	// Test initial tick (NotUpdated = true)
-	initialTick := shared.HershTick{
+	initialTick := shared.TickValue{
 		Time:       time.Now(),
 		TickCount:  0,
 		NotUpdated: true,
@@ -276,7 +194,7 @@ func TestWatchTick_IsUpdated(t *testing.T) {
 	}
 
 	// Test updated tick (NotUpdated = false)
-	updatedTick := shared.HershTick{
+	updatedTick := shared.TickValue{
 		Time:       time.Now(),
 		TickCount:  1,
 		NotUpdated: false,

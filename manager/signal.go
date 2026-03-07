@@ -15,7 +15,7 @@ type VarUpdateFunc[T any] func(prev T) (next T, err error)
 
 // RawVarUpdateFunc is the internal non-generic version used by VarSig.
 // It receives the previous RawHershValue and returns the next RawHershValue and an error.
-type RawVarUpdateFunc func(prev shared.RawHershValue) (next shared.RawHershValue, err error)
+type RawVarUpdateFunc func(prev shared.RawWatchValue) (next shared.RawWatchValue, err error)
 
 // VarSig represents a change in a watched variable's state.
 type VarSig struct {

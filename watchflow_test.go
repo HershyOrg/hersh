@@ -44,7 +44,7 @@ func TestWatchFlowBasic(t *testing.T) {
 	}
 
 	// Register managed function
-	watcher.Manage(func(msg *Message, ctx HershContext) error {
+	watcher.Manage(func(msg *Message, ctx ManageContext) error {
 		executionCount++
 		fmt.Printf("[Reducer #%d] Called\n", executionCount)
 

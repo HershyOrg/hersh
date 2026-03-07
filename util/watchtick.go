@@ -31,10 +31,10 @@ const defaultBufferSize = 10
 //
 // The function sends an initial tick immediately (TickCount=1), then at regular intervals.
 // Each subsequent tick increments the TickCount.
-func WatchTick(varName string, tickInterval time.Duration, runCtx shared.ManageContext) shared.HershTick {
+func WatchTick(varName string, tickInterval time.Duration, runCtx shared.ManageContext) shared.TickValue {
 	// Create a FlowValue[HershTick] channel function that wraps the ticker with count tracking
-	getChannelFunc := func(flowCtx context.Context) (<-chan shared.FlowValue[shared.HershTick], error) {
-		flowChan := make(chan shared.FlowValue[shared.HershTick], defaultBufferSize)
+	getChannelFunc := func(flowCtx context.Context) (<-chan shared.FlowValue[shared.TickValue], error) {
+		flowChan := make(chan shared.FlowValue[shared.TickValue], defaultBufferSize)
 
 		go func() {
 			defer close(flowChan)
@@ -44,8 +44,8 @@ func WatchTick(varName string, tickInterval time.Duration, runCtx shared.ManageC
 			// Send initial tick immediately
 			tickCount++
 			select {
-			case flowChan <- shared.FlowValue[shared.HershTick]{
-				V: shared.HershTick{Time: time.Now(), TickCount: tickCount, VarName: varName},
+			case flowChan <- shared.FlowValue[shared.TickValue]{
+				V: shared.TickValue{Time: time.Now(), TickCount: tickCount, VarName: varName},
 				E: nil,
 			}:
 			case <-flowCtx.Done():
@@ -63,8 +63,8 @@ func WatchTick(varName string, tickInterval time.Duration, runCtx shared.ManageC
 				case t := <-ticker.C:
 					tickCount++
 					select {
-					case flowChan <- shared.FlowValue[shared.HershTick]{
-						V: shared.HershTick{Time: t, TickCount: tickCount, VarName: varName},
+					case flowChan <- shared.FlowValue[shared.TickValue]{
+						V: shared.TickValue{Time: t, TickCount: tickCount, VarName: varName},
 						E: nil,
 					}:
 					case <-flowCtx.Done():
@@ -78,7 +78,7 @@ func WatchTick(varName string, tickInterval time.Duration, runCtx shared.ManageC
 	}
 
 	// Initial value for WatchFlow
-	init := shared.HershTick{
+	init := shared.TickValue{
 		Time:       time.Now(),
 		TickCount:  0,
 		VarName:    varName,
@@ -86,11 +86,11 @@ func WatchTick(varName string, tickInterval time.Duration, runCtx shared.ManageC
 	}
 
 	// Use WatchFlow with the ticker channel function (generic version)
-	hv := hersh.WatchFlow[shared.HershTick](init, getChannelFunc, varName, runCtx)
+	hv := hersh.WatchFlow[shared.TickValue](init, getChannelFunc, varName, runCtx)
 
 	// Return HershTick (zero value if not initialized or error)
 	if hv.Error != nil {
-		return shared.HershTick{}
+		return shared.TickValue{}
 	}
 
 	tick := hv.Value // Type-safe, no assertion needed

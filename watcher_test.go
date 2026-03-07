@@ -20,7 +20,7 @@ func TestWatchCall_BasicFunctionality(t *testing.T) {
 	executeCount := int32(0)
 	varValue := int32(0)
 
-	managedFunc := func(msg *Message, ctx HershContext) error {
+	managedFunc := func(msg *Message, ctx ManageContext) error {
 		atomic.AddInt32(&executeCount, 1)
 
 		// WatchCall with compute function
@@ -77,7 +77,7 @@ func TestWatchCall_ValuePersistence(t *testing.T) {
 	observedValues := make([]any, 0)
 	executionCount := 0
 
-	managedFunc := func(msg *Message, ctx HershContext) error {
+	managedFunc := func(msg *Message, ctx ManageContext) error {
 		executionCount++
 
 		val := WatchCall[int](0,
@@ -159,7 +159,7 @@ func TestWatchFlow_ChannelBased(t *testing.T) {
 		return sourceChan, nil
 	}
 
-	managedFunc := func(msg *Message, ctx HershContext) error {
+	managedFunc := func(msg *Message, ctx ManageContext) error {
 		atomic.AddInt32(&executeCount, 1)
 
 		val := WatchFlow[int](0, getChannelFunc, "flowVar", ctx)
@@ -219,7 +219,7 @@ func TestWatchFlow_ChannelClosed(t *testing.T) {
 		return sourceChan, nil
 	}
 
-	managedFunc := func(msg *Message, ctx HershContext) error {
+	managedFunc := func(msg *Message, ctx ManageContext) error {
 		val := WatchFlow[int](0, getChannelFunc, "flowVar", ctx)
 		if !val.IsError() {
 			receivedValues = append(receivedValues, val.Value)
@@ -253,7 +253,7 @@ func TestMemo_BasicCaching(t *testing.T) {
 	computeCount := int32(0)
 	executeCount := int32(0)
 
-	managedFunc := func(msg *Message, ctx HershContext) error {
+	managedFunc := func(msg *Message, ctx ManageContext) error {
 		atomic.AddInt32(&executeCount, 1)
 
 		// Memo should compute only once
@@ -308,7 +308,7 @@ func TestMemo_ClearMemo(t *testing.T) {
 
 	computeCount := int32(0)
 
-	managedFunc := func(msg *Message, ctx HershContext) error {
+	managedFunc := func(msg *Message, ctx ManageContext) error {
 		if msg != nil && msg.Content == "clear" {
 			ClearMemo("counter", ctx)
 			t.Log("Memo cleared")
@@ -372,7 +372,7 @@ func TestWatcher_MultipleWatchVariables(t *testing.T) {
 	counter2 := int32(0)
 	executeCount := int32(0)
 
-	managedFunc := func(msg *Message, ctx HershContext) error {
+	managedFunc := func(msg *Message, ctx ManageContext) error {
 		atomic.AddInt32(&executeCount, 1)
 
 		val1 := WatchCall[int32](int32(0),
@@ -441,7 +441,7 @@ func TestWatcher_WatchAndMemo(t *testing.T) {
 	watchCounter := int32(0)
 	memoComputeCount := int32(0)
 
-	managedFunc := func(msg *Message, ctx HershContext) error {
+	managedFunc := func(msg *Message, ctx ManageContext) error {
 		// Watch value changes frequently
 		watchVal := WatchCall[int32](int32(0),
 			func() (manager.VarUpdateFunc[int32], bool, error) {
@@ -500,7 +500,7 @@ func TestWatcher_HershContextAccess(t *testing.T) {
 
 	contextValid := false
 
-	managedFunc := func(msg *Message, ctx HershContext) error {
+	managedFunc := func(msg *Message, ctx ManageContext) error {
 		// Verify we can access watcher from context
 		watcherFromCtx := ctx.GetWatcher()
 		if watcherFromCtx != nil {
@@ -551,7 +551,7 @@ func TestWatcher_StopCancelsWatches(t *testing.T) {
 
 	watchCallCount := int32(0)
 
-	managedFunc := func(msg *Message, ctx HershContext) error {
+	managedFunc := func(msg *Message, ctx ManageContext) error {
 		WatchCall[int64](0,
 			func() (manager.VarUpdateFunc[int64], bool, error) {
 				return func(prev int64) (int64, error) {
@@ -605,7 +605,7 @@ func TestWatchCall_ErrorHandling(t *testing.T) {
 	errorCount := int32(0)
 	successCount := int32(0)
 
-	managedFunc := func(msg *Message, ctx HershContext) error {
+	managedFunc := func(msg *Message, ctx ManageContext) error {
 		val := WatchCall[int32](int32(0),
 			func() (manager.VarUpdateFunc[int32], bool, error) {
 				return func(prev int32) (int32, error) {
@@ -664,7 +664,7 @@ func TestWatcher_ContextCancellation(t *testing.T) {
 	watcher := NewWatcher(config, nil, ctx)
 
 	executionCount := int32(0)
-	managedFunc := func(msg *Message, hctx HershContext) error {
+	managedFunc := func(msg *Message, hctx ManageContext) error {
 		atomic.AddInt32(&executionCount, 1)
 		time.Sleep(10 * time.Millisecond)
 		return nil
@@ -711,7 +711,7 @@ func TestWatcher_ContextTimeout(t *testing.T) {
 	config.ServerPort = 0
 	watcher := NewWatcher(config, nil, ctx)
 
-	managedFunc := func(msg *Message, hctx HershContext) error {
+	managedFunc := func(msg *Message, hctx ManageContext) error {
 		time.Sleep(10 * time.Millisecond)
 		return nil
 	}
@@ -741,7 +741,7 @@ func TestWatcher_NilContext(t *testing.T) {
 	watcher := NewWatcher(config, nil, nil)
 
 	executionCount := int32(0)
-	managedFunc := func(msg *Message, hctx HershContext) error {
+	managedFunc := func(msg *Message, hctx ManageContext) error {
 		atomic.AddInt32(&executionCount, 1)
 		time.Sleep(10 * time.Millisecond)
 		return nil
@@ -779,7 +779,7 @@ func TestWatcher_ManualStopAfterContextCancel(t *testing.T) {
 	config.ServerPort = 0
 	watcher := NewWatcher(config, nil, ctx)
 
-	managedFunc := func(msg *Message, hctx HershContext) error {
+	managedFunc := func(msg *Message, hctx ManageContext) error {
 		time.Sleep(10 * time.Millisecond)
 		return nil
 	}
