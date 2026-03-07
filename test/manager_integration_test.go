@@ -50,8 +50,8 @@ func TestManager_BasicWorkflow(t *testing.T) {
 	signals.SendVarSig(&manager.VarSig{
 		ReceivedTime:  time.Now(),
 		TargetVarName: "testVar",
-		VarUpdateFunc: func(prev shared.RawHershValue) (shared.RawHershValue, error) {
-			return shared.RawHershValue{Value: 42, Error: nil}, nil
+		VarUpdateFunc: func(prev shared.RawWatchValue) (shared.RawWatchValue, error) {
+			return shared.RawWatchValue{Value: 42, Error: nil}, nil
 		},
 		IsStateIndependent: false,
 	})
@@ -166,8 +166,8 @@ func TestManager_ErrorHandling(t *testing.T) {
 	signals.SendVarSig(&manager.VarSig{
 		ReceivedTime:  time.Now(),
 		TargetVarName: "trigger",
-		VarUpdateFunc: func(prev shared.RawHershValue) (shared.RawHershValue, error) {
-			return shared.RawHershValue{Value: 1, Error: nil}, nil
+		VarUpdateFunc: func(prev shared.RawWatchValue) (shared.RawWatchValue, error) {
+			return shared.RawWatchValue{Value: 1, Error: nil}, nil
 		},
 		IsStateIndependent: false,
 	})
@@ -209,8 +209,8 @@ func TestManager_PriorityProcessing(t *testing.T) {
 	signals.SendVarSig(&manager.VarSig{
 		ReceivedTime:  time.Now(),
 		TargetVarName: "var1",
-		VarUpdateFunc: func(prev shared.RawHershValue) (shared.RawHershValue, error) {
-			return shared.RawHershValue{Value: 1, Error: nil}, nil
+		VarUpdateFunc: func(prev shared.RawWatchValue) (shared.RawWatchValue, error) {
+			return shared.RawWatchValue{Value: 1, Error: nil}, nil
 		},
 		IsStateIndependent: false,
 	})
@@ -278,8 +278,8 @@ func TestManager_MultipleVarBatching(t *testing.T) {
 		signals.SendVarSig(&manager.VarSig{
 			ReceivedTime:  time.Now(),
 			TargetVarName: "var" + string(rune('0'+i)),
-			VarUpdateFunc: func(prev shared.RawHershValue) (shared.RawHershValue, error) {
-				return shared.RawHershValue{Value: currentVal, Error: nil}, nil
+			VarUpdateFunc: func(prev shared.RawWatchValue) (shared.RawWatchValue, error) {
+				return shared.RawWatchValue{Value: currentVal, Error: nil}, nil
 			},
 			IsStateIndependent: false,
 		})
@@ -345,8 +345,8 @@ func TestManager_FullCycle(t *testing.T) {
 	signals.SendVarSig(&manager.VarSig{
 		ReceivedTime:  time.Now(),
 		TargetVarName: "trigger1",
-		VarUpdateFunc: func(prev shared.RawHershValue) (shared.RawHershValue, error) {
-			return shared.RawHershValue{Value: 1, Error: nil}, nil
+		VarUpdateFunc: func(prev shared.RawWatchValue) (shared.RawWatchValue, error) {
+			return shared.RawWatchValue{Value: 1, Error: nil}, nil
 		},
 		IsStateIndependent: false,
 	})
@@ -365,8 +365,8 @@ func TestManager_FullCycle(t *testing.T) {
 	signals.SendVarSig(&manager.VarSig{
 		ReceivedTime:  time.Now(),
 		TargetVarName: "trigger3",
-		VarUpdateFunc: func(prev shared.RawHershValue) (shared.RawHershValue, error) {
-			return shared.RawHershValue{Value: 3, Error: nil}, nil
+		VarUpdateFunc: func(prev shared.RawWatchValue) (shared.RawWatchValue, error) {
+			return shared.RawWatchValue{Value: 3, Error: nil}, nil
 		},
 		IsStateIndependent: false,
 	})

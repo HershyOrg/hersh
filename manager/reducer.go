@@ -168,7 +168,6 @@ func (r *Reducer) reduceAndExecuteEffect(sig shared.Signal, commander *EffectCom
 		r.logger.LogReduce(action)
 	}
 
-
 	// 4. CommandEffect (synchronous)
 	effectDef := commander.CommandEffect(action)
 	if effectDef == nil {
@@ -273,7 +272,7 @@ func (r *Reducer) reduceVarSig(sig *VarSig) *shared.TriggeredSignal {
 // collectAndApplyVarSigs collects all VarSigs and applies them correctly.
 // For IsStateIndependent=true (Flow): only apply the last signal's function
 // For IsStateIndependent=false (Tick): apply all functions sequentially
-func (r *Reducer) collectAndApplyVarSigs(first *VarSig) map[string]shared.RawHershValue {
+func (r *Reducer) collectAndApplyVarSigs(first *VarSig) map[string]shared.RawWatchValue {
 	sigs := []*VarSig{first}
 
 	// Collect all available VarSigs from the channel
@@ -294,7 +293,7 @@ APPLY:
 		byVar[sig.TargetVarName] = append(byVar[sig.TargetVarName], sig)
 	}
 
-	updates := make(map[string]shared.RawHershValue)
+	updates := make(map[string]shared.RawWatchValue)
 
 	for varName, varSigs := range byVar {
 		// Check if this variable is state-independent (check first signal)
@@ -307,7 +306,7 @@ APPLY:
 			// Get current RawHershValue from VarState
 			currentHV, exists := r.state.VarState.Get(varName)
 			if !exists {
-				currentHV = shared.RawHershValue{} // Empty RawHershValue if not exists
+				currentHV = shared.RawWatchValue{} // Empty RawHershValue if not exists
 			}
 
 			nextHV, err := lastSig.VarUpdateFunc(currentHV)
@@ -317,7 +316,7 @@ APPLY:
 					r.logger.LogWatchError(varName, ErrorPhaseExecuteComputeFunc, err)
 				}
 				// Store the error in RawHershValue
-				updates[varName] = shared.RawHershValue{Value: nil, Error: err}
+				updates[varName] = shared.RawWatchValue{Value: nil, Error: err}
 				continue
 			}
 
@@ -328,7 +327,7 @@ APPLY:
 			// State-dependent (Tick): apply all signals sequentially
 			currentHV, exists := r.state.VarState.Get(varName)
 			if !exists {
-				currentHV = shared.RawHershValue{} // Empty RawHershValue if not exists
+				currentHV = shared.RawWatchValue{} // Empty RawHershValue if not exists
 			}
 
 			for _, sig := range varSigs {
@@ -339,7 +338,7 @@ APPLY:
 						r.logger.LogWatchError(varName, ErrorPhaseExecuteComputeFunc, err)
 					}
 					// Store the error
-					currentHV = shared.RawHershValue{Value: nil, Error: err}
+					currentHV = shared.RawWatchValue{Value: nil, Error: err}
 					continue
 				}
 				currentHV = nextHV // Next function's input
@@ -405,7 +404,6 @@ func (r *Reducer) reduceManagerInnerSig(sig *ManagerInnerSig) *shared.TriggeredS
 		}
 		return nil
 	}
-
 
 	// Perform transition
 	r.state.SetManagerInnerState(targetState)

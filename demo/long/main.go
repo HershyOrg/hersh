@@ -176,10 +176,10 @@ func mainReducer(
 	// WatchTick: Rebalance ticker (1 hour interval)
 	rebalanceTick := util.WatchTick("rebalance_ticker", RebalanceInterval, ctx)
 
-	if btcHV.IsValid() {
+	if btcHV.IsUpdatedValide() {
 		simulator.UpdatePrice("BTC", btcHV.Value)
 	}
-	if ethHV.IsValid() {
+	if ethHV.IsUpdatedValide() {
 		simulator.UpdatePrice("ETH", ethHV.Value)
 	}
 

@@ -40,8 +40,8 @@ func TestReducer_VarSigTransition(t *testing.T) {
 	sig := &VarSig{
 		ReceivedTime:  time.Now(),
 		TargetVarName: "testVar",
-		VarUpdateFunc: func(prev shared.RawHershValue) (shared.RawHershValue, error) {
-			return shared.RawHershValue{Value: 42, Error: nil}, nil
+		VarUpdateFunc: func(prev shared.RawWatchValue) (shared.RawWatchValue, error) {
+			return shared.RawWatchValue{Value: 42, Error: nil}, nil
 		},
 		IsStateIndependent: false,
 	}
@@ -207,8 +207,8 @@ func TestReducer_PriorityOrdering(t *testing.T) {
 	varSig := &VarSig{
 		ReceivedTime:  time.Now(),
 		TargetVarName: "var1",
-		VarUpdateFunc: func(prev shared.RawHershValue) (shared.RawHershValue, error) {
-			return shared.RawHershValue{Value: 1, Error: nil}, nil
+		VarUpdateFunc: func(prev shared.RawWatchValue) (shared.RawWatchValue, error) {
+			return shared.RawWatchValue{Value: 1, Error: nil}, nil
 		},
 		IsStateIndependent: false,
 	}
@@ -268,8 +268,8 @@ func TestReducer_BatchVarSigCollection(t *testing.T) {
 		sig := &VarSig{
 			ReceivedTime:  time.Now(),
 			TargetVarName: "var" + string(rune('0'+i)),
-			VarUpdateFunc: func(prev shared.RawHershValue) (shared.RawHershValue, error) {
-				return shared.RawHershValue{Value: currentVal, Error: nil}, nil
+			VarUpdateFunc: func(prev shared.RawWatchValue) (shared.RawWatchValue, error) {
+				return shared.RawWatchValue{Value: currentVal, Error: nil}, nil
 			},
 			IsStateIndependent: false,
 		}
@@ -364,8 +364,8 @@ func TestReducer_VarStatePersistence(t *testing.T) {
 	defer cancel()
 
 	// Set some variables
-	state.VarState.Set("var1", shared.RawHershValue{Value: 1, Error: nil})
-	state.VarState.Set("var2", shared.RawHershValue{Value: 2, Error: nil})
+	state.VarState.Set("var1", shared.RawWatchValue{Value: 1, Error: nil})
+	state.VarState.Set("var2", shared.RawWatchValue{Value: 2, Error: nil})
 
 	go reducer.RunWithEffects(ctx, commander, handler)
 

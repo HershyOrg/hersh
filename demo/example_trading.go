@@ -55,10 +55,10 @@ func tradingFunc(msg *hersh.Message, ctx hersh.ManageContext) error {
 	monitoringEnabled := monitoringVal.(bool)
 
 	// Initialize MarketClient with Memo (expensive operation, cached)
-	client := hersh.Memo(func() any {
+	client := hersh.Memo(func() *MarketClient {
 		fmt.Printf("\n[MEMO] Creating MarketClient (this happens only once)...")
 		return NewMarketClient(apiKey)
-	}, "marketClient", ctx).(*MarketClient)
+	}, "marketClient", ctx)
 
 	// Get trading state from context
 	stateVal := ctx.GetValue("state")
@@ -207,11 +207,11 @@ func cleanupFunc(ctx hersh.ManageContext) {
 	fmt.Println(strings.Repeat("=", 60))
 
 	// Get client from Memo cache and close it
-	clientVal := hersh.Memo(func() any {
+	client := hersh.Memo(func() *MarketClient {
 		return nil // Won't be called, value already cached
 	}, "marketClient", ctx)
 
-	if client, ok := clientVal.(*MarketClient); ok && client != nil {
+	if client != nil {
 		client.Close()
 	}
 

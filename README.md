@@ -256,9 +256,9 @@ func main() {
         }
 
         // 6. Memo: Cached computation (runs once per session)
-        apiClient := hersh.Memo(func() any {
+        apiClient := hersh.Memo(func() *APIClient {
             fmt.Println("Initializing API client...")
-            return &struct{ name string }{name: "client"}
+            return &APIClient{name: "client"}
         }, "apiClient", ctx)
 
         // 7. HershContext: Persistent state with atomic updates
@@ -737,7 +737,7 @@ effectResults := logger.GetEffectResults()
 | `WatchCall(getComputeFunc, varName, tick, ctx)` | `HershValue` | Polling-based reactive |
 | `WatchFlow(getChannelFunc, varName, ctx)` | `HershValue` | Channel-based reactive |
 | `WatchTick(varName, tickInterval, ctx)` | `HershTick` | Time-based ticker (hutil package) |
-| `Memo(computeValue, memoName, ctx)` | `any` | Session-scoped cache |
+| `Memo[T](computeValue, memoName, ctx)` | `T` | Session-scoped cache |
 | `ClearMemo(memoName, ctx)` | - | Clear cached value |
 
 **Function Signatures**:
@@ -775,12 +775,12 @@ func WatchTick(
     ctx HershContext,
 ) HershTick
 
-// Memo - Session-scoped cache
-func Memo(
-    computeValue func() any,
+// Memo - Session-scoped cache (generic, type-safe)
+func Memo[T any](
+    computeValue func() T,
     memoName string,
     ctx HershContext,
-) any
+) T
 
 // ClearMemo - Clear cached value
 func ClearMemo(memoName string, ctx HershContext)

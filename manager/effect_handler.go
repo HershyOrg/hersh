@@ -3,6 +3,7 @@ package manager
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -221,6 +222,20 @@ func (eh *EffectHandler) runScript(effect *RunScriptEffect) (*EffectResult, *Man
 // Returns the appropriate WatcherSig based on error type and recovery policy.
 // Part 2: Determines state transition AFTER execution (delay was already applied in runScript)
 func (eh *EffectHandler) handleScriptError(err error) *ManagerInnerSig {
+	// Check if this is a panic error message
+	if err != nil {
+		errMsg := err.Error()
+		// Check for WatchInitPanic pattern - these should crash immediately
+		if strings.Contains(errMsg, "panic:") && strings.Contains(errMsg, "WatchInitPanic") {
+			// This is a critical Watch initialization panic - crash immediately
+			return &ManagerInnerSig{
+				ReceivedTime: time.Now(),
+				TargetState:  shared.StateCrashed,
+				Reason:       fmt.Sprintf("Critical Watch initialization failure: %v", err),
+			}
+		}
+	}
+
 	switch err.(type) {
 	case *shared.KillError:
 		return &ManagerInnerSig{

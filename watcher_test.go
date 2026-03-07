@@ -219,7 +219,7 @@ func TestWatchFlow_ChannelClosed(t *testing.T) {
 		return sourceChan, nil
 	}
 
-	managedFunc := func(msg *Message, ctx HershContext) error {
+	managedFunc := func(msg *Message, ctx ManageContext) error {
 		val := WatchFlow[int](0, getChannelFunc, "flowVar", ctx)
 		if !val.IsError() {
 			receivedValues = append(receivedValues, val.Value)
@@ -257,7 +257,7 @@ func TestMemo_BasicCaching(t *testing.T) {
 		atomic.AddInt32(&executeCount, 1)
 
 		// Memo should compute only once
-		val := Memo(func() any {
+		val := Memo(func() string {
 			count := atomic.AddInt32(&computeCount, 1)
 			t.Logf("Computing expensive value: call %d", count)
 			return "expensive-result"
@@ -315,7 +315,7 @@ func TestMemo_ClearMemo(t *testing.T) {
 			return nil
 		}
 
-		val := Memo(func() any {
+		val := Memo(func() int32 {
 			count := atomic.AddInt32(&computeCount, 1)
 			return count
 		}, "counter", ctx)
@@ -455,12 +455,12 @@ func TestWatcher_WatchAndMemo(t *testing.T) {
 		)
 
 		// Memo computes once
-		memoVal := Memo(func() any {
+		memoVal := Memo(func() string {
 			atomic.AddInt32(&memoComputeCount, 1)
 			return "cached-config"
 		}, "config", ctx)
 
-		if err == nil && memoVal != nil {
+		if !watchVal.IsError() {
 			t.Logf("Watch value: %v, Memo value: %v", watchVal.Value, memoVal)
 		}
 
@@ -551,7 +551,7 @@ func TestWatcher_StopCancelsWatches(t *testing.T) {
 
 	watchCallCount := int32(0)
 
-	managedFunc := func(msg *Message, ctx HershContext) error {
+	managedFunc := func(msg *Message, ctx ManageContext) error {
 		WatchCall[int64](0,
 			func() (manager.VarUpdateFunc[int64], bool, error) {
 				return func(prev int64) (int64, error) {
@@ -605,7 +605,7 @@ func TestWatchCall_ErrorHandling(t *testing.T) {
 	errorCount := int32(0)
 	successCount := int32(0)
 
-	managedFunc := func(msg *Message, ctx HershContext) error {
+	managedFunc := func(msg *Message, ctx ManageContext) error {
 		val := WatchCall[int32](int32(0),
 			func() (manager.VarUpdateFunc[int32], bool, error) {
 				return func(prev int32) (int32, error) {

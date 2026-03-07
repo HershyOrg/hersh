@@ -9,12 +9,15 @@ import "fmt"
 // Memo is synchronous and does NOT trigger re-execution.
 // It's useful for expensive initialization that should happen once.
 //
+// The function is generic and type-safe - it returns the same type T
+// as the computeValue function produces.
+//
 // Example:
 //
-//	client := hersh.Memo(func() any {
+//	client := hersh.Memo(func() *Client {
 //	    return expensive.NewClient()
-//	}, "apiClient", ctx).(*Client)
-func Memo(computeValue func() any, memoName string, ctx ManageContext) any {
+//	}, "apiClient", ctx)
+func Memo[T any](computeValue func() T, memoName string, ctx ManageContext) T {
 	w := getWatcherFromContext(ctx)
 	if w == nil {
 		panic("Memo called with invalid HershContext")
@@ -24,7 +27,15 @@ func Memo(computeValue func() any, memoName string, ctx ManageContext) any {
 
 	cached, exists := memoCache.Load(memoName)
 	if exists {
-		return cached
+		// Type assert to T - this is safe because we only store T values
+		if typedValue, ok := cached.(T); ok {
+			return typedValue
+		}
+		// If type assertion fails, it means the cache was corrupted or
+		// the same key was used with different types
+		var zero T
+		panic(fmt.Sprintf("Memo[%s]: type mismatch - cached type %T, expected %T",
+			memoName, cached, zero))
 	}
 
 	// Compute value
@@ -34,7 +45,12 @@ func Memo(computeValue func() any, memoName string, ctx ManageContext) any {
 	actual, loaded := memoCache.LoadOrStore(memoName, value)
 	if loaded {
 		// Another goroutine computed it first, use that value
-		return actual
+		if typedValue, ok := actual.(T); ok {
+			return typedValue
+		}
+		var zero T
+		panic(fmt.Sprintf("Memo[%s]: concurrent type mismatch - cached type %T, expected %T",
+			memoName, actual, zero))
 	}
 
 	// Log the memoization (only if we stored it)
