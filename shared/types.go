@@ -235,7 +235,8 @@ type RawFlowValue struct {
 	SkipSignal bool  // Skip signal flag
 }
 
-// HershValue represents a value or error from Watch variables (generic version).
+// HershValue represents a value from Watch variables (generic version).
+// Error is now returned separately following Go conventions.
 // This allows users to work with type-safe values while internally using any.
 type HershValue[T any] struct {
 	Value      T      // The actual value (type-safe)
@@ -303,7 +304,8 @@ func (hv HershValue[T]) IsTriggered(ctx ManageContext) bool {
 }
 
 // ToRaw converts HershValue[T] to RawHershValue for internal storage.
-func (hv HershValue[T]) ToRaw() RawHershValue {
+// Takes error separately following the new (value, error) pattern.
+func (hv HershValue[T]) ToRaw(err error) RawHershValue {
 	return RawHershValue{
 		Value:      any(hv.Value),
 		Error:      hv.Error,

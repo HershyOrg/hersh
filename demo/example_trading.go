@@ -31,7 +31,7 @@ type TradingState struct {
 }
 
 // Global trading function - uses Watcher environment variables
-func tradingFunc(msg *hersh.Message, ctx hersh.HershContext) error {
+func tradingFunc(msg *hersh.Message, ctx hersh.ManageContext) error {
 	fmt.Println()
 	fmt.Println(strings.Repeat("=", 60))
 	fmt.Printf("[%s] Trading Cycle Started\n", time.Now().Format("15:04:05"))
@@ -105,7 +105,7 @@ func tradingFunc(msg *hersh.Message, ctx hersh.HershContext) error {
 	)
 
 	// Process price data if monitoring is enabled
-	if monitoringEnabled && priceHV.Value > 0 && priceHV.Error == nil {
+	if monitoringEnabled && priceHV.Value > 0 && priceErr == nil {
 		currentPrice := priceHV.Value // Type-safe, no assertion needed
 
 		fmt.Printf("\n📊 Current Bitcoin Price: $%.2f\n", currentPrice)
@@ -200,7 +200,7 @@ func tradingFunc(msg *hersh.Message, ctx hersh.HershContext) error {
 }
 
 // Global cleanup function
-func cleanupFunc(ctx hersh.HershContext) {
+func cleanupFunc(ctx hersh.ManageContext) {
 	fmt.Println()
 	fmt.Println(strings.Repeat("=", 60))
 	fmt.Println("[CLEANUP] Shutting down trading bot...")

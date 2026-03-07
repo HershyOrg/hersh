@@ -89,7 +89,7 @@ func WatchTick(varName string, tickInterval time.Duration, runCtx shared.ManageC
 	hv := hersh.WatchFlow[shared.HershTick](init, getChannelFunc, varName, runCtx)
 
 	// Return HershTick (zero value if not initialized or error)
-	if hv.Error != nil {
+	if err != nil {
 		return shared.HershTick{}
 	}
 

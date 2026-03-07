@@ -40,7 +40,7 @@ func WatchCall[T any](
 	varName string,
 	tick time.Duration,
 	runCtx shared.ManageContext,
-) shared.HershValue[T] {
+) (shared.HershValue[T], error) {
 	w := getWatcherFromContext(runCtx)
 	if w == nil {
 		panic("WatchCall called with invalid ManageContext")
@@ -132,7 +132,7 @@ func WatchCall[T any](
 		if !ok {
 			// Not initialized yet - return zero value
 			var zero T
-			return shared.HershValue[T]{Value: zero, VarName: varName}
+			return shared.HershValue[T]{Value: zero, VarName: varName}, nil
 		}
 
 		// Convert RawHershValue to HershValue[T] with type assertion
@@ -149,6 +149,7 @@ func WatchCall[T any](
 			}
 		}
 
+		// Return value and error separately
 		return shared.HershValue[T]{
 			Value:      typedVal,
 			Error:      rawHV.Error,
@@ -158,7 +159,7 @@ func WatchCall[T any](
 	}
 
 	var zero T
-	return shared.HershValue[T]{Value: zero, VarName: varName}
+	return shared.HershValue[T]{Value: zero, VarName: varName}, nil
 }
 
 // tickWatchLoop runs the tick-based Watch monitoring loop.
@@ -206,7 +207,7 @@ func WatchFlow[T any](
 	getChannelFunc func(ctx context.Context) (<-chan shared.FlowValue[T], error),
 	varName string,
 	runCtx shared.ManageContext,
-) shared.HershValue[T] {
+) (shared.HershValue[T], error) {
 	w := getWatcherFromContext(runCtx)
 	if w == nil {
 		panic("WatchFlow called with invalid ManageContext")
@@ -300,7 +301,7 @@ func WatchFlow[T any](
 		rawHV, ok := w.manager.GetState().VarState.Get(varName)
 		if !ok {
 			var zero T
-			return shared.HershValue[T]{Value: zero, VarName: varName}
+			return shared.HershValue[T]{Value: zero, VarName: varName}, nil
 		}
 
 		// Convert RawHershValue to HershValue[T] with type assertion
@@ -317,6 +318,7 @@ func WatchFlow[T any](
 			}
 		}
 
+		// Return value and error separately
 		return shared.HershValue[T]{
 			Value:      typedVal,
 			Error:      rawHV.Error,
@@ -326,7 +328,7 @@ func WatchFlow[T any](
 	}
 
 	var zero T
-	return shared.HershValue[T]{Value: zero, VarName: varName}
+	return shared.HershValue[T]{Value: zero, VarName: varName}, nil
 }
 
 // flowWatchLoop monitors a channel and sends VarSig on updates.
