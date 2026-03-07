@@ -28,7 +28,7 @@ func TestHershValue_IsTriggered(t *testing.T) {
 
 	watcher.Manage(func(msg *shared.Message, runCtx shared.ManageContext) error {
 		// Watch two variables with generic types
-		price := hersh.WatchCall[float64](
+		price, _ := hersh.WatchCall[float64](
 			func() (manager.VarUpdateFunc[float64], bool, error) {
 				return func(prev float64) (float64, error) {
 					return 100.0, nil
@@ -39,7 +39,7 @@ func TestHershValue_IsTriggered(t *testing.T) {
 			runCtx,
 		)
 
-		volume := hersh.WatchCall[float64](
+		volume, _ := hersh.WatchCall[float64](
 			func() (manager.VarUpdateFunc[float64], bool, error) {
 				return func(prev float64) (float64, error) {
 					return 50.0, nil
@@ -183,7 +183,7 @@ func TestIsTriggered_Convenience(t *testing.T) {
 	var manualCheck, convenienceCheck bool
 
 	watcher.Manage(func(msg *shared.Message, runCtx shared.ManageContext) error {
-		price := hersh.WatchCall[float64](
+		price, _ := hersh.WatchCall[float64](
 			func() (manager.VarUpdateFunc[float64], bool, error) {
 				return func(prev float64) (float64, error) {
 					return 42.0, nil

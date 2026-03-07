@@ -14,7 +14,7 @@ import "fmt"
 //	client := hersh.Memo(func() any {
 //	    return expensive.NewClient()
 //	}, "apiClient", ctx).(*Client)
-func Memo(computeValue func() any, memoName string, ctx HershContext) any {
+func Memo(computeValue func() any, memoName string, ctx ManageContext) any {
 	w := getWatcherFromContext(ctx)
 	if w == nil {
 		panic("Memo called with invalid HershContext")
@@ -46,7 +46,7 @@ func Memo(computeValue func() any, memoName string, ctx HershContext) any {
 }
 
 // ClearMemo removes a memoized value, forcing recomputation on next Memo call.
-func ClearMemo(memoName string, ctx HershContext) {
+func ClearMemo(memoName string, ctx ManageContext) {
 	w := getWatcherFromContext(ctx)
 	if w == nil {
 		panic("ClearMemo called with invalid HershContext")

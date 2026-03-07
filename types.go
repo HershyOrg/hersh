@@ -10,7 +10,6 @@ type (
 	ManagerInnerState = shared.ManagerInnerState
 	SignalPriority    = shared.SignalPriority
 	Signal            = shared.Signal
-	HershContext      = shared.ManageContext
 	ManageContext     = shared.ManageContext
 	Message           = shared.Message
 	WatcherConfig     = shared.WatcherConfig

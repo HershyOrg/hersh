@@ -81,7 +81,7 @@ func TestBatchUpdate_LongExecution(t *testing.T) {
 		t.Logf("[Execution %d] Started", execNum)
 
 		// Variable A: Counter increment
-		valA := hersh.WatchCall[int32](
+		valA, _ := hersh.WatchCall[int32](
 			func() (manager.VarUpdateFunc[int32], bool, error) {
 				return func(prev int32) (int32, error) {
 					next := prev + 1
@@ -95,7 +95,7 @@ func TestBatchUpdate_LongExecution(t *testing.T) {
 		)
 
 		// Variable B: String append
-		valB := hersh.WatchCall[string](
+		valB, _ := hersh.WatchCall[string](
 			func() (manager.VarUpdateFunc[string], bool, error) {
 				return func(prev string) (string, error) {
 					next := prev + "X"
@@ -109,7 +109,7 @@ func TestBatchUpdate_LongExecution(t *testing.T) {
 		)
 
 		// Variable C: Timestamp flow
-		valC := hersh.WatchFlow[time.Time](
+		valC, _ := hersh.WatchFlow[time.Time](
 			getTimeChannel,
 			"timestampC",
 			ctx,
@@ -239,7 +239,7 @@ func TestBatchUpdate_RapidExecutions(t *testing.T) {
 	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
 		execNum := atomic.AddInt32(&executionCount, 1)
 
-		valA := hersh.WatchCall[int32](
+		valA, _ := hersh.WatchCall[int32](
 			func() (manager.VarUpdateFunc[int32], bool, error) {
 				return func(prev int32) (int32, error) {
 					atomic.AddInt32(&ticksA, 1)

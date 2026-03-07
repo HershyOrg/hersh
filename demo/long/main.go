@@ -99,7 +99,7 @@ func main() {
 	fmt.Println("   ✅ Watcher created with 10-minute timeout context")
 
 	// Register managed function with closure
-	watcher.Manage(func(msg *hersh.Message, ctx hersh.HershContext) error {
+	watcher.Manage(func(msg *hersh.Message, ctx hersh.ManageContext) error {
 		return mainReducer(
 			msg, ctx,
 			stream,
@@ -107,7 +107,7 @@ func main() {
 			statsCollector,
 			commandHandler,
 		)
-	}, "TradingSimulator").Cleanup(func(ctx hersh.HershContext) {
+	}, "TradingSimulator").Cleanup(func(ctx hersh.ManageContext) {
 		cleanup(ctx, stream, simulator, statsCollector)
 	})
 
@@ -161,21 +161,21 @@ func main() {
 // mainReducer is the main managed function for the Watcher
 func mainReducer(
 	msg *hersh.Message,
-	ctx hersh.HershContext,
+	ctx hersh.ManageContext,
 	stream *BinanceStream,
 	simulator *TradingSimulator,
 	statsCollector *StatsCollector,
 	commandHandler *CommandHandler,
 ) error {
 	// WatchFlow: BTC price (real-time from WebSocket)
-	btcHV := hersh.WatchFlow[float64](stream.GetBTCPriceStream(), "btc_price", ctx)
-	if btcHV.IsValid() {
+	btcHV, btcErr := hersh.WatchFlow[float64](stream.GetBTCPriceStream(), "btc_price", ctx)
+	if btcErr == nil && !btcHV.IsZero() {
 		simulator.UpdatePrice("BTC", btcHV.Value)
 	}
 
 	// WatchFlow: ETH price (real-time from WebSocket)
-	ethHV := hersh.WatchFlow[float64](stream.GetETHPriceStream(), "eth_price", ctx)
-	if ethHV.IsValid() {
+	ethHV, ethErr := hersh.WatchFlow[float64](stream.GetETHPriceStream(), "eth_price", ctx)
+	if ethErr == nil && !ethHV.IsZero() {
 		simulator.UpdatePrice("ETH", ethHV.Value)
 	}
 
@@ -232,7 +232,7 @@ func mainReducer(
 
 // cleanup is called when the Watcher stops
 func cleanup(
-	ctx hersh.HershContext,
+	ctx hersh.ManageContext,
 	stream *BinanceStream,
 	simulator *TradingSimulator,
 	statsCollector *StatsCollector,

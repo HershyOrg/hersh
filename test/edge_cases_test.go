@@ -32,7 +32,7 @@ func TestEdgeCase_StopDuringInitRun(t *testing.T) {
 		atomic.AddInt32(&executionCount, 1)
 
 		// Register a slow watch to keep in InitRun state
-		hersh.WatchCall[int64](
+		_, _ = hersh.WatchCall[int64](
 			func() (manager.VarUpdateFunc[int64], bool, error) {
 				return func(prev int64) (int64, error) {
 					time.Sleep(100 * time.Millisecond)
@@ -105,7 +105,7 @@ func TestEdgeCase_MultipleStops(t *testing.T) {
 	cleanupCalled := int32(0)
 
 	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
-		hersh.WatchCall[int64](
+		_, _ = hersh.WatchCall[int64](
 			func() (manager.VarUpdateFunc[int64], bool, error) {
 				return func(prev int64) (int64, error) {
 					return time.Now().Unix(), nil
@@ -227,7 +227,7 @@ func TestEdgeCase_CleanupTimeout(t *testing.T) {
 	cleanupCompleted := int32(0)
 
 	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
-		hersh.WatchCall[int64](
+		_, _ = hersh.WatchCall[int64](
 			func() (manager.VarUpdateFunc[int64], bool, error) {
 				return func(prev int64) (int64, error) {
 					return time.Now().Unix(), nil
@@ -311,7 +311,7 @@ func TestEdgeCase_NilMessageHandling(t *testing.T) {
 			t.Logf("Received message: %s", msg.Content)
 		}
 
-		hersh.WatchCall[int64](
+		_, _ = hersh.WatchCall[int64](
 			func() (manager.VarUpdateFunc[int64], bool, error) {
 				return func(prev int64) (int64, error) {
 					return time.Now().Unix(), nil
@@ -425,7 +425,7 @@ func TestEdgeCase_PanicRecovery(t *testing.T) {
 			panic("test panic")
 		}
 
-		hersh.WatchCall[int64](
+		_, _ = hersh.WatchCall[int64](
 			func() (manager.VarUpdateFunc[int64], bool, error) {
 				return func(prev int64) (int64, error) {
 					return time.Now().Unix(), nil
@@ -509,7 +509,7 @@ func TestEdgeCase_ContextCancellation(t *testing.T) {
 			return nil
 		}
 
-		hersh.WatchCall[int64](
+		_, _ = hersh.WatchCall[int64](
 			func() (manager.VarUpdateFunc[int64], bool, error) {
 				return func(prev int64) (int64, error) {
 					return time.Now().Unix(), nil
