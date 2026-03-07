@@ -42,7 +42,7 @@ func TestRecovery_SuppressPhase(t *testing.T) {
 		t.Logf("Execution #%d", count)
 
 		// Register a watch to trigger periodic re-execution
-		hersh.WatchCall[int64](
+		hersh.WatchCall[int64](int64(0),
 			func() (manager.VarUpdateFunc[int64], bool, error) {
 				return func(prev int64) (int64, error) {
 					return time.Now().Unix(), nil
@@ -118,7 +118,7 @@ func TestRecovery_EnterRecoveryMode(t *testing.T) {
 		t.Logf("Execution #%d", count)
 
 		// Register a watch to trigger periodic re-execution
-		hersh.WatchCall[int64](
+		hersh.WatchCall[int64](int64(0),
 			func() (manager.VarUpdateFunc[int64], bool, error) {
 				return func(prev int64) (int64, error) {
 					return time.Now().Unix(), nil
@@ -193,7 +193,7 @@ func TestRecovery_SuccessfulRecovery(t *testing.T) {
 		t.Logf("Execution #%d", count)
 
 		// Register a watch to trigger periodic re-execution
-		hersh.WatchCall[int64](
+		hersh.WatchCall[int64](int64(0),
 			func() (manager.VarUpdateFunc[int64], bool, error) {
 				return func(prev int64) (int64, error) {
 					return time.Now().Unix(), nil
@@ -267,7 +267,7 @@ func TestRecovery_MaxFailureCrash(t *testing.T) {
 		t.Logf("Execution #%d - always failing", count)
 
 		// Register a watch to trigger periodic re-execution
-		hersh.WatchCall[int64](
+		hersh.WatchCall[int64](int64(0),
 			func() (manager.VarUpdateFunc[int64], bool, error) {
 				return func(prev int64) (int64, error) {
 					return time.Now().Unix(), nil
@@ -350,7 +350,7 @@ func TestRecovery_CounterReset(t *testing.T) {
 		idx := int(count) - 1
 
 		// Register a watch to trigger periodic re-execution
-		hersh.WatchCall[int64](
+		hersh.WatchCall[int64](int64(0),
 			func() (manager.VarUpdateFunc[int64], bool, error) {
 				return func(prev int64) (int64, error) {
 					return time.Now().Unix(), nil

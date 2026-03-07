@@ -49,7 +49,7 @@ func TestWatchFlowBasic(t *testing.T) {
 		fmt.Printf("[Reducer #%d] Called\n", executionCount)
 
 		// WatchFlow
-		val := WatchFlow[int](getChannelFunc, "test_value", ctx)
+		val := WatchFlow[int](0, getChannelFunc, "test_value", ctx)
 		if !val.IsError() {
 			fmt.Printf("[Reducer #%d] Received value: %v\n", executionCount, val.Value)
 		} else {

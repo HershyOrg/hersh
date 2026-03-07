@@ -75,6 +75,7 @@ func tradingFunc(msg *hersh.Message, ctx hersh.HershContext) error {
 
 	// Watch Bitcoin price - always outside conditional logic (generic version)
 	priceHV := hersh.WatchCall[float64](
+		0.0, // Initial price value
 		func() (manager.VarUpdateFunc[float64], bool, error) {
 			// 네트워크 요청은 미리 해둔 후, func엔 가능한 계산만 남기는게 성능상 유리.
 			price, err := client.GetBitcoinPrice()

@@ -24,6 +24,7 @@ func main1() {
 
 		// WatchCall monitors external value and triggers re-execution on change (generic version)
 		hv := hersh.WatchCall[int](
+			0, // Initial counter value
 			func() (manager.VarUpdateFunc[int], bool, error) {
 				// Simulate polling external data source
 				currentValue := externalCounter

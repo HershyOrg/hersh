@@ -19,7 +19,9 @@ func getWatcherFromContext(ctx shared.ManageContext) *Watcher {
 }
 
 // WatchCall monitors a value by periodically generating computation functions (generic version).
-// Returns the current HershValue[T] or a zero-value HershValue[T] if not yet initialized.
+// Returns the current HershValue[T] with the initial value on first call.
+//
+// The init parameter provides the initial value before any updates occur.
 //
 // The getComputationFunc is called on each tick and returns:
 // - A VarUpdateFunc[T] that computes the next state from the previous state
@@ -27,12 +29,13 @@ func getWatcherFromContext(ctx shared.ManageContext) *Watcher {
 // - An error if the computation function cannot be generated
 //
 // The returned VarUpdateFunc[T] receives:
-// - prev: the previous value of type T (zero value on first call)
+// - prev: the previous value of type T (initial value on first call)
 //
 // The VarUpdateFunc[T] returns:
 // - next: the new value of type T
 // - error: any error that occurred during computation
 func WatchCall[T any](
+	init T,
 	getComputationFunc func() (manager.VarUpdateFunc[T], bool, error),
 	varName string,
 	tick time.Duration,
@@ -47,7 +50,16 @@ func WatchCall[T any](
 	_, exists := watchRegistry.Load(varName)
 
 	if !exists {
-		// First call - register and start watching
+		// First call - set initial value in VarState
+		initialRaw := shared.RawHershValue{
+			Value:      any(init),
+			Error:      nil,
+			VarName:    varName,
+			NotUpdated: true, // Mark as initial value
+		}
+		w.manager.GetState().VarState.Set(varName, initialRaw)
+
+		// Register and start watching
 		ctx, cancel := context.WithCancel(w.rootCtx)
 
 		// Wrap user's generic function into raw function for internal use
@@ -71,16 +83,20 @@ func WatchCall[T any](
 							varName, zero, prev.Value,
 						))
 					}
+				} else {
+					// Use init value if prev.Value is nil
+					prevT = init
 				}
 
 				// Execute user's typed function
 				nextT, err := typedFunc(prevT)
 
-				// Return as RawHershValue
+				// Return as RawHershValue (NotUpdated will be false for actual updates)
 				return shared.RawHershValue{
-					Value:   any(nextT),
-					Error:   err,
-					VarName: varName,
+					Value:      any(nextT),
+					Error:      err,
+					VarName:    varName,
+					NotUpdated: false, // Mark as updated
 				}, nil
 			}
 
@@ -102,9 +118,12 @@ func WatchCall[T any](
 		// Start watching in background
 		go tickWatchLoop(w, tickHandle, ctx)
 
-		// Return zero-value HershValue[T] on first call (not yet initialized)
-		var zero T
-		return shared.HershValue[T]{Value: zero, VarName: varName}
+		// Return initial HershValue[T] on first call
+		return shared.HershValue[T]{
+			Value:      init,
+			VarName:    varName,
+			NotUpdated: true,
+		}
 	}
 
 	// Get current RawHershValue from VarState
@@ -131,9 +150,10 @@ func WatchCall[T any](
 		}
 
 		return shared.HershValue[T]{
-			Value:   typedVal,
-			Error:   rawHV.Error,
-			VarName: varName,
+			Value:      typedVal,
+			Error:      rawHV.Error,
+			VarName:    varName,
+			NotUpdated: rawHV.NotUpdated,
 		}
 	}
 
@@ -178,8 +198,11 @@ func tickWatchLoop(w *Watcher, handle *manager.TickHandle, rootCtx context.Conte
 // WatchFlow monitors a channel and emits VarSig when values arrive (generic version).
 // This is for event-driven reactive programming.
 //
-// Returns the latest HershValue[T] from the channel or a zero-value HershValue[T] if none received.
+// The init parameter provides the initial value before any channel values are received.
+//
+// Returns the latest HershValue[T] from the channel or the initial value if none received.
 func WatchFlow[T any](
+	init T,
 	getChannelFunc func(ctx context.Context) (<-chan shared.FlowValue[T], error),
 	varName string,
 	runCtx shared.ManageContext,
@@ -193,7 +216,16 @@ func WatchFlow[T any](
 	_, exists := watchRegistry.Load(varName)
 
 	if !exists {
-		// First call - register and start watching
+		// First call - set initial value in VarState
+		initialRaw := shared.RawHershValue{
+			Value:      any(init),
+			Error:      nil,
+			VarName:    varName,
+			NotUpdated: true, // Mark as initial value
+		}
+		w.manager.GetState().VarState.Set(varName, initialRaw)
+
+		// Register and start watching
 		// Create channel lifecycle context
 		flowCtx, cancel := context.WithCancel(w.rootCtx)
 
@@ -233,8 +265,12 @@ func WatchFlow[T any](
 			w.manager.GetState().VarState.Set(varName, errorHV)
 
 			// Return error as HershValue[T]
-			var zero T
-			return shared.HershValue[T]{Value: zero, Error: err, VarName: varName}
+			return shared.HershValue[T]{
+				Value:      init,
+				Error:      err,
+				VarName:    varName,
+				NotUpdated: true,
+			}
 		}
 
 		flowHandle := &manager.FlowHandle{
@@ -251,9 +287,12 @@ func WatchFlow[T any](
 		// Start watching channel
 		go flowWatchLoop(w, flowHandle, flowCtx, sourceChan)
 
-		// Return zero-value HershValue[T]
-		var zero T
-		return shared.HershValue[T]{Value: zero, VarName: varName}
+		// Return initial HershValue[T]
+		return shared.HershValue[T]{
+			Value:      init,
+			VarName:    varName,
+			NotUpdated: true,
+		}
 	}
 
 	// Get current RawHershValue from VarState
@@ -279,9 +318,10 @@ func WatchFlow[T any](
 		}
 
 		return shared.HershValue[T]{
-			Value:   typedVal,
-			Error:   rawHV.Error,
-			VarName: varName,
+			Value:      typedVal,
+			Error:      rawHV.Error,
+			VarName:    varName,
+			NotUpdated: rawHV.NotUpdated,
 		}
 	}
 
@@ -315,10 +355,20 @@ func flowWatchLoop(w *Watcher, handle *manager.FlowHandle, ctx context.Context, 
 						// Log error but still propagate to user
 						w.GetLogger().LogWatchError(handle.VarName, manager.ErrorPhaseExecuteComputeFunc, flowValue.E)
 						// Return RawHershValue with error
-						return shared.RawHershValue{Value: nil, Error: flowValue.E}, nil
+						return shared.RawHershValue{
+							Value:      nil,
+							Error:      flowValue.E,
+							VarName:    handle.VarName,
+							NotUpdated: false, // Error is still an update
+						}, nil
 					}
 					// Return RawHershValue with value
-					return shared.RawHershValue{Value: flowValue.V, Error: nil}, nil
+					return shared.RawHershValue{
+						Value:      flowValue.V,
+						Error:      nil,
+						VarName:    handle.VarName,
+						NotUpdated: false, // Flow value is an update
+					}, nil
 				}
 
 				// Send VarSig

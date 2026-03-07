@@ -62,25 +62,6 @@ func (vs *VarState) Clear() {
 	vs.values = make(map[string]shared.RawHershValue)
 }
 
-// AllInitialized checks if all expected variables are initialized (non-nil and no error).
-func (vs *VarState) AllInitialized(expectedVars []string) bool {
-	vs.mu.RLock()
-	defer vs.mu.RUnlock()
-	for _, varName := range expectedVars {
-		hv, ok := vs.values[varName]
-		// Consider initialized if:
-		// 1. Key exists AND
-		// 2. Either has a value OR has an error (both are valid initialization states)
-		if !ok {
-			return false
-		}
-		// Empty HershValue (no value, no error) means not initialized
-		if hv.Value == nil && hv.Error == nil {
-			return false
-		}
-	}
-	return true
-}
 
 // UserState holds the current user message state.
 type UserState struct {
