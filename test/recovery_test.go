@@ -37,15 +37,15 @@ func TestRecovery_SuppressPhase(t *testing.T) {
 	executionCount := int32(0)
 	failureCount := 2 // Fail twice, then succeed
 
-	managedFunc := func(msg *shared.Message, ctx shared.HershContext) error {
+	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
 		count := atomic.AddInt32(&executionCount, 1)
 		t.Logf("Execution #%d", count)
 
 		// Register a watch to trigger periodic re-execution
-		hersh.WatchCall(
-			func() (manager.VarUpdateFunc, bool, error) {
-				return func(prev shared.HershValue) (shared.HershValue, error) {
-					return shared.HershValue{Value: time.Now().Unix(), Error: nil}, nil
+		hersh.WatchCall[int64](
+			func() (manager.VarUpdateFunc[int64], bool, error) {
+				return func(prev int64) (int64, error) {
+					return time.Now().Unix(), nil
 				}, false, nil
 			},
 			"tick",
@@ -113,15 +113,15 @@ func TestRecovery_EnterRecoveryMode(t *testing.T) {
 	executionCount := int32(0)
 	failureCount := 4 // Fail 4 times to trigger recovery
 
-	managedFunc := func(msg *shared.Message, ctx shared.HershContext) error {
+	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
 		count := atomic.AddInt32(&executionCount, 1)
 		t.Logf("Execution #%d", count)
 
 		// Register a watch to trigger periodic re-execution
-		hersh.WatchCall(
-			func() (manager.VarUpdateFunc, bool, error) {
-				return func(prev shared.HershValue) (shared.HershValue, error) {
-					return shared.HershValue{Value: time.Now().Unix(), Error: nil}, nil
+		hersh.WatchCall[int64](
+			func() (manager.VarUpdateFunc[int64], bool, error) {
+				return func(prev int64) (int64, error) {
+					return time.Now().Unix(), nil
 				}, false, nil
 			},
 			"tick",
@@ -188,15 +188,15 @@ func TestRecovery_SuccessfulRecovery(t *testing.T) {
 	executionCount := int32(0)
 	failureCount := 3 // Fail 3 times, then succeed
 
-	managedFunc := func(msg *shared.Message, ctx shared.HershContext) error {
+	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
 		count := atomic.AddInt32(&executionCount, 1)
 		t.Logf("Execution #%d", count)
 
 		// Register a watch to trigger periodic re-execution
-		hersh.WatchCall(
-			func() (manager.VarUpdateFunc, bool, error) {
-				return func(prev shared.HershValue) (shared.HershValue, error) {
-					return shared.HershValue{Value: time.Now().Unix(), Error: nil}, nil
+		hersh.WatchCall[int64](
+			func() (manager.VarUpdateFunc[int64], bool, error) {
+				return func(prev int64) (int64, error) {
+					return time.Now().Unix(), nil
 				}, false, nil
 			},
 			"tick",
@@ -262,15 +262,15 @@ func TestRecovery_MaxFailureCrash(t *testing.T) {
 
 	executionCount := int32(0)
 
-	managedFunc := func(msg *shared.Message, ctx shared.HershContext) error {
+	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
 		count := atomic.AddInt32(&executionCount, 1)
 		t.Logf("Execution #%d - always failing", count)
 
 		// Register a watch to trigger periodic re-execution
-		hersh.WatchCall(
-			func() (manager.VarUpdateFunc, bool, error) {
-				return func(prev shared.HershValue) (shared.HershValue, error) {
-					return shared.HershValue{Value: time.Now().Unix(), Error: nil}, nil
+		hersh.WatchCall[int64](
+			func() (manager.VarUpdateFunc[int64], bool, error) {
+				return func(prev int64) (int64, error) {
+					return time.Now().Unix(), nil
 				}, false, nil
 			},
 			"tick",
@@ -345,15 +345,15 @@ func TestRecovery_CounterReset(t *testing.T) {
 		true, // Success
 	}
 
-	managedFunc := func(msg *shared.Message, ctx shared.HershContext) error {
+	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
 		count := atomic.AddInt32(&executionCount, 1)
 		idx := int(count) - 1
 
 		// Register a watch to trigger periodic re-execution
-		hersh.WatchCall(
-			func() (manager.VarUpdateFunc, bool, error) {
-				return func(prev shared.HershValue) (shared.HershValue, error) {
-					return shared.HershValue{Value: time.Now().Unix(), Error: nil}, nil
+		hersh.WatchCall[int64](
+			func() (manager.VarUpdateFunc[int64], bool, error) {
+				return func(prev int64) (int64, error) {
+					return time.Now().Unix(), nil
 				}, false, nil
 			},
 			"tick",

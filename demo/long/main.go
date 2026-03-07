@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/HershyOrg/hersh"
-	"github.com/HershyOrg/hersh/hutil"
+	"github.com/HershyOrg/hersh/util"
 )
 
 const (
@@ -168,26 +168,26 @@ func mainReducer(
 	commandHandler *CommandHandler,
 ) error {
 	// WatchFlow: BTC price (real-time from WebSocket)
-	btcHV := hersh.WatchFlow(stream.GetBTCPriceStream(), "btc_price", ctx)
+	btcHV := hersh.WatchFlow[float64](stream.GetBTCPriceStream(), "btc_price", ctx)
 	if btcHV.IsValid() {
-		simulator.UpdatePrice("BTC", btcHV.Value.(float64))
+		simulator.UpdatePrice("BTC", btcHV.Value)
 	}
 
 	// WatchFlow: ETH price (real-time from WebSocket)
-	ethHV := hersh.WatchFlow(stream.GetETHPriceStream(), "eth_price", ctx)
+	ethHV := hersh.WatchFlow[float64](stream.GetETHPriceStream(), "eth_price", ctx)
 	if ethHV.IsValid() {
-		simulator.UpdatePrice("ETH", ethHV.Value.(float64))
+		simulator.UpdatePrice("ETH", ethHV.Value)
 	}
 
 	// WatchTick: Stats ticker (1 minute interval)
-	statsTick := hutil.WatchTick("stats_ticker", StatsInterval, ctx)
+	statsTick := util.WatchTick("stats_ticker", StatsInterval, ctx)
 	if statsTick.IsTriggered(ctx) {
 		statsCollector.PrintStats(stream, simulator)
 		hersh.PrintWithLog(fmt.Sprintf("   (Stats tick #%d at %s)", statsTick.TickCount, statsTick.Time.Format("15:04:05")), ctx)
 	}
 
 	// WatchTick: Rebalance ticker (1 hour interval)
-	rebalanceTick := hutil.WatchTick("rebalance_ticker", RebalanceInterval, ctx)
+	rebalanceTick := util.WatchTick("rebalance_ticker", RebalanceInterval, ctx)
 	if rebalanceTick.IsTriggered(ctx) {
 		hersh.PrintWithLog(fmt.Sprintf("\n⏰ Hourly rebalance triggered (tick #%d at %s)...",
 			rebalanceTick.TickCount, rebalanceTick.Time.Format("15:04:05")), ctx)

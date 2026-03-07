@@ -6,17 +6,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/HershyOrg/hersh/hctx"
+	"github.com/HershyOrg/hersh/mctx"
 	"github.com/HershyOrg/hersh/shared"
 )
 
 // ManagedFunc is the type of function that can be managed by the Watcher.
 // It receives a message and HershContext, and returns an error for control flow.
-type ManagedFunc func(message *shared.Message, ctx shared.HershContext) error
+type ManagedFunc func(message *shared.Message, ctx shared.ManageContext) error
 
 // Cleaner provides cleanup functionality for managed functions.
 type Cleaner interface {
-	ClearRun(ctx shared.HershContext) error
+	ClearRun(ctx shared.ManageContext) error
 }
 
 // EffectLogger logs effect execution results.
@@ -40,8 +40,8 @@ type EffectHandler struct {
 	rootCtx          context.Context
 	rootCtxCancel    context.CancelFunc
 	consecutiveFails int
-	hershCtx         *hctx.HershContext // Persistent HershContext across executions
-	cleanupDone      chan struct{}      // Signals when cleanup completes
+	hershCtx         *mctx.ManageContext // Persistent HershContext across executions
+	cleanupDone      chan struct{}       // Signals when cleanup completes
 }
 
 // NewEffectHandler creates a new EffectHandler.
@@ -56,7 +56,7 @@ func NewEffectHandler(
 	bgCtx, cancel := context.WithCancel(context.Background())
 
 	// Create persistent HershContext
-	hershCtx := hctx.New(bgCtx, logger.(hctx.Logger))
+	hershCtx := mctx.New(bgCtx, logger.(mctx.Logger))
 
 	return &EffectHandler{
 		managedFunc:   managedFunc,
@@ -116,7 +116,7 @@ func (eh *EffectHandler) HasManagedFunc() bool {
 }
 
 // GetHershContext returns the persistent HershContext.
-func (eh *EffectHandler) GetHershContext() shared.HershContext {
+func (eh *EffectHandler) GetHershContext() shared.ManageContext {
 	return eh.hershCtx
 }
 

@@ -15,9 +15,9 @@ type WatchHandle interface {
 	GetCancelFunc() context.CancelFunc
 }
 
-// GetComputationFunc returns the varUpdateFunc, a skipSignal flag
+// GetComputationFunc returns the RawVarUpdateFunc, a skipSignal flag
 // (false by default; set to true if you want to skip), and an error.
-type GetComputationFunc func() (varUpdateFunc VarUpdateFunc, skipSignal bool, err error)
+type GetComputationFunc func() (varUpdateFunc RawVarUpdateFunc, skipSignal bool, err error)
 
 // TickHandle represents a tick-based watch variable.
 type TickHandle struct {
@@ -33,7 +33,7 @@ func (h *TickHandle) GetCancelFunc() context.CancelFunc { return h.CancelFunc }
 // FlowHandle represents a channel-based watch variable.
 type FlowHandle struct {
 	VarName        string
-	GetChannelFunc func(ctx context.Context) (<-chan shared.FlowValue, error)
+	GetChannelFunc func(ctx context.Context) (<-chan shared.RawFlowValue, error)
 	CancelFunc     context.CancelFunc
 }
 

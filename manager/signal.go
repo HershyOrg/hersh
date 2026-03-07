@@ -9,17 +9,20 @@ import (
 	"github.com/HershyOrg/hersh/shared"
 )
 
-// VarUpdateFunc is a function that updates a variable's state.
-// It receives the previous HershValue and returns the next HershValue and an error.
-// The error parameter is for VarUpdateFunc execution errors (separate from prev.Error).
-type VarUpdateFunc func(prev shared.HershValue) (next shared.HershValue, err error)
+// VarUpdateFunc is a generic function that updates a variable's state.
+// It receives the previous value of type T and returns the next value and an error.
+type VarUpdateFunc[T any] func(prev T) (next T, err error)
+
+// RawVarUpdateFunc is the internal non-generic version used by VarSig.
+// It receives the previous RawHershValue and returns the next RawHershValue and an error.
+type RawVarUpdateFunc func(prev shared.RawHershValue) (next shared.RawHershValue, err error)
 
 // VarSig represents a change in a watched variable's state.
 type VarSig struct {
 	ReceivedTime       time.Time
 	TargetVarName      string
-	VarUpdateFunc      VarUpdateFunc // Function to compute the next state
-	IsStateIndependent bool          // If true, only last signal matters; if false, apply sequentially
+	VarUpdateFunc      RawVarUpdateFunc // Function to compute the next state (internal raw version)
+	IsStateIndependent bool             // If true, only last signal matters; if false, apply sequentially
 }
 
 func (s *VarSig) Priority() shared.SignalPriority {

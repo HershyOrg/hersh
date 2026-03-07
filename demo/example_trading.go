@@ -73,25 +73,24 @@ func tradingFunc(msg *hersh.Message, ctx hersh.HershContext) error {
 	}
 	state := stateVal.(*TradingState)
 
-	// Watch Bitcoin price - always outside conditional logic
-	priceHV := hersh.WatchCall(
-		func() (manager.VarUpdateFunc, bool, error) {
+	// Watch Bitcoin price - always outside conditional logic (generic version)
+	priceHV := hersh.WatchCall[float64](
+		func() (manager.VarUpdateFunc[float64], bool, error) {
 			// 네트워크 요청은 미리 해둔 후, func엔 가능한 계산만 남기는게 성능상 유리.
 			price, err := client.GetBitcoinPrice()
 			if err != nil {
 				return nil, false, err
 			}
 			// VarUpdateFunc that updates the price value and determines signal
-			updateFunc := func(prev hersh.HershValue) (hersh.HershValue, error) {
+			updateFunc := func(prev float64) (float64, error) {
 				// Check if price changed significantly (>$100)
-				if prev.Value != nil {
-					prevPrice := prev.Value.(float64)
-					if abs(price-prevPrice) > 100.0 {
+				if prev > 0 {
+					if abs(price-prev) > 100.0 {
 						fmt.Printf("  [Watch] Price changed: $%.2f → $%.2f (Δ $%.2f)\n",
-							prevPrice, price, price-prevPrice)
+							prev, price, price-prev)
 					}
 				}
-				return hersh.HershValue{Value: price, Error: nil}, nil
+				return price, nil
 			}
 
 			// Don't skip signal for demo (always signal to show price updates)
@@ -105,8 +104,8 @@ func tradingFunc(msg *hersh.Message, ctx hersh.HershContext) error {
 	)
 
 	// Process price data if monitoring is enabled
-	if monitoringEnabled && priceHV.Value != nil && !priceHV.IsError() {
-		currentPrice := priceHV.Value.(float64)
+	if monitoringEnabled && priceHV.Value > 0 && priceHV.Error == nil {
+		currentPrice := priceHV.Value // Type-safe, no assertion needed
 
 		fmt.Printf("\n📊 Current Bitcoin Price: $%.2f\n", currentPrice)
 		fmt.Printf("💰 Current Position: $%.2f\n", state.Position)

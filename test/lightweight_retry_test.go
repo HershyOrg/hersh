@@ -38,7 +38,7 @@ func TestLightweightRetry_DelayVerification(t *testing.T) {
 	executionTimes := make([]time.Time, 0, 10)
 	var timeMutex sync.Mutex
 
-	managedFunc := func(msg *shared.Message, ctx shared.HershContext) error {
+	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
 		count := atomic.AddInt32(&executionCount, 1)
 		now := time.Now()
 
@@ -131,7 +131,7 @@ func TestLightweightRetry_NoWatchCall(t *testing.T) {
 	executionCount := int32(0)
 	startTime := time.Now()
 
-	managedFunc := func(msg *shared.Message, ctx shared.HershContext) error {
+	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
 		count := atomic.AddInt32(&executionCount, 1)
 		elapsed := time.Since(startTime)
 		t.Logf("Execution #%d at %v", count, elapsed)

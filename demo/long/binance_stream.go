@@ -14,8 +14,8 @@ import (
 // BinanceStream handles WebSocket connection to Binance for real-time price data
 type BinanceStream struct {
 	// Internal channels for message distribution
-	btcInternalChan chan shared.FlowValue
-	ethInternalChan chan shared.FlowValue
+	btcInternalChan chan shared.FlowValue[float64]
+	ethInternalChan chan shared.FlowValue[float64]
 
 	// Current prices (atomic access)
 	currentBTC atomic.Value // float64
@@ -55,8 +55,8 @@ type BinanceTradeMsg struct {
 // NewBinanceStream creates a new Binance WebSocket stream client
 func NewBinanceStream() *BinanceStream {
 	bs := &BinanceStream{
-		btcInternalChan: make(chan shared.FlowValue, 100),
-		ethInternalChan: make(chan shared.FlowValue, 100),
+		btcInternalChan: make(chan shared.FlowValue[float64], 100),
+		ethInternalChan: make(chan shared.FlowValue[float64], 100),
 		stopChan:        make(chan struct{}),
 	}
 
@@ -121,7 +121,7 @@ func (bs *BinanceStream) receiveLoop() {
 
 		// Inject simulated error every 5 seconds for demo purposes
 		if time.Since(lastErrorInjection) > errorInjectionInterval {
-			errValue := shared.FlowValue{V: nil, E: fmt.Errorf("simulated error injection (every 5s)")}
+			errValue := shared.FlowValue[float64]{V: 0, E: fmt.Errorf("simulated error injection (every 5s)")}
 			select {
 			case bs.btcInternalChan <- errValue:
 			default:
@@ -155,7 +155,7 @@ func (bs *BinanceStream) receiveLoop() {
 			bs.stats.errors.Add(1)
 
 			// Send error to BOTH internal channels
-			errValue := shared.FlowValue{V: nil, E: fmt.Errorf("read error: %w", err)}
+			errValue := shared.FlowValue[float64]{V: 0, E: fmt.Errorf("read error: %w", err)}
 			select {
 			case bs.btcInternalChan <- errValue:
 			default:
@@ -186,7 +186,7 @@ func (bs *BinanceStream) processMessage(msg BinanceTradeMsg) {
 		return
 	}
 
-	flowValue := shared.FlowValue{V: price, E: nil}
+	flowValue := shared.FlowValue[float64]{V: price, E: nil}
 
 	// Update atomic value and send to correct internal channel
 	switch msg.Stream {
@@ -240,8 +240,8 @@ func (bs *BinanceStream) reconnect() {
 }
 
 // GetBTCPriceStream returns a function that creates a BTC price channel for WatchFlow
-func (bs *BinanceStream) GetBTCPriceStream() func(ctx context.Context) (<-chan shared.FlowValue, error) {
-	return func(ctx context.Context) (<-chan shared.FlowValue, error) {
+func (bs *BinanceStream) GetBTCPriceStream() func(ctx context.Context) (<-chan shared.FlowValue[float64], error) {
+	return func(ctx context.Context) (<-chan shared.FlowValue[float64], error) {
 		if bs.stopped.Load() {
 			return nil, fmt.Errorf("stream already stopped")
 		}
@@ -252,7 +252,7 @@ func (bs *BinanceStream) GetBTCPriceStream() func(ctx context.Context) (<-chan s
 		}
 
 		// Create subscriber channel
-		subscriberChan := make(chan shared.FlowValue, 100)
+		subscriberChan := make(chan shared.FlowValue[float64], 100)
 
 		// Forward from internal channel to subscriber
 		go func() {
@@ -279,8 +279,8 @@ func (bs *BinanceStream) GetBTCPriceStream() func(ctx context.Context) (<-chan s
 }
 
 // GetETHPriceStream returns a function that creates an ETH price channel for WatchFlow
-func (bs *BinanceStream) GetETHPriceStream() func(ctx context.Context) (<-chan shared.FlowValue, error) {
-	return func(ctx context.Context) (<-chan shared.FlowValue, error) {
+func (bs *BinanceStream) GetETHPriceStream() func(ctx context.Context) (<-chan shared.FlowValue[float64], error) {
+	return func(ctx context.Context) (<-chan shared.FlowValue[float64], error) {
 		if bs.stopped.Load() {
 			return nil, fmt.Errorf("stream already stopped")
 		}
@@ -291,7 +291,7 @@ func (bs *BinanceStream) GetETHPriceStream() func(ctx context.Context) (<-chan s
 		}
 
 		// Create subscriber channel
-		subscriberChan := make(chan shared.FlowValue, 100)
+		subscriberChan := make(chan shared.FlowValue[float64], 100)
 
 		// Forward from internal channel to subscriber
 		go func() {

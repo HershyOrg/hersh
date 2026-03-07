@@ -308,7 +308,7 @@ func (r *Reducer) reduceVarSig(sig *VarSig) *shared.TriggeredSignal {
 // collectAndApplyVarSigs collects all VarSigs and applies them correctly.
 // For IsStateIndependent=true (Flow): only apply the last signal's function
 // For IsStateIndependent=false (Tick): apply all functions sequentially
-func (r *Reducer) collectAndApplyVarSigs(first *VarSig) map[string]shared.HershValue {
+func (r *Reducer) collectAndApplyVarSigs(first *VarSig) map[string]shared.RawHershValue {
 	sigs := []*VarSig{first}
 
 	// Collect all available VarSigs from the channel
@@ -329,7 +329,7 @@ APPLY:
 		byVar[sig.TargetVarName] = append(byVar[sig.TargetVarName], sig)
 	}
 
-	updates := make(map[string]shared.HershValue)
+	updates := make(map[string]shared.RawHershValue)
 
 	for varName, varSigs := range byVar {
 		// Check if this variable is state-independent (check first signal)
@@ -339,20 +339,20 @@ APPLY:
 			// State-independent (Flow): only apply the last signal
 			lastSig := varSigs[len(varSigs)-1]
 
-			// Get current HershValue from VarState
+			// Get current RawHershValue from VarState
 			currentHV, exists := r.state.VarState.Get(varName)
 			if !exists {
-				currentHV = shared.HershValue{} // Empty HershValue if not exists
+				currentHV = shared.RawHershValue{} // Empty RawHershValue if not exists
 			}
 
 			nextHV, err := lastSig.VarUpdateFunc(currentHV)
 			if err != nil {
-				// VarUpdateFunc execution error - log and store error in HershValue
+				// VarUpdateFunc execution error - log and store error in RawHershValue
 				if r.logger != nil {
 					r.logger.LogWatchError(varName, ErrorPhaseExecuteComputeFunc, err)
 				}
-				// Store the error in HershValue
-				updates[varName] = shared.HershValue{Value: nil, Error: err}
+				// Store the error in RawHershValue
+				updates[varName] = shared.RawHershValue{Value: nil, Error: err}
 				continue
 			}
 
@@ -363,18 +363,18 @@ APPLY:
 			// State-dependent (Tick): apply all signals sequentially
 			currentHV, exists := r.state.VarState.Get(varName)
 			if !exists {
-				currentHV = shared.HershValue{} // Empty HershValue if not exists
+				currentHV = shared.RawHershValue{} // Empty RawHershValue if not exists
 			}
 
 			for _, sig := range varSigs {
 				nextHV, err := sig.VarUpdateFunc(currentHV)
 				if err != nil {
-					// VarUpdateFunc execution error - log and store error in HershValue
+					// VarUpdateFunc execution error - log and store error in RawHershValue
 					if r.logger != nil {
 						r.logger.LogWatchError(varName, ErrorPhaseExecuteComputeFunc, err)
 					}
 					// Store the error
-					currentHV = shared.HershValue{Value: nil, Error: err}
+					currentHV = shared.RawHershValue{Value: nil, Error: err}
 					continue
 				}
 				currentHV = nextHV // Next function's input

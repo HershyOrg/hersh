@@ -22,7 +22,7 @@ func TestReducer_VarSigTransition(t *testing.T) {
 	// Need commander and handler for synchronous architecture
 	commander := NewEffectCommander()
 	handler := NewEffectHandler(
-		func(msg *shared.Message, ctx shared.HershContext) error { return nil },
+		func(msg *shared.Message, ctx shared.ManageContext) error { return nil },
 		nil,
 		state,
 		signals,
@@ -40,8 +40,8 @@ func TestReducer_VarSigTransition(t *testing.T) {
 	sig := &VarSig{
 		ReceivedTime:  time.Now(),
 		TargetVarName: "testVar",
-		VarUpdateFunc: func(prev shared.HershValue) (shared.HershValue, error) {
-			return shared.HershValue{Value: 42, Error: nil}, nil
+		VarUpdateFunc: func(prev shared.RawHershValue) (shared.RawHershValue, error) {
+			return shared.RawHershValue{Value: 42, Error: nil}, nil
 		},
 		IsStateIndependent: false,
 	}
@@ -90,7 +90,7 @@ func TestReducer_UserSigTransition(t *testing.T) {
 	// Track function execution
 	var messageReceived *shared.Message
 	handler := NewEffectHandler(
-		func(msg *shared.Message, ctx shared.HershContext) error {
+		func(msg *shared.Message, ctx shared.ManageContext) error {
 			messageReceived = msg
 			return nil
 		},
@@ -149,7 +149,7 @@ func TestReducer_WatcherSigTransition(t *testing.T) {
 
 	commander := NewEffectCommander()
 	handler := NewEffectHandler(
-		func(msg *shared.Message, ctx shared.HershContext) error { return nil },
+		func(msg *shared.Message, ctx shared.ManageContext) error { return nil },
 		nil,
 		state,
 		signals,
@@ -192,7 +192,7 @@ func TestReducer_PriorityOrdering(t *testing.T) {
 
 	commander := NewEffectCommander()
 	handler := NewEffectHandler(
-		func(msg *shared.Message, ctx shared.HershContext) error { return nil },
+		func(msg *shared.Message, ctx shared.ManageContext) error { return nil },
 		nil,
 		state,
 		signals,
@@ -207,8 +207,8 @@ func TestReducer_PriorityOrdering(t *testing.T) {
 	varSig := &VarSig{
 		ReceivedTime:  time.Now(),
 		TargetVarName: "var1",
-		VarUpdateFunc: func(prev shared.HershValue) (shared.HershValue, error) {
-			return shared.HershValue{Value: 1, Error: nil}, nil
+		VarUpdateFunc: func(prev shared.RawHershValue) (shared.RawHershValue, error) {
+			return shared.RawHershValue{Value: 1, Error: nil}, nil
 		},
 		IsStateIndependent: false,
 	}
@@ -251,7 +251,7 @@ func TestReducer_BatchVarSigCollection(t *testing.T) {
 
 	commander := NewEffectCommander()
 	handler := NewEffectHandler(
-		func(msg *shared.Message, ctx shared.HershContext) error { return nil },
+		func(msg *shared.Message, ctx shared.ManageContext) error { return nil },
 		nil,
 		state,
 		signals,
@@ -268,8 +268,8 @@ func TestReducer_BatchVarSigCollection(t *testing.T) {
 		sig := &VarSig{
 			ReceivedTime:  time.Now(),
 			TargetVarName: "var" + string(rune('0'+i)),
-			VarUpdateFunc: func(prev shared.HershValue) (shared.HershValue, error) {
-				return shared.HershValue{Value: currentVal, Error: nil}, nil
+			VarUpdateFunc: func(prev shared.RawHershValue) (shared.RawHershValue, error) {
+				return shared.RawHershValue{Value: currentVal, Error: nil}, nil
 			},
 			IsStateIndependent: false,
 		}
@@ -307,7 +307,7 @@ func TestReducer_CrashedIsTerminal(t *testing.T) {
 
 	commander := NewEffectCommander()
 	handler := NewEffectHandler(
-		func(msg *shared.Message, ctx shared.HershContext) error { return nil },
+		func(msg *shared.Message, ctx shared.ManageContext) error { return nil },
 		nil,
 		state,
 		signals,
@@ -352,7 +352,7 @@ func TestReducer_InitRunClearsVarState(t *testing.T) {
 
 	commander := NewEffectCommander()
 	handler := NewEffectHandler(
-		func(msg *shared.Message, ctx shared.HershContext) error { return nil },
+		func(msg *shared.Message, ctx shared.ManageContext) error { return nil },
 		nil,
 		state,
 		signals,
@@ -364,8 +364,8 @@ func TestReducer_InitRunClearsVarState(t *testing.T) {
 	defer cancel()
 
 	// Set some variables
-	state.VarState.Set("var1", shared.HershValue{Value: 1, Error: nil})
-	state.VarState.Set("var2", shared.HershValue{Value: 2, Error: nil})
+	state.VarState.Set("var1", shared.RawHershValue{Value: 1, Error: nil})
+	state.VarState.Set("var2", shared.RawHershValue{Value: 2, Error: nil})
 
 	go reducer.RunWithEffects(ctx, commander, handler)
 
