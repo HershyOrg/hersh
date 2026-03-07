@@ -218,8 +218,8 @@ func TestReducer_PriorityOrdering(t *testing.T) {
 	}
 	watcherSig := &ManagerInnerSig{
 		ReceivedTime: time.Now(),
-		TargetState:  shared.StateInitRun,
-		Reason:       "init",
+		TargetState:  shared.StateRunning,
+		Reason:       "start",
 	}
 
 	// Send in this order: Var, User, Watcher
@@ -344,8 +344,8 @@ func TestReducer_CrashedIsTerminal(t *testing.T) {
 	}
 }
 
-func TestReducer_InitRunClearsVarState(t *testing.T) {
-	state := NewManagerState(shared.StateReady)
+func TestReducer_VarStatePersistence(t *testing.T) {
+	state := NewManagerState(shared.StateStopped)
 	signals := NewSignalChannels(10)
 	logger := newTestLogger()
 	reducer := NewReducer(state, signals, logger)
@@ -369,26 +369,25 @@ func TestReducer_InitRunClearsVarState(t *testing.T) {
 
 	go reducer.RunWithEffects(ctx, commander, handler)
 
-	// Send InitRun signal
+	// Send Running signal (direct transition from Stopped)
 	sig := &ManagerInnerSig{
 		ReceivedTime: time.Now(),
-		TargetState:  shared.StateInitRun,
-		Reason:       "initialization",
+		TargetState:  shared.StateRunning,
+		Reason:       "start",
 	}
 	signals.SendManagerInnerSig(sig)
 
 	time.Sleep(100 * time.Millisecond)
 
-	// VarState should be cleared
+	// In the new architecture, VarState should persist (not be cleared)
 	snapshot := state.VarState.GetAll()
-	if len(snapshot) != 0 {
-		t.Errorf("expected empty VarState, got %d variables", len(snapshot))
+	if len(snapshot) != 2 {
+		t.Errorf("expected 2 variables to persist, got %d variables", len(snapshot))
 	}
 
-	// In new architecture: InitRun with no watches → immediately Ready
-	// State should be Ready (not InitRun) because initRunScript returns immediately
+	// State should transition to Ready after running the managed function
 	finalState := state.GetManagerInnerState()
 	if finalState != shared.StateReady {
-		t.Logf("Note: State is %s (InitRun → Ready transition when no watches)", finalState)
+		t.Errorf("expected StateReady, got %s", finalState)
 	}
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"runtime"
-	"time"
 
 	"github.com/HershyOrg/hersh/shared"
 )
@@ -169,21 +168,6 @@ func (r *Reducer) reduceAndExecuteEffect(sig shared.Signal, commander *EffectCom
 		r.logger.LogReduce(action)
 	}
 
-	// 3. Check for InitRun completion before CommandEffect
-	// This ensures atomic InitRun → Ready transition without effect execution
-	if r.state.GetManagerInnerState() == shared.StateInitRun {
-		if _, ok := sig.(*VarSig); ok && handler.CheckInitializationComplete() {
-			// All variables initialized - transition to Ready immediately
-			initCompleteSig := &ManagerInnerSig{
-				ReceivedTime: time.Now(),
-				TargetState:  shared.StateReady,
-				Reason:       "initialization complete (all variables initialized)",
-			}
-			// Process Ready transition recursively (atomic)
-			r.reduceAndExecuteEffect(initCompleteSig, commander, handler)
-			return
-		}
-	}
 
 	// 4. CommandEffect (synchronous)
 	effectDef := commander.CommandEffect(action)
@@ -250,7 +234,7 @@ func (r *Reducer) canProcessUserSig(state shared.ManagerInnerState) bool {
 
 // canProcessVarSig checks if current state can process VarSig.
 func (r *Reducer) canProcessVarSig(state shared.ManagerInnerState) bool {
-	return state == shared.StateReady || state == shared.StateInitRun
+	return state == shared.StateReady
 }
 
 // reduceVarSig handles VarSig according to transition rules.
@@ -278,25 +262,6 @@ func (r *Reducer) reduceVarSig(sig *VarSig) *shared.TriggeredSignal {
 			return &shared.TriggeredSignal{VarSigNames: varNames}
 		}
 		// If no updates (all changed=false), stay in Ready state
-		return nil
-
-	case shared.StateInitRun:
-		// During initialization, collect and apply VarSigs to update state
-		// This allows InitRun phase 2 to detect when all variables are initialized
-		updates := r.collectAndApplyVarSigs(sig)
-
-		// Only update VarState if there are actual updates
-		if len(updates) > 0 {
-			r.state.VarState.BatchSet(updates)
-
-			// Collect triggered variable names
-			varNames := make([]string, 0, len(updates))
-			for varName := range updates {
-				varNames = append(varNames, varName)
-			}
-			return &shared.TriggeredSignal{VarSigNames: varNames}
-		}
-		// Don't change ManagerInnerState, just update VarState
 		return nil
 
 	default:
@@ -441,10 +406,6 @@ func (r *Reducer) reduceManagerInnerSig(sig *ManagerInnerSig) *shared.TriggeredS
 		return nil
 	}
 
-	// Special case: InitRun clears VarState
-	if targetState == shared.StateInitRun {
-		r.state.VarState.Clear()
-	}
 
 	// Perform transition
 	r.state.SetManagerInnerState(targetState)
@@ -461,8 +422,8 @@ func (r *Reducer) validateTransition(from, to shared.ManagerInnerState) error {
 	// Some basic validation - full FSM rules would go here
 	switch from {
 	case shared.StateStopped:
-		// From Stopped, only InitRun, Killed, Crashed, WaitRecover allowed
-		if to != shared.StateInitRun && to != shared.StateKilled && to != shared.StateCrashed && to != shared.StateWaitRecover {
+		// From Stopped, only Running, Killed, Crashed, WaitRecover allowed
+		if to != shared.StateRunning && to != shared.StateKilled && to != shared.StateCrashed && to != shared.StateWaitRecover {
 			return fmt.Errorf("invalid transition from Stopped to %s", to)
 		}
 	case shared.StateKilled:

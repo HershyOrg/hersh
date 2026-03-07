@@ -28,7 +28,7 @@ func TestHershValue_IsTriggered(t *testing.T) {
 
 	watcher.Manage(func(msg *shared.Message, runCtx shared.ManageContext) error {
 		// Watch two variables with generic types
-		price, _ := hersh.WatchCall[float64](
+		price := hersh.WatchCall[float64](0.0,
 			func() (manager.VarUpdateFunc[float64], bool, error) {
 				return func(prev float64) (float64, error) {
 					return 100.0, nil
@@ -39,7 +39,7 @@ func TestHershValue_IsTriggered(t *testing.T) {
 			runCtx,
 		)
 
-		volume, _ := hersh.WatchCall[float64](
+		volume := hersh.WatchCall[float64](0.0,
 			func() (manager.VarUpdateFunc[float64], bool, error) {
 				return func(prev float64) (float64, error) {
 					return 50.0, nil
@@ -120,12 +120,12 @@ func TestHershTick_IsTriggered(t *testing.T) {
 		tick2 := util.WatchTick("ticker2", 150*time.Millisecond, runCtx)
 
 		// Use IsTriggered() convenience method
-		if tick1.IsTriggered(runCtx) && !tick1.IsZero() {
+		if tick1.IsTriggered(runCtx) && tick1.IsUpdated() {
 			ticker1Triggered = true
 			ticker1Count = tick1.TickCount
 		}
 
-		if tick2.IsTriggered(runCtx) && !tick2.IsZero() {
+		if tick2.IsTriggered(runCtx) && tick2.IsUpdated() {
 			ticker2Triggered = true
 			ticker2Count = tick2.TickCount
 		}
@@ -183,7 +183,7 @@ func TestIsTriggered_Convenience(t *testing.T) {
 	var manualCheck, convenienceCheck bool
 
 	watcher.Manage(func(msg *shared.Message, runCtx shared.ManageContext) error {
-		price, _ := hersh.WatchCall[float64](
+		price := hersh.WatchCall[float64](0.0,
 			func() (manager.VarUpdateFunc[float64], bool, error) {
 				return func(prev float64) (float64, error) {
 					return 42.0, nil

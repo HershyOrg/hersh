@@ -133,7 +133,7 @@ func (w *Watcher) Manage(fn manager.ManagedFunc, name string) *CleanupBuilder {
 }
 
 // Start begins the Watcher's execution.
-// It starts all Manager components, enters InitRun state, and waits for Ready state.
+// It starts all Manager components and triggers the first execution to register Watch variables.
 func (w *Watcher) Start() error {
 	if !w.isRunning.CompareAndSwap(false, true) {
 		return fmt.Errorf("watcher already running")
@@ -154,11 +154,11 @@ func (w *Watcher) Start() error {
 	}
 	w.apiServer = apiServer
 
-	// Send InitRun signal to start initialization
-	w.manager.GetSignals().SendManagerInnerSig(&manager.ManagerInnerSig{
+	// Send an initial empty UserSig to trigger first execution
+	// This allows the managed function to register Watch variables
+	w.manager.GetSignals().SendUserSig(&manager.UserSig{
 		ReceivedTime: time.Now(),
-		TargetState:  StateInitRun,
-		Reason:       "Manager start",
+		UserMessage:  nil, // Empty message for initialization
 	})
 
 	return nil
@@ -306,8 +306,7 @@ func (w *Watcher) registerWatch(varName string, handle manager.WatchHandle) erro
 
 	watchRegistry.Store(varName, handle)
 
-	// Register with EffectHandler for initialization tracking
-	w.manager.GetEffectHandler().RegisterVar(varName)
+	// No longer need to register with EffectHandler (initialization tracking removed)
 	return nil
 }
 

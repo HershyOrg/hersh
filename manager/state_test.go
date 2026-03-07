@@ -48,29 +48,29 @@ func TestVarState_BatchSet(t *testing.T) {
 	}
 }
 
-func TestVarState_AllInitialized(t *testing.T) {
+func TestVarState_NotUpdatedTracking(t *testing.T) {
 	vs := NewVarState()
 
-	expectedVars := []string{"var1", "var2", "var3"}
+	// Set initial value with NotUpdated=true
+	vs.Set("var1", shared.RawHershValue{Value: 1, Error: nil, NotUpdated: true})
 
-	// Not initialized yet
-	if vs.AllInitialized(expectedVars) {
-		t.Error("expected AllInitialized to return false")
+	hv, ok := vs.Get("var1")
+	if !ok {
+		t.Fatal("expected var1 to exist")
+	}
+	if !hv.NotUpdated {
+		t.Error("expected NotUpdated to be true for initial value")
 	}
 
-	// Initialize all
-	vs.Set("var1", shared.RawHershValue{Value: 1, Error: nil})
-	vs.Set("var2", shared.RawHershValue{Value: 2, Error: nil})
-	vs.Set("var3", shared.RawHershValue{Value: 3, Error: nil})
+	// Update with NotUpdated=false
+	vs.Set("var1", shared.RawHershValue{Value: 2, Error: nil, NotUpdated: false})
 
-	if !vs.AllInitialized(expectedVars) {
-		t.Error("expected AllInitialized to return true")
+	hv, ok = vs.Get("var1")
+	if !ok {
+		t.Fatal("expected var1 to exist")
 	}
-
-	// Set one to empty HershValue (uninitialized)
-	vs.Set("var2", shared.RawHershValue{})
-	if vs.AllInitialized(expectedVars) {
-		t.Error("expected AllInitialized to return false when var is empty HershValue")
+	if hv.NotUpdated {
+		t.Error("expected NotUpdated to be false after update")
 	}
 }
 
@@ -136,10 +136,10 @@ func TestUserState_Operations(t *testing.T) {
 }
 
 func TestManagerState_ManagerInnerState(t *testing.T) {
-	ms := NewManagerState(shared.StateInitRun)
+	ms := NewManagerState(shared.StateReady)
 
-	if state := ms.GetManagerInnerState(); state != shared.StateInitRun {
-		t.Errorf("expected StateInitRun, got %s", state)
+	if state := ms.GetManagerInnerState(); state != shared.StateReady {
+		t.Errorf("expected StateReady, got %s", state)
 	}
 
 	ms.SetManagerInnerState(shared.StateReady)

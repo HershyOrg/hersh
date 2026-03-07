@@ -25,25 +25,6 @@ func TestEffectCommander_RunScriptEffect(t *testing.T) {
 	}
 }
 
-// TestEffectCommander_InitRunScriptEffect tests Ready -> InitRun transition.
-func TestEffectCommander_InitRunScriptEffect(t *testing.T) {
-	commander := NewEffectCommander()
-
-	action := ReduceAction{
-		PrevState: StateSnapshot{ManagerInnerState: shared.StateReady},
-		NextState: StateSnapshot{ManagerInnerState: shared.StateInitRun},
-	}
-
-	effect := commander.CommandEffect(action)
-	if effect == nil {
-		t.Fatal("expected effect, got nil")
-	}
-
-	if _, ok := effect.(*InitRunScriptEffect); !ok {
-		t.Errorf("expected InitRunScriptEffect, got %T", effect)
-	}
-}
-
 // TestEffectCommander_ClearRunScriptEffect tests Running -> Stopped transition.
 func TestEffectCommander_ClearRunScriptEffect(t *testing.T) {
 	commander := NewEffectCommander()

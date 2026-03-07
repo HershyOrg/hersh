@@ -25,7 +25,7 @@ func TestWatchTick_BasicFunctionality(t *testing.T) {
 	watcher.Manage(func(msg *shared.Message, runCtx shared.ManageContext) error {
 		tick := util.WatchTick("test_ticker", 100*time.Millisecond, runCtx)
 
-		if !tick.IsZero() {
+		if tick.IsUpdated() {
 			tickReceived = append(tickReceived, tick)
 
 			if len(tickReceived) >= 3 {
@@ -94,7 +94,7 @@ func TestWatchTick_ImmediateInitialTick(t *testing.T) {
 	watcher.Manage(func(msg *shared.Message, runCtx shared.ManageContext) error {
 		tick := util.WatchTick("immediate_ticker", 500*time.Millisecond, runCtx)
 
-		if !tick.IsZero() && !receivedTick {
+		if !tick.IsUpdated() && !receivedTick {
 			firstTick = tick
 			receivedTick = true
 			return shared.NewStopErr("got initial tick")
@@ -118,9 +118,9 @@ func TestWatchTick_ImmediateInitialTick(t *testing.T) {
 		t.Fatal("Did not receive initial tick")
 	}
 
-	// Verify initial tick has positive TickCount
-	if firstTick.TickCount < 1 {
-		t.Errorf("Initial tick: expected TickCount >= 1, got %d", firstTick.TickCount)
+	// Initial tick should have TickCount=0 (as set in init)
+	if firstTick.TickCount != 0 {
+		t.Errorf("Initial tick: expected TickCount = 0, got %d", firstTick.TickCount)
 	}
 
 	// Verify initial tick arrived within reasonable time (within 2 seconds)
@@ -145,7 +145,7 @@ func TestWatchTick_TickCountIncrement(t *testing.T) {
 	watcher.Manage(func(msg *shared.Message, runCtx shared.ManageContext) error {
 		tick := util.WatchTick("count_ticker", 150*time.Millisecond, runCtx)
 
-		if !tick.IsZero() {
+		if tick.IsUpdated() {
 			tickCounts = append(tickCounts, tick.TickCount)
 
 			// Stop after receiving 5 ticks
@@ -200,11 +200,11 @@ func TestWatchTick_MultipleWatches(t *testing.T) {
 		tick1 := util.WatchTick("ticker1", 100*time.Millisecond, runCtx)
 		tick2 := util.WatchTick("ticker2", 150*time.Millisecond, runCtx)
 
-		if !tick1.IsZero() {
+		if tick1.IsUpdated() {
 			tick1Counts = append(tick1Counts, tick1.TickCount)
 		}
 
-		if !tick2.IsZero() {
+		if tick2.IsUpdated() {
 			tick2Counts = append(tick2Counts, tick2.TickCount)
 		}
 
@@ -264,16 +264,24 @@ func TestWatchTick_MultipleWatches(t *testing.T) {
 	}
 }
 
-func TestWatchTick_IsZero(t *testing.T) {
-	// Test zero value
-	var zeroTick shared.HershTick
-	if !zeroTick.IsZero() {
-		t.Error("Zero value HershTick should report IsZero() = true")
+func TestWatchTick_IsUpdated(t *testing.T) {
+	// Test initial tick (NotUpdated = true)
+	initialTick := shared.HershTick{
+		Time:       time.Now(),
+		TickCount:  0,
+		NotUpdated: true,
+	}
+	if initialTick.IsUpdated() {
+		t.Error("Initial tick with NotUpdated=true should report IsUpdated() = false")
 	}
 
-	// Test non-zero value
-	nonZeroTick := shared.HershTick{Time: time.Now(), TickCount: 1}
-	if nonZeroTick.IsZero() {
-		t.Error("Non-zero HershTick should report IsZero() = false")
+	// Test updated tick (NotUpdated = false)
+	updatedTick := shared.HershTick{
+		Time:       time.Now(),
+		TickCount:  1,
+		NotUpdated: false,
+	}
+	if !updatedTick.IsUpdated() {
+		t.Error("Updated tick with NotUpdated=false should report IsUpdated() = true")
 	}
 }

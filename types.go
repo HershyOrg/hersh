@@ -34,7 +34,6 @@ type VarUpdateFunc func(prev any) (next any, changed bool, err error)
 const (
 	StateReady       = shared.StateReady
 	StateRunning     = shared.StateRunning
-	StateInitRun     = shared.StateInitRun
 	StateStopped     = shared.StateStopped
 	StateKilled      = shared.StateKilled
 	StateCrashed     = shared.StateCrashed

@@ -168,26 +168,26 @@ func mainReducer(
 	commandHandler *CommandHandler,
 ) error {
 	// WatchFlow: BTC price (real-time from WebSocket)
-	btcHV, btcErr := hersh.WatchFlow[float64](stream.GetBTCPriceStream(), "btc_price", ctx)
-	if btcErr == nil && !btcHV.IsZero() {
+	btcHV := hersh.WatchFlow[float64](0.0, stream.GetBTCPriceStream(), "btc_price", ctx)
+	// WatchFlow: ETH price (real-time from WebSocket)
+	ethHV := hersh.WatchFlow[float64](0.0, stream.GetETHPriceStream(), "eth_price", ctx)
+	// WatchTick: Stats ticker (1 minute interval)
+	statsTick := util.WatchTick("stats_ticker", StatsInterval, ctx)
+	// WatchTick: Rebalance ticker (1 hour interval)
+	rebalanceTick := util.WatchTick("rebalance_ticker", RebalanceInterval, ctx)
+
+	if btcHV.IsValid() {
 		simulator.UpdatePrice("BTC", btcHV.Value)
 	}
-
-	// WatchFlow: ETH price (real-time from WebSocket)
-	ethHV, ethErr := hersh.WatchFlow[float64](stream.GetETHPriceStream(), "eth_price", ctx)
-	if ethErr == nil && !ethHV.IsZero() {
+	if ethHV.IsValid() {
 		simulator.UpdatePrice("ETH", ethHV.Value)
 	}
 
-	// WatchTick: Stats ticker (1 minute interval)
-	statsTick := util.WatchTick("stats_ticker", StatsInterval, ctx)
 	if statsTick.IsTriggered(ctx) {
 		statsCollector.PrintStats(stream, simulator)
 		hersh.PrintWithLog(fmt.Sprintf("   (Stats tick #%d at %s)", statsTick.TickCount, statsTick.Time.Format("15:04:05")), ctx)
 	}
 
-	// WatchTick: Rebalance ticker (1 hour interval)
-	rebalanceTick := util.WatchTick("rebalance_ticker", RebalanceInterval, ctx)
 	if rebalanceTick.IsTriggered(ctx) {
 		hersh.PrintWithLog(fmt.Sprintf("\n⏰ Hourly rebalance triggered (tick #%d at %s)...",
 			rebalanceTick.TickCount, rebalanceTick.Time.Format("15:04:05")), ctx)

@@ -81,7 +81,8 @@ func TestBatchUpdate_LongExecution(t *testing.T) {
 		t.Logf("[Execution %d] Started", execNum)
 
 		// Variable A: Counter increment
-		valA, _ := hersh.WatchCall[int32](
+		valA := hersh.WatchCall[int32](
+			int32(0), // Initial value
 			func() (manager.VarUpdateFunc[int32], bool, error) {
 				return func(prev int32) (int32, error) {
 					next := prev + 1
@@ -95,7 +96,8 @@ func TestBatchUpdate_LongExecution(t *testing.T) {
 		)
 
 		// Variable B: String append
-		valB, _ := hersh.WatchCall[string](
+		valB := hersh.WatchCall[string](
+			"", // Initial empty string
 			func() (manager.VarUpdateFunc[string], bool, error) {
 				return func(prev string) (string, error) {
 					next := prev + "X"
@@ -109,13 +111,14 @@ func TestBatchUpdate_LongExecution(t *testing.T) {
 		)
 
 		// Variable C: Timestamp flow
-		valC, _ := hersh.WatchFlow[time.Time](
+		valC := hersh.WatchFlow[time.Time](
+			time.Time{}, // Initial zero time
 			getTimeChannel,
 			"timestampC",
 			ctx,
 		)
 
-		t.Logf("  A=%v, B_len=%v, C=%v", valA.Value, len(valB.Value), !valC.IsZero())
+		t.Logf("  A=%v, B_len=%v, C=%v", valA.Value, len(valB.Value), valC.IsUpdated())
 
 		// First execution: variables are nil, just register them
 		if execNum == 1 {
@@ -129,7 +132,7 @@ func TestBatchUpdate_LongExecution(t *testing.T) {
 			// Record final values from batched updates
 			atomic.StoreInt32(&finalA, valA.Value)
 			atomic.StoreInt32(&finalBLen, int32(len(valB.Value)))
-			if !valC.IsZero() {
+			if valC.IsUpdated() {
 				atomic.AddInt32(&finalCCount, 1)
 			}
 
@@ -239,7 +242,8 @@ func TestBatchUpdate_RapidExecutions(t *testing.T) {
 	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
 		execNum := atomic.AddInt32(&executionCount, 1)
 
-		valA, _ := hersh.WatchCall[int32](
+		valA := hersh.WatchCall[int32](
+			int32(0), // Initial value
 			func() (manager.VarUpdateFunc[int32], bool, error) {
 				return func(prev int32) (int32, error) {
 					atomic.AddInt32(&ticksA, 1)

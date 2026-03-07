@@ -16,8 +16,6 @@ const (
 	StateReady ManagerInnerState = iota
 	// StateRunning indicates the Manager is currently executing
 	StateRunning
-	// StateInitRun indicates the Manager is initializing (first run)
-	StateInitRun
 	// StateStopped indicates the Manager stopped normally and can be restarted
 	StateStopped
 	// StateKilled indicates the Manager was killed and is permanently stopped
@@ -34,8 +32,6 @@ func (s ManagerInnerState) String() string {
 		return "Ready"
 	case StateRunning:
 		return "Running"
-	case StateInitRun:
-		return "InitRun"
 	case StateStopped:
 		return "Stopped"
 	case StateKilled:
@@ -243,18 +239,51 @@ type RawFlowValue struct {
 // Error is now returned separately following Go conventions.
 // This allows users to work with type-safe values while internally using any.
 type HershValue[T any] struct {
-	Value   T      // The actual value (type-safe, only valid when returned error is nil)
-	VarName string // Name of the watched variable (empty if not from Watch)
+	Value      T      // The actual value (type-safe)
+	Error      error  // Error that occurred during computation (nil if no error)
+	VarName    string // Name of the watched variable (empty if not from Watch)
+	NotUpdated bool   // true if this is an initial value, false if actually updated
 }
 
-// IsZero returns true if Value is zero value of T.
-func (hv HershValue[T]) IsZero() bool {
-	var zero T
-	return any(hv.Value) == any(zero)
+// IsError returns true if this HershValue contains an error.
+func (hv HershValue[T]) IsError() bool {
+	return hv.Error != nil
 }
 
-// GetValue returns the value directly (convenience accessor).
-func (hv HershValue[T]) GetValue() T {
+// IsUpdated returns true if this value has been updated (not initial).
+func (hv HershValue[T]) IsUpdated() bool {
+	return !hv.NotUpdated
+}
+
+// IsInitial returns true if this is an initial value (not yet updated).
+func (hv HershValue[T]) IsInitial() bool {
+	return hv.NotUpdated
+}
+
+// IsValid returns true if !IsError && IsUpdated
+func (hv HershValue[T]) IsValid() bool {
+	return !hv.IsError() && !hv.NotUpdated
+}
+
+// Get returns the value and error separately (Go idiomatic pattern).
+func (hv HershValue[T]) Get() (T, error) {
+	return hv.Value, hv.Error
+}
+
+// MustGet returns the value or panics if there's an error.
+// Use this only when you're certain there won't be an error.
+func (hv HershValue[T]) MustGet() T {
+	if hv.Error != nil {
+		panic("HershValue contains error: " + hv.Error.Error())
+	}
+	return hv.Value
+}
+
+// GetOr returns the value if no error, otherwise returns the default value.
+func (hv HershValue[T]) GetOr(defaultVal T) T {
+	if hv.Error != nil {
+		return defaultVal
+	}
 	return hv.Value
 }
 
@@ -278,30 +307,38 @@ func (hv HershValue[T]) IsTriggered(ctx ManageContext) bool {
 // Takes error separately following the new (value, error) pattern.
 func (hv HershValue[T]) ToRaw(err error) RawHershValue {
 	return RawHershValue{
-		Value:   any(hv.Value),
-		Error:   err,
-		VarName: hv.VarName,
+		Value:      any(hv.Value),
+		Error:      hv.Error,
+		VarName:    hv.VarName,
+		NotUpdated: hv.NotUpdated,
 	}
 }
 
 // RawHershValue is the internal non-generic version used by VarState for storage.
 type RawHershValue struct {
-	Value   any    // The actual value stored as any
-	Error   error  // Error that occurred during computation
-	VarName string // Name of the watched variable
+	Value      any    // The actual value stored as any
+	Error      error  // Error that occurred during computation
+	VarName    string // Name of the watched variable
+	NotUpdated bool   // true if this is an initial value, false if actually updated
 }
 
 // HershTick represents a time-based tick event with count tracking.
 // Used by WatchTick to provide both timestamp and tick count information.
 type HershTick struct {
-	Time      time.Time // Current tick timestamp
-	TickCount int       // Total number of ticks occurred (starts from 1)
-	VarName   string    // Name of the watched variable (empty if not from WatchTick)
+	Time       time.Time // Current tick timestamp
+	TickCount  int       // Total number of ticks occurred (starts from 1)
+	VarName    string    // Name of the watched variable (empty if not from WatchTick)
+	NotUpdated bool      // true if this is an initial value, false if actually ticked
 }
 
-// IsZero returns true if this is an uninitialized tick (zero value).
-func (ht HershTick) IsZero() bool {
-	return ht.Time.IsZero() && ht.TickCount == 0
+// IsUpdated returns true if this tick has been updated (not initial).
+func (ht HershTick) IsUpdated() bool {
+	return !ht.NotUpdated
+}
+
+// IsInitial returns true if this is an initial tick value (not yet updated).
+func (ht HershTick) IsInitial() bool {
+	return ht.NotUpdated
 }
 
 // IsTriggered returns true if this ticker was triggered in the current execution.

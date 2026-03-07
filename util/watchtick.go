@@ -77,9 +77,16 @@ func WatchTick(varName string, tickInterval time.Duration, runCtx shared.ManageC
 		return flowChan, nil
 	}
 
+	// Initial value for WatchFlow
+	init := shared.HershTick{
+		Time:       time.Now(),
+		TickCount:  0,
+		VarName:    varName,
+		NotUpdated: true,
+	}
+
 	// Use WatchFlow with the ticker channel function (generic version)
-	// WatchFlow now returns (value, error) following Go conventions
-	hv, err := hersh.WatchFlow[shared.HershTick](getChannelFunc, varName, runCtx)
+	hv := hersh.WatchFlow[shared.HershTick](init, getChannelFunc, varName, runCtx)
 
 	// Return HershTick (zero value if not initialized or error)
 	if err != nil {
@@ -88,5 +95,6 @@ func WatchTick(varName string, tickInterval time.Duration, runCtx shared.ManageC
 
 	tick := hv.Value // Type-safe, no assertion needed
 	tick.VarName = varName
+	tick.NotUpdated = hv.NotUpdated
 	return tick
 }
