@@ -23,7 +23,7 @@ func main2() {
 		fmt.Printf("[Execution %d]\n", counter)
 
 		// Use Memo for expensive computation (cached)
-		expensiveResult := hersh.Memo(func() any {
+		expensiveResult := hersh.Memo(func() string {
 			fmt.Println("  Computing expensive value...")
 			time.Sleep(100 * time.Millisecond)
 			return "cached_result"

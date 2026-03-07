@@ -257,7 +257,7 @@ func TestMemo_BasicCaching(t *testing.T) {
 		atomic.AddInt32(&executeCount, 1)
 
 		// Memo should compute only once
-		val := Memo(func() any {
+		val := Memo(func() string {
 			count := atomic.AddInt32(&computeCount, 1)
 			t.Logf("Computing expensive value: call %d", count)
 			return "expensive-result"
@@ -315,7 +315,7 @@ func TestMemo_ClearMemo(t *testing.T) {
 			return nil
 		}
 
-		val := Memo(func() any {
+		val := Memo(func() int32 {
 			count := atomic.AddInt32(&computeCount, 1)
 			return count
 		}, "counter", ctx)
@@ -455,12 +455,12 @@ func TestWatcher_WatchAndMemo(t *testing.T) {
 		)
 
 		// Memo computes once
-		memoVal := Memo(func() any {
+		memoVal := Memo(func() string {
 			atomic.AddInt32(&memoComputeCount, 1)
 			return "cached-config"
 		}, "config", ctx)
 
-		if !watchVal.IsError() && memoVal != nil {
+		if !watchVal.IsError() {
 			t.Logf("Watch value: %v, Memo value: %v", watchVal.Value, memoVal)
 		}
 
