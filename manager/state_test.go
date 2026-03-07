@@ -10,7 +10,7 @@ func TestVarState_BasicOperations(t *testing.T) {
 	vs := NewVarState()
 
 	// Test Set and Get
-	vs.Set("var1", shared.HershValue{Value: 42, Error: nil})
+	vs.Set("var1", shared.RawHershValue{Value: 42, Error: nil})
 	hv, ok := vs.Get("var1")
 	if !ok {
 		t.Fatal("expected var1 to exist")
@@ -29,7 +29,7 @@ func TestVarState_BasicOperations(t *testing.T) {
 func TestVarState_BatchSet(t *testing.T) {
 	vs := NewVarState()
 
-	updates := map[string]shared.HershValue{
+	updates := map[string]shared.RawHershValue{
 		"var1": {Value: 1, Error: nil},
 		"var2": {Value: "two", Error: nil},
 		"var3": {Value: 3.0, Error: nil},
@@ -59,16 +59,16 @@ func TestVarState_AllInitialized(t *testing.T) {
 	}
 
 	// Initialize all
-	vs.Set("var1", shared.HershValue{Value: 1, Error: nil})
-	vs.Set("var2", shared.HershValue{Value: 2, Error: nil})
-	vs.Set("var3", shared.HershValue{Value: 3, Error: nil})
+	vs.Set("var1", shared.RawHershValue{Value: 1, Error: nil})
+	vs.Set("var2", shared.RawHershValue{Value: 2, Error: nil})
+	vs.Set("var3", shared.RawHershValue{Value: 3, Error: nil})
 
 	if !vs.AllInitialized(expectedVars) {
 		t.Error("expected AllInitialized to return true")
 	}
 
 	// Set one to empty HershValue (uninitialized)
-	vs.Set("var2", shared.HershValue{})
+	vs.Set("var2", shared.RawHershValue{})
 	if vs.AllInitialized(expectedVars) {
 		t.Error("expected AllInitialized to return false when var is empty HershValue")
 	}
@@ -77,8 +77,8 @@ func TestVarState_AllInitialized(t *testing.T) {
 func TestVarState_Clear(t *testing.T) {
 	vs := NewVarState()
 
-	vs.Set("var1", shared.HershValue{Value: 1, Error: nil})
-	vs.Set("var2", shared.HershValue{Value: 2, Error: nil})
+	vs.Set("var1", shared.RawHershValue{Value: 1, Error: nil})
+	vs.Set("var2", shared.RawHershValue{Value: 2, Error: nil})
 
 	vs.Clear()
 
@@ -153,7 +153,7 @@ func TestManagerState_Snapshot(t *testing.T) {
 	ms := NewManagerState(shared.StateReady)
 
 	// Set up state
-	ms.VarState.Set("var1", shared.HershValue{Value: 100, Error: nil})
+	ms.VarState.Set("var1", shared.RawHershValue{Value: 100, Error: nil})
 	ms.UserState.SetMessage(&shared.Message{Content: "hello"})
 
 	snapshot := ms.Snapshot()

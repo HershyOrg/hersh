@@ -218,8 +218,8 @@ func (vsa *varStateAdapter) GetAll() map[string]interface{} {
 	hvMap := vsa.state.GetAll()
 	result := make(map[string]interface{}, len(hvMap))
 	for k, hv := range hvMap {
-		// Convert HershValue to interface{} for API compatibility
-		if hv.IsError() {
+		// Convert RawHershValue to interface{} for API compatibility
+		if hv.Error != nil {
 			result[k] = map[string]interface{}{
 				"value": hv.Value,
 				"error": hv.Error.Error(),

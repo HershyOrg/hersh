@@ -7,36 +7,36 @@ import (
 )
 
 // VarState holds the state of all watched variables.
-// map[varName]HershValue
+// map[varName]RawHershValue (internal non-generic storage)
 type VarState struct {
 	mu     sync.RWMutex
-	values map[string]shared.HershValue
+	values map[string]shared.RawHershValue
 }
 
 // NewVarState creates a new VarState.
 func NewVarState() *VarState {
 	return &VarState{
-		values: make(map[string]shared.HershValue),
+		values: make(map[string]shared.RawHershValue),
 	}
 }
 
-// Get retrieves a variable's HershValue.
-func (vs *VarState) Get(name string) (shared.HershValue, bool) {
+// Get retrieves a variable's RawHershValue.
+func (vs *VarState) Get(name string) (shared.RawHershValue, bool) {
 	vs.mu.RLock()
 	defer vs.mu.RUnlock()
 	val, ok := vs.values[name]
 	return val, ok
 }
 
-// Set updates a variable's HershValue.
-func (vs *VarState) Set(name string, value shared.HershValue) {
+// Set updates a variable's RawHershValue.
+func (vs *VarState) Set(name string, value shared.RawHershValue) {
 	vs.mu.Lock()
 	defer vs.mu.Unlock()
 	vs.values[name] = value
 }
 
 // BatchSet updates multiple variables atomically.
-func (vs *VarState) BatchSet(updates map[string]shared.HershValue) {
+func (vs *VarState) BatchSet(updates map[string]shared.RawHershValue) {
 	vs.mu.Lock()
 	defer vs.mu.Unlock()
 	for name, value := range updates {
@@ -45,10 +45,10 @@ func (vs *VarState) BatchSet(updates map[string]shared.HershValue) {
 }
 
 // GetAll returns a snapshot of all variable values.
-func (vs *VarState) GetAll() map[string]shared.HershValue {
+func (vs *VarState) GetAll() map[string]shared.RawHershValue {
 	vs.mu.RLock()
 	defer vs.mu.RUnlock()
-	snapshot := make(map[string]shared.HershValue, len(vs.values))
+	snapshot := make(map[string]shared.RawHershValue, len(vs.values))
 	for k, v := range vs.values {
 		snapshot[k] = v
 	}
@@ -59,7 +59,7 @@ func (vs *VarState) GetAll() map[string]shared.HershValue {
 func (vs *VarState) Clear() {
 	vs.mu.Lock()
 	defer vs.mu.Unlock()
-	vs.values = make(map[string]shared.HershValue)
+	vs.values = make(map[string]shared.RawHershValue)
 }
 
 // AllInitialized checks if all expected variables are initialized (non-nil and no error).
@@ -178,7 +178,7 @@ func (ms *ManagerState) WaitStoppedAfterCleanup() <-chan struct{} {
 
 // Snapshot returns a complete state snapshot for logging.
 type StateSnapshot struct {
-	VarState          map[string]shared.HershValue
+	VarState          map[string]shared.RawHershValue
 	UserMessage       *shared.Message
 	ManagerInnerState shared.ManagerInnerState
 }

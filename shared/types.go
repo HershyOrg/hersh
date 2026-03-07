@@ -120,10 +120,10 @@ func (ts *TriggeredSignal) HasVarTrigger(varName string) bool {
 	return false
 }
 
-// HershContext provides runtime context for managed functions.
+// ManageContext provides runtime context for managed functions.
 // It includes cancellation, deadlines, and access to Watcher features.
 // This is the base interface used by manager package.
-type HershContext interface {
+type ManageContext interface {
 	context.Context
 
 	// Message returns the current user message (nil if none)
@@ -225,53 +225,60 @@ func DefaultRecoveryPolicy() RecoveryPolicy {
 	}
 }
 
-// FlowValue represents a value or error from a WatchFlow channel.
-// Only used internally; users receive V as 'any' type.
-type FlowValue struct {
-	V          any   // Value (passed to user if E == nil)
+// FlowValue represents a value or error from a WatchFlow channel (generic version).
+type FlowValue[T any] struct {
+	V          T     // Value (passed to user if E == nil)
 	E          error // Error (logged internally, never exposed to user)
 	SkipSignal bool  // If true, skip sending VarSig (default false = send signal)
 }
 
-// HershValue represents a value or error from Watch variables.
-// This allows users to explicitly handle errors from watched variables.
-type HershValue struct {
-	Value   any    // The actual value (may be nil)
+// RawFlowValue is the internal non-generic version used by manager for storage.
+type RawFlowValue struct {
+	V          any   // Value stored as any
+	E          error // Error
+	SkipSignal bool  // Skip signal flag
+}
+
+// HershValue represents a value or error from Watch variables (generic version).
+// This allows users to work with type-safe values while internally using any.
+type HershValue[T any] struct {
+	Value   T      // The actual value (type-safe)
 	Error   error  // Error that occurred during computation (nil if no error)
 	VarName string // Name of the watched variable (empty if not from Watch)
 }
 
 // IsError returns true if this HershValue contains an error.
-func (hv HershValue) IsError() bool {
+func (hv HershValue[T]) IsError() bool {
 	return hv.Error != nil
 }
 
-// IsZero returns true if Value==nil
-func (hv HershValue) IsZero() bool {
-	return hv.Value == nil
+// IsZero returns true if Value is zero value of T.
+func (hv HershValue[T]) IsZero() bool {
+	var zero T
+	return any(hv.Value) == any(zero)
 }
 
 // IsValid returns true if !IsError && !IsZero
-func (hv HershValue) IsValid() bool {
+func (hv HershValue[T]) IsValid() bool {
 	return !hv.IsError() && !hv.IsZero()
 }
 
-// Unwrap returns the value and error separately (Go idiomatic pattern).
-func (hv HershValue) Unwrap() (any, error) {
+// Get returns the value and error separately (Go idiomatic pattern).
+func (hv HershValue[T]) Get() (T, error) {
 	return hv.Value, hv.Error
 }
 
-// MustValue returns the value or panics if there's an error.
+// MustGet returns the value or panics if there's an error.
 // Use this only when you're certain there won't be an error.
-func (hv HershValue) MustValue() any {
+func (hv HershValue[T]) MustGet() T {
 	if hv.Error != nil {
 		panic("HershValue contains error: " + hv.Error.Error())
 	}
 	return hv.Value
 }
 
-// ValueOr returns the value if no error, otherwise returns the default value.
-func (hv HershValue) ValueOr(defaultVal any) any {
+// GetOr returns the value if no error, otherwise returns the default value.
+func (hv HershValue[T]) GetOr(defaultVal T) T {
 	if hv.Error != nil {
 		return defaultVal
 	}
@@ -279,9 +286,9 @@ func (hv HershValue) ValueOr(defaultVal any) any {
 }
 
 // IsTriggered returns true if this variable was triggered in the current execution.
-// Requires a valid HershContext to check the TriggeredSignal.
+// Requires a valid ManageContext to check the TriggeredSignal.
 // Returns false if VarName is empty or if no trigger information is available.
-func (hv HershValue) IsTriggered(ctx HershContext) bool {
+func (hv HershValue[T]) IsTriggered(ctx ManageContext) bool {
 	if hv.VarName == "" {
 		return false // Not a watched variable
 	}
@@ -292,6 +299,22 @@ func (hv HershValue) IsTriggered(ctx HershContext) bool {
 	}
 
 	return trigger.HasVarTrigger(hv.VarName)
+}
+
+// ToRaw converts HershValue[T] to RawHershValue for internal storage.
+func (hv HershValue[T]) ToRaw() RawHershValue {
+	return RawHershValue{
+		Value:   any(hv.Value),
+		Error:   hv.Error,
+		VarName: hv.VarName,
+	}
+}
+
+// RawHershValue is the internal non-generic version used by VarState for storage.
+type RawHershValue struct {
+	Value   any    // The actual value stored as any
+	Error   error  // Error that occurred during computation
+	VarName string // Name of the watched variable
 }
 
 // HershTick represents a time-based tick event with count tracking.
@@ -310,7 +333,7 @@ func (ht HershTick) IsZero() bool {
 // IsTriggered returns true if this ticker was triggered in the current execution.
 // Requires a valid HershContext to check the TriggeredSignal.
 // Returns false if VarName is empty or if no trigger information is available.
-func (ht HershTick) IsTriggered(ctx HershContext) bool {
+func (ht HershTick) IsTriggered(ctx ManageContext) bool {
 	if ht.VarName == "" {
 		return false // Not a watched variable
 	}

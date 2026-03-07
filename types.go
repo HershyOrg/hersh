@@ -10,11 +10,13 @@ type (
 	ManagerInnerState = shared.ManagerInnerState
 	SignalPriority    = shared.SignalPriority
 	Signal            = shared.Signal
-	HershContext      = shared.HershContext
+	HershContext      = shared.ManageContext
+	ManageContext     = shared.ManageContext
 	Message           = shared.Message
 	WatcherConfig     = shared.WatcherConfig
 	RecoveryPolicy    = shared.RecoveryPolicy
-	HershValue        = shared.HershValue
+	// HershValue is now generic: use shared.HershValue[T] directly
+	// FlowValue is now generic: use shared.FlowValue[T] directly
 
 	// Error types
 	ControlError           = shared.ControlError

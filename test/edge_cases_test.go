@@ -1,10 +1,11 @@
 package test
 
 import (
-	"github.com/HershyOrg/hersh/manager"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/HershyOrg/hersh/manager"
 
 	"github.com/HershyOrg/hersh"
 	"github.com/HershyOrg/hersh/shared"
@@ -27,15 +28,15 @@ func TestEdgeCase_StopDuringInitRun(t *testing.T) {
 	cleanupCalled := int32(0)
 	executionCount := int32(0)
 
-	managedFunc := func(msg *shared.Message, ctx shared.HershContext) error {
+	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
 		atomic.AddInt32(&executionCount, 1)
 
 		// Register a slow watch to keep in InitRun state
-		hersh.WatchCall(
-			func() (manager.VarUpdateFunc, bool, error) {
-				return func(prev shared.HershValue) (shared.HershValue, error) {
+		hersh.WatchCall[int64](
+			func() (manager.VarUpdateFunc[int64], bool, error) {
+				return func(prev int64) (int64, error) {
 					time.Sleep(100 * time.Millisecond)
-					return shared.HershValue{Value: time.Now().Unix(), Error: nil}, nil
+					return time.Now().Unix(), nil
 				}, false, nil
 			},
 			"slowWatch",
@@ -46,7 +47,7 @@ func TestEdgeCase_StopDuringInitRun(t *testing.T) {
 		return nil
 	}
 
-	watcher.Manage(managedFunc, "test").Cleanup(func(ctx shared.HershContext) {
+	watcher.Manage(managedFunc, "test").Cleanup(func(ctx shared.ManageContext) {
 		atomic.AddInt32(&cleanupCalled, 1)
 		t.Log("Cleanup called")
 	})
@@ -103,11 +104,11 @@ func TestEdgeCase_MultipleStops(t *testing.T) {
 
 	cleanupCalled := int32(0)
 
-	managedFunc := func(msg *shared.Message, ctx shared.HershContext) error {
-		hersh.WatchCall(
-			func() (manager.VarUpdateFunc, bool, error) {
-				return func(prev shared.HershValue) (shared.HershValue, error) {
-					return shared.HershValue{Value: time.Now().Unix(), Error: nil}, nil
+	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
+		hersh.WatchCall[int64](
+			func() (manager.VarUpdateFunc[int64], bool, error) {
+				return func(prev int64) (int64, error) {
+					return time.Now().Unix(), nil
 				}, false, nil
 			},
 			"watch1",
@@ -117,7 +118,7 @@ func TestEdgeCase_MultipleStops(t *testing.T) {
 		return nil
 	}
 
-	watcher.Manage(managedFunc, "test").Cleanup(func(ctx shared.HershContext) {
+	watcher.Manage(managedFunc, "test").Cleanup(func(ctx shared.ManageContext) {
 		atomic.AddInt32(&cleanupCalled, 1)
 		t.Log("Cleanup called")
 	})
@@ -169,7 +170,7 @@ func TestEdgeCase_StopErrorHandling(t *testing.T) {
 
 	executionCount := int32(0)
 
-	managedFunc := func(msg *shared.Message, ctx shared.HershContext) error {
+	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
 		count := atomic.AddInt32(&executionCount, 1)
 
 		if count == 2 {
@@ -225,11 +226,11 @@ func TestEdgeCase_CleanupTimeout(t *testing.T) {
 	cleanupStarted := int32(0)
 	cleanupCompleted := int32(0)
 
-	managedFunc := func(msg *shared.Message, ctx shared.HershContext) error {
-		hersh.WatchCall(
-			func() (manager.VarUpdateFunc, bool, error) {
-				return func(prev shared.HershValue) (shared.HershValue, error) {
-					return shared.HershValue{Value: time.Now().Unix(), Error: nil}, nil
+	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
+		hersh.WatchCall[int64](
+			func() (manager.VarUpdateFunc[int64], bool, error) {
+				return func(prev int64) (int64, error) {
+					return time.Now().Unix(), nil
 				}, false, nil
 			},
 			"watch1",
@@ -239,7 +240,7 @@ func TestEdgeCase_CleanupTimeout(t *testing.T) {
 		return nil
 	}
 
-	watcher.Manage(managedFunc, "test").Cleanup(func(ctx shared.HershContext) {
+	watcher.Manage(managedFunc, "test").Cleanup(func(ctx shared.ManageContext) {
 		atomic.StoreInt32(&cleanupStarted, 1)
 		t.Log("Cleanup started")
 
@@ -301,7 +302,7 @@ func TestEdgeCase_NilMessageHandling(t *testing.T) {
 	nilCount := int32(0)
 	nonNilCount := int32(0)
 
-	managedFunc := func(msg *shared.Message, ctx shared.HershContext) error {
+	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
 		if msg == nil {
 			atomic.AddInt32(&nilCount, 1)
 			t.Log("Received nil message (InitRun)")
@@ -310,10 +311,10 @@ func TestEdgeCase_NilMessageHandling(t *testing.T) {
 			t.Logf("Received message: %s", msg.Content)
 		}
 
-		hersh.WatchCall(
-			func() (manager.VarUpdateFunc, bool, error) {
-				return func(prev shared.HershValue) (shared.HershValue, error) {
-					return shared.HershValue{Value: time.Now().Unix(), Error: nil}, nil
+		hersh.WatchCall[int64](
+			func() (manager.VarUpdateFunc[int64], bool, error) {
+				return func(prev int64) (int64, error) {
+					return time.Now().Unix(), nil
 				}, false, nil
 			},
 			"watch1",
@@ -370,7 +371,7 @@ func TestEdgeCase_EmptyWatchVariables(t *testing.T) {
 
 	executionCount := int32(0)
 
-	managedFunc := func(msg *shared.Message, ctx shared.HershContext) error {
+	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
 		atomic.AddInt32(&executionCount, 1)
 		// No Watch calls - empty function
 		return nil
@@ -415,7 +416,7 @@ func TestEdgeCase_PanicRecovery(t *testing.T) {
 	executionCount := int32(0)
 	panicCount := int32(0)
 
-	managedFunc := func(msg *shared.Message, ctx shared.HershContext) error {
+	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
 		count := atomic.AddInt32(&executionCount, 1)
 
 		// Panic on second execution
@@ -424,10 +425,10 @@ func TestEdgeCase_PanicRecovery(t *testing.T) {
 			panic("test panic")
 		}
 
-		hersh.WatchCall(
-			func() (manager.VarUpdateFunc, bool, error) {
-				return func(prev shared.HershValue) (shared.HershValue, error) {
-					return shared.HershValue{Value: time.Now().Unix(), Error: nil}, nil
+		hersh.WatchCall[int64](
+			func() (manager.VarUpdateFunc[int64], bool, error) {
+				return func(prev int64) (int64, error) {
+					return time.Now().Unix(), nil
 				}, false, nil
 			},
 			"watch1",
@@ -481,7 +482,7 @@ func TestEdgeCase_PanicRecovery(t *testing.T) {
 // Note: Context timeout is enforced by the handler wrapper, not directly in user code
 func TestEdgeCase_ContextCancellation(t *testing.T) {
 	config := shared.DefaultWatcherConfig()
-	config.ServerPort = 0 // Random port for test isolation
+	config.ServerPort = 0                          // Random port for test isolation
 	config.DefaultTimeout = 200 * time.Millisecond // Short timeout
 	watcher := hersh.NewWatcher(config, nil, nil)
 
@@ -495,7 +496,7 @@ func TestEdgeCase_ContextCancellation(t *testing.T) {
 	executionCount := int32(0)
 	longOpCount := int32(0)
 
-	managedFunc := func(msg *shared.Message, ctx shared.HershContext) error {
+	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
 		atomic.AddInt32(&executionCount, 1)
 
 		// On specific message, do a long operation
@@ -508,10 +509,10 @@ func TestEdgeCase_ContextCancellation(t *testing.T) {
 			return nil
 		}
 
-		hersh.WatchCall(
-			func() (manager.VarUpdateFunc, bool, error) {
-				return func(prev shared.HershValue) (shared.HershValue, error) {
-					return shared.HershValue{Value: time.Now().Unix(), Error: nil}, nil
+		hersh.WatchCall[int64](
+			func() (manager.VarUpdateFunc[int64], bool, error) {
+				return func(prev int64) (int64, error) {
+					return time.Now().Unix(), nil
 				}, false, nil
 			},
 			"watch1",
@@ -554,7 +555,7 @@ func TestEdgeCase_ContextCancellation(t *testing.T) {
 		if !result.Success && result.Error != nil {
 			t.Logf("Found error result: %v", result.Error)
 			if result.Error.Error() == "context deadline exceeded" ||
-			   result.Error.Error() == "execution timeout" {
+				result.Error.Error() == "execution timeout" {
 				timeoutFound = true
 				break
 			}

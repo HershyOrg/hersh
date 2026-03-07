@@ -24,7 +24,7 @@ func TestHighFrequency_FastWatchSlowFunction(t *testing.T) {
 	var lastVarValue atomic.Int32
 
 	// Slow managed function (100ms execution time)
-	managedFunc := func(msg *shared.Message, ctx shared.HershContext) error {
+	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
 		executionCount.Add(1)
 		time.Sleep(100 * time.Millisecond) // Simulate slow processing
 		return nil
@@ -53,8 +53,8 @@ func TestHighFrequency_FastWatchSlowFunction(t *testing.T) {
 		signals.SendVarSig(&manager.VarSig{
 			ReceivedTime:  time.Now(),
 			TargetVarName: "highFreqVar",
-			VarUpdateFunc: func(prev shared.HershValue) (shared.HershValue, error) {
-				return shared.HershValue{Value: currentI, Error: nil}, nil
+			VarUpdateFunc: func(prev shared.RawHershValue) (shared.RawHershValue, error) {
+				return shared.RawHershValue{Value: currentI, Error: nil}, nil
 			},
 			IsStateIndependent: false,
 		})
@@ -97,7 +97,7 @@ func TestHighFrequency_ConcurrentSignalsAndMessages(t *testing.T) {
 	var messageCount atomic.Int32
 	var varSigCount atomic.Int32
 
-	managedFunc := func(msg *shared.Message, ctx shared.HershContext) error {
+	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
 		executionCount.Add(1)
 		if msg != nil {
 			messageCount.Add(1)
@@ -134,8 +134,8 @@ func TestHighFrequency_ConcurrentSignalsAndMessages(t *testing.T) {
 			signals.SendVarSig(&manager.VarSig{
 				ReceivedTime:  time.Now(),
 				TargetVarName: "concurrentVar",
-				VarUpdateFunc: func(prev shared.HershValue) (shared.HershValue, error) {
-					return shared.HershValue{Value: currentI, Error: nil}, nil
+				VarUpdateFunc: func(prev shared.RawHershValue) (shared.RawHershValue, error) {
+					return shared.RawHershValue{Value: currentI, Error: nil}, nil
 				},
 				IsStateIndependent: false,
 			})
@@ -195,7 +195,7 @@ func TestHighFrequency_SignalBurst(t *testing.T) {
 	var executionCount atomic.Int32
 	var processedVars sync.Map
 
-	managedFunc := func(msg *shared.Message, ctx shared.HershContext) error {
+	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
 		executionCount.Add(1)
 		time.Sleep(30 * time.Millisecond)
 		return nil
@@ -229,8 +229,8 @@ func TestHighFrequency_SignalBurst(t *testing.T) {
 			signals.SendVarSig(&manager.VarSig{
 				ReceivedTime:  time.Now(),
 				TargetVarName: varName,
-				VarUpdateFunc: func(prev shared.HershValue) (shared.HershValue, error) {
-					return shared.HershValue{Value: currentVal, Error: nil}, nil
+				VarUpdateFunc: func(prev shared.RawHershValue) (shared.RawHershValue, error) {
+					return shared.RawHershValue{Value: currentVal, Error: nil}, nil
 				},
 				IsStateIndependent: false,
 			})
@@ -273,7 +273,7 @@ func TestHighFrequency_SignalsWithTimeout(t *testing.T) {
 	var timeoutCount atomic.Int32
 
 	// Function that sometimes times out
-	managedFunc := func(msg *shared.Message, ctx shared.HershContext) error {
+	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
 		executionCount.Add(1)
 		execNum := executionCount.Load()
 
@@ -314,8 +314,8 @@ func TestHighFrequency_SignalsWithTimeout(t *testing.T) {
 		signals.SendVarSig(&manager.VarSig{
 			ReceivedTime:  time.Now(),
 			TargetVarName: "timeoutVar",
-			VarUpdateFunc: func(prev shared.HershValue) (shared.HershValue, error) {
-				return shared.HershValue{Value: currentI, Error: nil}, nil
+			VarUpdateFunc: func(prev shared.RawHershValue) (shared.RawHershValue, error) {
+				return shared.RawHershValue{Value: currentI, Error: nil}, nil
 			},
 			IsStateIndependent: false,
 		})
@@ -353,7 +353,7 @@ func TestHighFrequency_MultipleWatchVariables(t *testing.T) {
 	varCounts := make(map[string]*atomic.Int32)
 	var varCountsMu sync.Mutex
 
-	managedFunc := func(msg *shared.Message, ctx shared.HershContext) error {
+	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
 		executionCount.Add(1)
 		time.Sleep(30 * time.Millisecond)
 		return nil
@@ -394,8 +394,8 @@ func TestHighFrequency_MultipleWatchVariables(t *testing.T) {
 				signals.SendVarSig(&manager.VarSig{
 					ReceivedTime:  time.Now(),
 					TargetVarName: vName,
-					VarUpdateFunc: func(prev shared.HershValue) (shared.HershValue, error) {
-						return shared.HershValue{Value: currentI, Error: nil}, nil
+					VarUpdateFunc: func(prev shared.RawHershValue) (shared.RawHershValue, error) {
+						return shared.RawHershValue{Value: currentI, Error: nil}, nil
 					},
 					IsStateIndependent: false,
 				})
@@ -449,7 +449,7 @@ func TestHighFrequency_PriorityUnderLoad(t *testing.T) {
 	var userSigProcessed atomic.Int32
 	var varSigProcessed atomic.Int32
 
-	managedFunc := func(msg *shared.Message, ctx shared.HershContext) error {
+	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
 		executionCount.Add(1)
 		if msg != nil {
 			userSigProcessed.Add(1)
@@ -486,8 +486,8 @@ func TestHighFrequency_PriorityUnderLoad(t *testing.T) {
 			signals.SendVarSig(&manager.VarSig{
 				ReceivedTime:  time.Now(),
 				TargetVarName: "priorityVar",
-				VarUpdateFunc: func(prev shared.HershValue) (shared.HershValue, error) {
-					return shared.HershValue{Value: currentI, Error: nil}, nil
+				VarUpdateFunc: func(prev shared.RawHershValue) (shared.RawHershValue, error) {
+					return shared.RawHershValue{Value: currentI, Error: nil}, nil
 				},
 				IsStateIndependent: false,
 			})
@@ -567,7 +567,7 @@ func TestHighFrequency_StressTest(t *testing.T) {
 	var executionCount atomic.Int64
 	var signalsSent atomic.Int64
 
-	managedFunc := func(msg *shared.Message, ctx shared.HershContext) error {
+	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
 		executionCount.Add(1)
 		time.Sleep(10 * time.Millisecond) // Fast execution
 		return nil
@@ -605,8 +605,8 @@ func TestHighFrequency_StressTest(t *testing.T) {
 				signals.SendVarSig(&manager.VarSig{
 					ReceivedTime:  time.Now(),
 					TargetVarName: "stressVar",
-					VarUpdateFunc: func(prev shared.HershValue) (shared.HershValue, error) {
-						return shared.HershValue{Value: currentVal, Error: nil}, nil
+					VarUpdateFunc: func(prev shared.RawHershValue) (shared.RawHershValue, error) {
+						return shared.RawHershValue{Value: currentVal, Error: nil}, nil
 					},
 					IsStateIndependent: false,
 				})

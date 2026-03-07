@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/HershyOrg/hersh"
-	"github.com/HershyOrg/hersh/hutil"
 	"github.com/HershyOrg/hersh/manager"
 	"github.com/HershyOrg/hersh/shared"
+	"github.com/HershyOrg/hersh/util"
 )
 
 // TestHershValue_IsTriggered tests the IsTriggered method on HershValue
@@ -26,12 +26,12 @@ func TestHershValue_IsTriggered(t *testing.T) {
 	var priceTriggered, volumeTriggered bool
 	var priceValue, volumeValue float64
 
-	watcher.Manage(func(msg *shared.Message, runCtx shared.HershContext) error {
-		// Watch two variables
-		price := hersh.WatchCall(
-			func() (manager.VarUpdateFunc, bool, error) {
-				return func(prev shared.HershValue) (shared.HershValue, error) {
-					return shared.HershValue{Value: 100.0, Error: nil}, nil
+	watcher.Manage(func(msg *shared.Message, runCtx shared.ManageContext) error {
+		// Watch two variables with generic types
+		price := hersh.WatchCall[float64](
+			func() (manager.VarUpdateFunc[float64], bool, error) {
+				return func(prev float64) (float64, error) {
+					return 100.0, nil
 				}, false, nil
 			},
 			"price",
@@ -39,10 +39,10 @@ func TestHershValue_IsTriggered(t *testing.T) {
 			runCtx,
 		)
 
-		volume := hersh.WatchCall(
-			func() (manager.VarUpdateFunc, bool, error) {
-				return func(prev shared.HershValue) (shared.HershValue, error) {
-					return shared.HershValue{Value: 50.0, Error: nil}, nil
+		volume := hersh.WatchCall[float64](
+			func() (manager.VarUpdateFunc[float64], bool, error) {
+				return func(prev float64) (float64, error) {
+					return 50.0, nil
 				}, false, nil
 			},
 			"volume",
@@ -53,16 +53,12 @@ func TestHershValue_IsTriggered(t *testing.T) {
 		// Use IsTriggered() convenience method
 		if price.IsTriggered(runCtx) {
 			priceTriggered = true
-			if price.Value != nil {
-				priceValue = price.Value.(float64)
-			}
+			priceValue = price.Value // Type-safe, no assertion needed
 		}
 
 		if volume.IsTriggered(runCtx) {
 			volumeTriggered = true
-			if volume.Value != nil {
-				volumeValue = volume.Value.(float64)
-			}
+			volumeValue = volume.Value // Type-safe, no assertion needed
 		}
 
 		// Stop after both triggered
@@ -118,10 +114,10 @@ func TestHershTick_IsTriggered(t *testing.T) {
 	var ticker1Triggered, ticker2Triggered bool
 	var ticker1Count, ticker2Count int
 
-	watcher.Manage(func(msg *shared.Message, runCtx shared.HershContext) error {
+	watcher.Manage(func(msg *shared.Message, runCtx shared.ManageContext) error {
 		// Watch two tickers with different intervals
-		tick1 := hutil.WatchTick("ticker1", 100*time.Millisecond, runCtx)
-		tick2 := hutil.WatchTick("ticker2", 150*time.Millisecond, runCtx)
+		tick1 := util.WatchTick("ticker1", 100*time.Millisecond, runCtx)
+		tick2 := util.WatchTick("ticker2", 150*time.Millisecond, runCtx)
 
 		// Use IsTriggered() convenience method
 		if tick1.IsTriggered(runCtx) && !tick1.IsZero() {
@@ -186,11 +182,11 @@ func TestIsTriggered_Convenience(t *testing.T) {
 	// Track calls to verify both methods work identically
 	var manualCheck, convenienceCheck bool
 
-	watcher.Manage(func(msg *shared.Message, runCtx shared.HershContext) error {
-		price := hersh.WatchCall(
-			func() (manager.VarUpdateFunc, bool, error) {
-				return func(prev shared.HershValue) (shared.HershValue, error) {
-					return shared.HershValue{Value: 42.0, Error: nil}, nil
+	watcher.Manage(func(msg *shared.Message, runCtx shared.ManageContext) error {
+		price := hersh.WatchCall[float64](
+			func() (manager.VarUpdateFunc[float64], bool, error) {
+				return func(prev float64) (float64, error) {
+					return 42.0, nil
 				}, false, nil
 			},
 			"price",

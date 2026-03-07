@@ -47,8 +47,8 @@ func TestBatchUpdate_LongExecution(t *testing.T) {
 
 	// Create channel function for WatchFlow (new signature)
 	stopFeeding := make(chan struct{})
-	getTimeChannel := func(ctx context.Context) (<-chan shared.FlowValue, error) {
-		timeChan := make(chan shared.FlowValue, 10000) // Buffered to avoid blocking
+	getTimeChannel := func(ctx context.Context) (<-chan shared.FlowValue[time.Time], error) {
+		timeChan := make(chan shared.FlowValue[time.Time], 10000) // Buffered to avoid blocking
 
 		// Goroutine to feed channel
 		go func() {
@@ -64,7 +64,7 @@ func TestBatchUpdate_LongExecution(t *testing.T) {
 					return
 				case <-ticker.C:
 					select {
-					case timeChan <- shared.FlowValue{V: time.Now(), E: nil}:
+					case timeChan <- shared.FlowValue[time.Time]{V: time.Now(), E: nil}:
 						atomic.AddInt32(&ticksC, 1)
 					default:
 						// Channel full, skip
@@ -76,25 +76,17 @@ func TestBatchUpdate_LongExecution(t *testing.T) {
 		return timeChan, nil
 	}
 
-	managedFunc := func(msg *shared.Message, ctx shared.HershContext) error {
+	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
 		execNum := atomic.AddInt32(&executionCount, 1)
 		t.Logf("[Execution %d] Started", execNum)
 
 		// Variable A: Counter increment
-		valA := hersh.WatchCall(
-			func() (manager.VarUpdateFunc, bool, error) {
-				return func(prev shared.HershValue) (shared.HershValue, error) {
-					var current int32
-					if prev.Value == nil {
-						current = 0
-					} else {
-						current = prev.Value.(int32)
-					}
-
-					next := current + 1
+		valA := hersh.WatchCall[int32](
+			func() (manager.VarUpdateFunc[int32], bool, error) {
+				return func(prev int32) (int32, error) {
+					next := prev + 1
 					atomic.AddInt32(&ticksA, 1)
-
-					return shared.HershValue{Value: next, Error: nil}, nil
+					return next, nil
 				}, false, nil // Don't skip signal
 			},
 			"counterA",
@@ -103,20 +95,12 @@ func TestBatchUpdate_LongExecution(t *testing.T) {
 		)
 
 		// Variable B: String append
-		valB := hersh.WatchCall(
-			func() (manager.VarUpdateFunc, bool, error) {
-				return func(prev shared.HershValue) (shared.HershValue, error) {
-					var current string
-					if prev.Value == nil {
-						current = ""
-					} else {
-						current = prev.Value.(string)
-					}
-
-					next := current + "X"
+		valB := hersh.WatchCall[string](
+			func() (manager.VarUpdateFunc[string], bool, error) {
+				return func(prev string) (string, error) {
+					next := prev + "X"
 					atomic.AddInt32(&ticksB, 1)
-
-					return shared.HershValue{Value: next, Error: nil}, nil
+					return next, nil
 				}, false, nil
 			},
 			"stringB",
@@ -125,21 +109,13 @@ func TestBatchUpdate_LongExecution(t *testing.T) {
 		)
 
 		// Variable C: Timestamp flow
-		valC := hersh.WatchFlow(
+		valC := hersh.WatchFlow[time.Time](
 			getTimeChannel,
 			"timestampC",
 			ctx,
 		)
 
-		t.Logf("  A=%v, B_len=%v, C=%v", valA.Value,
-			func() int {
-				if valB.Value != nil {
-					return len(valB.Value.(string))
-				} else {
-					return 0
-				}
-			}(),
-			valC.Value != nil)
+		t.Logf("  A=%v, B_len=%v, C=%v", valA.Value, len(valB.Value), !valC.IsZero())
 
 		// First execution: variables are nil, just register them
 		if execNum == 1 {
@@ -151,13 +127,9 @@ func TestBatchUpdate_LongExecution(t *testing.T) {
 		// Second execution: should see accumulated batch updates
 		if execNum == 2 {
 			// Record final values from batched updates
-			if valA.Value != nil {
-				atomic.StoreInt32(&finalA, valA.Value.(int32))
-			}
-			if valB.Value != nil {
-				atomic.StoreInt32(&finalBLen, int32(len(valB.Value.(string))))
-			}
-			if valC.Value != nil {
+			atomic.StoreInt32(&finalA, valA.Value)
+			atomic.StoreInt32(&finalBLen, int32(len(valB.Value)))
+			if !valC.IsZero() {
 				atomic.AddInt32(&finalCCount, 1)
 			}
 
@@ -168,7 +140,7 @@ func TestBatchUpdate_LongExecution(t *testing.T) {
 		return nil
 	}
 
-	watcher.Manage(managedFunc, "test").Cleanup(func(ctx shared.HershContext) {
+	watcher.Manage(managedFunc, "test").Cleanup(func(ctx shared.ManageContext) {
 		close(stopFeeding)
 		t.Log("Cleanup: stopped feeding channel")
 	})
@@ -264,21 +236,14 @@ func TestBatchUpdate_RapidExecutions(t *testing.T) {
 	ticksA := int32(0)
 	finalA := int32(0)
 
-	managedFunc := func(msg *shared.Message, ctx shared.HershContext) error {
+	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
 		execNum := atomic.AddInt32(&executionCount, 1)
 
-		valA := hersh.WatchCall(
-			func() (manager.VarUpdateFunc, bool, error) {
-				return func(prev shared.HershValue) (shared.HershValue, error) {
-					var current int32
-					if prev.Value == nil {
-						current = 0
-					} else {
-						current = prev.Value.(int32)
-					}
-
+		valA := hersh.WatchCall[int32](
+			func() (manager.VarUpdateFunc[int32], bool, error) {
+				return func(prev int32) (int32, error) {
 					atomic.AddInt32(&ticksA, 1)
-					return shared.HershValue{Value: current + 1, Error: nil}, nil
+					return prev + 1, nil
 				}, false, nil
 			},
 			"counter",
@@ -289,9 +254,7 @@ func TestBatchUpdate_RapidExecutions(t *testing.T) {
 		// Short execution (100ms) but still long enough to accumulate signals
 		time.Sleep(100 * time.Millisecond)
 
-		if valA.Value != nil {
-			atomic.StoreInt32(&finalA, valA.Value.(int32))
-		}
+		atomic.StoreInt32(&finalA, valA.Value)
 
 		if execNum%5 == 0 {
 			t.Logf("Execution %d: counter=%v", execNum, valA.Value)

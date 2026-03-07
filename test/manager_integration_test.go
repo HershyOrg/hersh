@@ -24,7 +24,7 @@ func TestManager_BasicWorkflow(t *testing.T) {
 
 	// Create simple managed function
 	executeCount := 0
-	managedFunc := func(msg *shared.Message, ctx shared.HershContext) error {
+	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
 		executeCount++
 		return nil
 	}
@@ -50,8 +50,8 @@ func TestManager_BasicWorkflow(t *testing.T) {
 	signals.SendVarSig(&manager.VarSig{
 		ReceivedTime:  time.Now(),
 		TargetVarName: "testVar",
-		VarUpdateFunc: func(prev shared.HershValue) (shared.HershValue, error) {
-			return shared.HershValue{Value: 42, Error: nil}, nil
+		VarUpdateFunc: func(prev shared.RawHershValue) (shared.RawHershValue, error) {
+			return shared.RawHershValue{Value: 42, Error: nil}, nil
 		},
 		IsStateIndependent: false,
 	})
@@ -89,7 +89,7 @@ func TestManager_UserMessageFlow(t *testing.T) {
 	commander := manager.NewEffectCommander()
 
 	var receivedMessage string
-	managedFunc := func(msg *shared.Message, ctx shared.HershContext) error {
+	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
 		if msg != nil {
 			receivedMessage = msg.String()
 		}
@@ -143,7 +143,7 @@ func TestManager_ErrorHandling(t *testing.T) {
 	reducer := manager.NewReducer(state, signals, logger)
 	commander := manager.NewEffectCommander()
 
-	managedFunc := func(msg *shared.Message, ctx shared.HershContext) error {
+	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
 		return shared.NewStopErr("intentional stop")
 	}
 
@@ -166,8 +166,8 @@ func TestManager_ErrorHandling(t *testing.T) {
 	signals.SendVarSig(&manager.VarSig{
 		ReceivedTime:  time.Now(),
 		TargetVarName: "trigger",
-		VarUpdateFunc: func(prev shared.HershValue) (shared.HershValue, error) {
-			return shared.HershValue{Value: 1, Error: nil}, nil
+		VarUpdateFunc: func(prev shared.RawHershValue) (shared.RawHershValue, error) {
+			return shared.RawHershValue{Value: 1, Error: nil}, nil
 		},
 		IsStateIndependent: false,
 	})
@@ -197,7 +197,7 @@ func TestManager_PriorityProcessing(t *testing.T) {
 	// Create minimal commander and handler for synchronous loop
 	commander := manager.NewEffectCommander()
 	handler := manager.NewEffectHandler(
-		func(msg *shared.Message, ctx shared.HershContext) error { return nil },
+		func(msg *shared.Message, ctx shared.ManageContext) error { return nil },
 		nil,
 		state,
 		signals,
@@ -209,8 +209,8 @@ func TestManager_PriorityProcessing(t *testing.T) {
 	signals.SendVarSig(&manager.VarSig{
 		ReceivedTime:  time.Now(),
 		TargetVarName: "var1",
-		VarUpdateFunc: func(prev shared.HershValue) (shared.HershValue, error) {
-			return shared.HershValue{Value: 1, Error: nil}, nil
+		VarUpdateFunc: func(prev shared.RawHershValue) (shared.RawHershValue, error) {
+			return shared.RawHershValue{Value: 1, Error: nil}, nil
 		},
 		IsStateIndependent: false,
 	})
@@ -264,7 +264,7 @@ func TestManager_MultipleVarBatching(t *testing.T) {
 
 	commander := manager.NewEffectCommander()
 	handler := manager.NewEffectHandler(
-		func(msg *shared.Message, ctx shared.HershContext) error { return nil },
+		func(msg *shared.Message, ctx shared.ManageContext) error { return nil },
 		nil,
 		state,
 		signals,
@@ -278,8 +278,8 @@ func TestManager_MultipleVarBatching(t *testing.T) {
 		signals.SendVarSig(&manager.VarSig{
 			ReceivedTime:  time.Now(),
 			TargetVarName: "var" + string(rune('0'+i)),
-			VarUpdateFunc: func(prev shared.HershValue) (shared.HershValue, error) {
-				return shared.HershValue{Value: currentVal, Error: nil}, nil
+			VarUpdateFunc: func(prev shared.RawHershValue) (shared.RawHershValue, error) {
+				return shared.RawHershValue{Value: currentVal, Error: nil}, nil
 			},
 			IsStateIndependent: false,
 		})
@@ -321,7 +321,7 @@ func TestManager_FullCycle(t *testing.T) {
 	commander := manager.NewEffectCommander()
 
 	executionLog := []string{}
-	managedFunc := func(msg *shared.Message, ctx shared.HershContext) error {
+	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
 		executionLog = append(executionLog, "executed")
 		return nil
 	}
@@ -345,8 +345,8 @@ func TestManager_FullCycle(t *testing.T) {
 	signals.SendVarSig(&manager.VarSig{
 		ReceivedTime:  time.Now(),
 		TargetVarName: "trigger1",
-		VarUpdateFunc: func(prev shared.HershValue) (shared.HershValue, error) {
-			return shared.HershValue{Value: 1, Error: nil}, nil
+		VarUpdateFunc: func(prev shared.RawHershValue) (shared.RawHershValue, error) {
+			return shared.RawHershValue{Value: 1, Error: nil}, nil
 		},
 		IsStateIndependent: false,
 	})
@@ -365,8 +365,8 @@ func TestManager_FullCycle(t *testing.T) {
 	signals.SendVarSig(&manager.VarSig{
 		ReceivedTime:  time.Now(),
 		TargetVarName: "trigger3",
-		VarUpdateFunc: func(prev shared.HershValue) (shared.HershValue, error) {
-			return shared.HershValue{Value: 3, Error: nil}, nil
+		VarUpdateFunc: func(prev shared.RawHershValue) (shared.RawHershValue, error) {
+			return shared.RawHershValue{Value: 3, Error: nil}, nil
 		},
 		IsStateIndependent: false,
 	})
