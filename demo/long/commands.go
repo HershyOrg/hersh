@@ -24,7 +24,7 @@ func NewCommandHandler(bs *BinanceStream, ts *TradingSimulator, stats *StatsColl
 }
 
 // HandleCommand processes user commands
-func (ch *CommandHandler) HandleCommand(cmd string, ctx hersh.HershContext) {
+func (ch *CommandHandler) HandleCommand(cmd string, ctx hersh.ManageContext) {
 	cmd = strings.TrimSpace(strings.ToLower(cmd))
 
 	switch cmd {
@@ -74,7 +74,7 @@ func (ch *CommandHandler) HandleCommand(cmd string, ctx hersh.HershContext) {
 }
 
 // printHelp prints available commands
-func (ch *CommandHandler) printHelp(ctx hersh.HershContext) {
+func (ch *CommandHandler) printHelp(ctx hersh.ManageContext) {
 	hersh.PrintWithLog("\n"+strings.Repeat("═", 80), ctx)
 	hersh.PrintWithLog("📖 AVAILABLE COMMANDS", ctx)
 	hersh.PrintWithLog(strings.Repeat("═", 80), ctx)
@@ -104,7 +104,7 @@ func (ch *CommandHandler) printHelp(ctx hersh.HershContext) {
 }
 
 // pauseTrading pauses trading strategy
-func (ch *CommandHandler) pauseTrading(ctx hersh.HershContext) {
+func (ch *CommandHandler) pauseTrading(ctx hersh.ManageContext) {
 	if ch.ts.IsPaused() {
 		hersh.PrintWithLog("\n⚠️  Trading is already paused", ctx)
 		return
@@ -118,7 +118,7 @@ func (ch *CommandHandler) pauseTrading(ctx hersh.HershContext) {
 }
 
 // resumeTrading resumes trading strategy
-func (ch *CommandHandler) resumeTrading(ctx hersh.HershContext) {
+func (ch *CommandHandler) resumeTrading(ctx hersh.ManageContext) {
 	if !ch.ts.IsPaused() {
 		hersh.PrintWithLog("\n⚠️  Trading is already active", ctx)
 		return
@@ -130,7 +130,7 @@ func (ch *CommandHandler) resumeTrading(ctx hersh.HershContext) {
 }
 
 // rebalance forces portfolio rebalance
-func (ch *CommandHandler) rebalance(ctx hersh.HershContext) {
+func (ch *CommandHandler) rebalance(ctx hersh.ManageContext) {
 	hersh.PrintWithLog("\n🔄 Rebalancing portfolio...", ctx)
 
 	trades := ch.ts.Rebalance()
@@ -151,7 +151,7 @@ func (ch *CommandHandler) rebalance(ctx hersh.HershContext) {
 }
 
 // printPrices prints current market prices
-func (ch *CommandHandler) printPrices(ctx hersh.HershContext) {
+func (ch *CommandHandler) printPrices(ctx hersh.ManageContext) {
 	btcPrice := ch.bs.GetCurrentBTC()
 	ethPrice := ch.bs.GetCurrentETH()
 	streamStats := ch.bs.GetStats()
