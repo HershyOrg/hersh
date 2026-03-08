@@ -20,7 +20,7 @@ func TestTriggeredSignal_WatchCall(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	watcher := hersh.NewWatcher(config, nil, ctx)
+	watcher := hersh.NewWatcher(config, ctx)
 
 	counter := 0
 	triggeredVars := []string{}
@@ -46,7 +46,7 @@ func TestTriggeredSignal_WatchCall(t *testing.T) {
 		}
 
 		return nil
-	}, "WatchCallTest")
+	}, "WatchCallTest", nil)
 
 	if err := watcher.Start(); err != nil {
 		t.Fatalf("Failed to start: %v", err)
@@ -70,7 +70,7 @@ func TestTriggeredSignal_WatchTick(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	watcher := hersh.NewWatcher(config, nil, ctx)
+	watcher := hersh.NewWatcher(config, ctx)
 
 	tickTriggered := 0
 
@@ -93,7 +93,7 @@ func TestTriggeredSignal_WatchTick(t *testing.T) {
 		}
 
 		return nil
-	}, "WatchTickTest")
+	}, "WatchTickTest", nil)
 
 	if err := watcher.Start(); err != nil {
 		t.Fatalf("Failed to start: %v", err)
@@ -116,7 +116,7 @@ func TestTriggeredSignal_WatchFlow(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	watcher := hersh.NewWatcher(config, nil, ctx)
+	watcher := hersh.NewWatcher(config, ctx)
 
 	// 테스트용 채널
 	priceChan := make(chan shared.FlowValue[float64], 10)
@@ -138,7 +138,7 @@ func TestTriggeredSignal_WatchFlow(t *testing.T) {
 		}
 
 		return nil
-	}, "WatchFlowTest")
+	}, "WatchFlowTest", nil)
 
 	// 채널에 값 주입
 	go func() {
@@ -172,7 +172,7 @@ func TestTriggeredSignal_UserMessage(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	watcher := hersh.NewWatcher(config, nil, ctx)
+	watcher := hersh.NewWatcher(config, ctx)
 
 	userTriggered := 0
 	receivedMessages := []string{}
@@ -196,7 +196,7 @@ func TestTriggeredSignal_UserMessage(t *testing.T) {
 		}
 
 		return nil
-	}, "UserMessageTest")
+	}, "UserMessageTest", nil)
 
 	if err := watcher.Start(); err != nil {
 		t.Fatalf("Failed to start: %v", err)
@@ -231,7 +231,7 @@ func TestTriggeredSignal_Mixed(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	watcher := hersh.NewWatcher(config, nil, ctx)
+	watcher := hersh.NewWatcher(config, ctx)
 
 	priceChan := make(chan shared.FlowValue[float64], 10)
 	triggerLog := []string{} // "user", "price", "counter", "ticker" 등
@@ -282,7 +282,7 @@ func TestTriggeredSignal_Mixed(t *testing.T) {
 		}
 
 		return nil
-	}, "MixedTest")
+	}, "MixedTest", nil)
 
 	// 이벤트 주입
 	go func() {
@@ -347,7 +347,7 @@ func TestTriggeredSignal_BatchVarSigs(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	watcher := hersh.NewWatcher(config, nil, ctx)
+	watcher := hersh.NewWatcher(config, ctx)
 
 	ch1 := make(chan shared.FlowValue[int], 10)
 	ch2 := make(chan shared.FlowValue[int], 10)
@@ -376,7 +376,7 @@ func TestTriggeredSignal_BatchVarSigs(t *testing.T) {
 		}
 
 		return nil
-	}, "BatchTest")
+	}, "BatchTest", nil)
 
 	ch1 <- shared.FlowValue[int]{V: 1, E: nil}
 	ch2 <- shared.FlowValue[int]{V: 2, E: nil}

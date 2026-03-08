@@ -14,7 +14,7 @@ import (
 func TestWatchFlow_MultipleInitialization(t *testing.T) {
 	config := shared.DefaultWatcherConfig()
 	config.ServerPort = 0
-	watcher := hersh.NewWatcher(config, nil, nil)
+	watcher := hersh.NewWatcher(config, nil)
 
 	// Channels for each WatchFlow
 	chanA := make(chan shared.FlowValue[string], 10)
@@ -115,7 +115,7 @@ func TestWatchFlow_MultipleInitialization(t *testing.T) {
 		return nil
 	}
 
-	watcher.Manage(managedFunc, "multi_flow_init_test")
+	watcher.Manage(managedFunc, "multi_flow_init_test", nil)
 
 	// Start the watcher
 	err := watcher.Start()
@@ -218,7 +218,7 @@ func TestWatchFlow_MultipleInitialization(t *testing.T) {
 func TestWatchFlow_ImmediateExecution(t *testing.T) {
 	config := shared.DefaultWatcherConfig()
 	config.ServerPort = 0
-	watcher := hersh.NewWatcher(config, nil, nil)
+	watcher := hersh.NewWatcher(config, nil)
 
 	firstExecutionTime := time.Time{}
 	startTime := time.Time{}
@@ -252,7 +252,7 @@ func TestWatchFlow_ImmediateExecution(t *testing.T) {
 		return shared.NewStopErr("immediate test complete")
 	}
 
-	watcher.Manage(managedFunc, "immediate_exec_test")
+	watcher.Manage(managedFunc, "immediate_exec_test", nil)
 
 	startTime = time.Now()
 	err := watcher.Start()

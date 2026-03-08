@@ -85,20 +85,21 @@ func main() {
 		2 * time.Minute,
 	}
 
-	envVars := map[string]string{
-		"DEMO_NAME":    DemoName,
-		"DEMO_VERSION": DemoVersion,
-	}
-
 	// Create context with 10-minute timeout for graceful shutdown
 	ctx, cancel := context.WithTimeout(context.Background(), TargetDuration)
 	defer cancel()
 
 	// Create Watcher with timeout context - it will auto-stop when context expires
-	watcher := hersh.NewWatcher(config, envVars, ctx)
+	watcher := hersh.NewWatcher(config, ctx)
 	fmt.Println("   ✅ Watcher created with 10-minute timeout context")
 
-	// Register managed function with closure
+	// Environment variables for managed function
+	envVars := map[string]string{
+		"DEMO_NAME":    DemoName,
+		"DEMO_VERSION": DemoVersion,
+	}
+
+	// Register managed function with closure and envVars
 	watcher.Manage(func(msg *hersh.Message, ctx hersh.ManageContext) error {
 		return mainReducer(
 			msg, ctx,
@@ -107,7 +108,7 @@ func main() {
 			statsCollector,
 			commandHandler,
 		)
-	}, "TradingSimulator").Cleanup(func(ctx hersh.ManageContext) {
+	}, "TradingSimulator", envVars).Cleanup(func(ctx hersh.ManageContext) {
 		cleanup(ctx, stream, simulator, statsCollector)
 	})
 

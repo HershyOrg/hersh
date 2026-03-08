@@ -17,7 +17,7 @@ import (
 func TestEdgeCase_StopDuringInitRun_Original(t *testing.T) {
 	config := shared.DefaultWatcherConfig()
 	config.ServerPort = 0 // Random port for test isolation
-	watcher := hersh.NewWatcher(config, nil, nil)
+	watcher := hersh.NewWatcher(config, nil)
 
 	// Ensure watcher is stopped after test
 	t.Cleanup(func() {
@@ -48,7 +48,7 @@ func TestEdgeCase_StopDuringInitRun_Original(t *testing.T) {
 		return nil
 	}
 
-	watcher.Manage(managedFunc, "test").Cleanup(func(ctx shared.ManageContext) {
+	watcher.Manage(managedFunc, "test", nil).Cleanup(func(ctx shared.ManageContext) {
 		atomic.AddInt32(&cleanupCalled, 1)
 		t.Log("Cleanup called")
 	})
@@ -93,7 +93,7 @@ func TestEdgeCase_StopErrorHandling_Original(t *testing.T) {
 	t.Skip("Skipping legacy test - behavior changed with context-based shutdown")
 	config := shared.DefaultWatcherConfig()
 	config.ServerPort = 0 // Random port for test isolation
-	watcher := hersh.NewWatcher(config, nil, nil)
+	watcher := hersh.NewWatcher(config, nil)
 
 	// Ensure watcher is stopped after test
 	t.Cleanup(func() {
@@ -115,7 +115,7 @@ func TestEdgeCase_StopErrorHandling_Original(t *testing.T) {
 		return nil
 	}
 
-	watcher.Manage(managedFunc, "test")
+	watcher.Manage(managedFunc, "test", nil)
 
 	err := watcher.Start()
 	if err != nil {
@@ -150,7 +150,7 @@ func TestEdgeCase_StopErrorHandling_Original(t *testing.T) {
 func TestEdgeCase_CleanupTimeout_Original(t *testing.T) {
 	config := shared.DefaultWatcherConfig()
 	config.ServerPort = 0 // Random port for test isolation
-	watcher := hersh.NewWatcher(config, nil, nil)
+	watcher := hersh.NewWatcher(config, nil)
 
 	// Ensure watcher is stopped after test
 	t.Cleanup(func() {
@@ -176,7 +176,7 @@ func TestEdgeCase_CleanupTimeout_Original(t *testing.T) {
 		return nil
 	}
 
-	watcher.Manage(managedFunc, "test").Cleanup(func(ctx shared.ManageContext) {
+	watcher.Manage(managedFunc, "test", nil).Cleanup(func(ctx shared.ManageContext) {
 		atomic.StoreInt32(&cleanupStarted, 1)
 		t.Log("Cleanup started")
 
@@ -233,7 +233,7 @@ func TestEdgeCase_PanicRecovery_Original(t *testing.T) {
 		200 * time.Millisecond, // 2nd failure
 		300 * time.Millisecond, // 3rd+ failures
 	}
-	watcher := hersh.NewWatcher(config, nil, nil)
+	watcher := hersh.NewWatcher(config, nil)
 
 	executionCount := int32(0)
 	panicCount := int32(0)
@@ -261,7 +261,7 @@ func TestEdgeCase_PanicRecovery_Original(t *testing.T) {
 		return nil
 	}
 
-	watcher.Manage(managedFunc, "test")
+	watcher.Manage(managedFunc, "test", nil)
 
 	err := watcher.Start()
 	if err != nil {
@@ -305,7 +305,7 @@ func TestEdgeCase_ContextCancellation_Original(t *testing.T) {
 	config := shared.DefaultWatcherConfig()
 	config.ServerPort = 0 // Random port for test isolation
 	config.DefaultTimeout = 500 * time.Millisecond
-	watcher := hersh.NewWatcher(config, nil, nil)
+	watcher := hersh.NewWatcher(config, nil)
 
 	// Ensure watcher is stopped after test
 	t.Cleanup(func() {
@@ -342,7 +342,7 @@ func TestEdgeCase_ContextCancellation_Original(t *testing.T) {
 		return nil
 	}
 
-	watcher.Manage(managedFunc, "test")
+	watcher.Manage(managedFunc, "test", nil)
 
 	err := watcher.Start()
 	if err != nil {

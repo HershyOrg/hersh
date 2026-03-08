@@ -15,7 +15,7 @@ import (
 func TestWatchInitPanic_NormalOperation(t *testing.T) {
 	config := shared.DefaultWatcherConfig()
 	config.ServerPort = 0
-	watcher := hersh.NewWatcher(config, nil, nil)
+	watcher := hersh.NewWatcher(config, nil)
 
 	tickCount := 0
 	flowCount := 0
@@ -64,7 +64,7 @@ func TestWatchInitPanic_NormalOperation(t *testing.T) {
 		return nil
 	}
 
-	watcher.Manage(managedFunc, "normal_test")
+	watcher.Manage(managedFunc, "normal_test", nil)
 
 	err := watcher.Start()
 	if err != nil {
@@ -90,7 +90,7 @@ func TestWatchInitPanic_InvalidVarName(t *testing.T) {
 	config := shared.DefaultWatcherConfig()
 	config.ServerPort = 0
 	config.MaxWatches = 1 // Very low limit to force error
-	watcher := hersh.NewWatcher(config, nil, nil)
+	watcher := hersh.NewWatcher(config, nil)
 
 	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
 		// First watch should succeed
@@ -122,7 +122,7 @@ func TestWatchInitPanic_InvalidVarName(t *testing.T) {
 		return nil
 	}
 
-	watcher.Manage(managedFunc, "invalid_var_test")
+	watcher.Manage(managedFunc, "invalid_var_test", nil)
 
 	err := watcher.Start()
 	if err != nil {
@@ -147,7 +147,7 @@ func TestWatchInitPanic_ExceedWatchLimit(t *testing.T) {
 	config := shared.DefaultWatcherConfig()
 	config.ServerPort = 0
 	config.MaxWatches = 2 // Set low limit
-	watcher := hersh.NewWatcher(config, nil, nil)
+	watcher := hersh.NewWatcher(config, nil)
 
 	executionCount := 0
 
@@ -197,7 +197,7 @@ func TestWatchInitPanic_ExceedWatchLimit(t *testing.T) {
 		return nil
 	}
 
-	watcher.Manage(managedFunc, "limit_test")
+	watcher.Manage(managedFunc, "limit_test", nil)
 
 	err := watcher.Start()
 	if err != nil {
@@ -223,7 +223,7 @@ func TestWatchInitPanic_ExceedWatchLimit(t *testing.T) {
 func TestWatchInitPanic_DuplicateVarName(t *testing.T) {
 	config := shared.DefaultWatcherConfig()
 	config.ServerPort = 0
-	watcher := hersh.NewWatcher(config, nil, nil)
+	watcher := hersh.NewWatcher(config, nil)
 
 	firstCallSuccess := false
 	secondCallAttempted := false
@@ -272,7 +272,7 @@ func TestWatchInitPanic_DuplicateVarName(t *testing.T) {
 		return shared.NewStopErr("test complete")
 	}
 
-	watcher.Manage(managedFunc, "duplicate_test")
+	watcher.Manage(managedFunc, "duplicate_test", nil)
 
 	err := watcher.Start()
 	if err != nil {
@@ -303,7 +303,7 @@ func TestWatchInitPanic_RecoveryAfterCrash(t *testing.T) {
 	config := shared.DefaultWatcherConfig()
 	config.ServerPort = 0
 	config.MaxWatches = 1 // Set low limit to trigger crash
-	watcher := hersh.NewWatcher(config, nil, nil)
+	watcher := hersh.NewWatcher(config, nil)
 
 	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
 		// This will exceed the limit and crash
@@ -334,7 +334,7 @@ func TestWatchInitPanic_RecoveryAfterCrash(t *testing.T) {
 		return nil
 	}
 
-	watcher.Manage(managedFunc, "crash_recovery_test")
+	watcher.Manage(managedFunc, "crash_recovery_test", nil)
 
 	err := watcher.Start()
 	if err != nil {
@@ -375,7 +375,7 @@ func TestWatchInitPanic_NormalPanicRecovery(t *testing.T) {
 	config.ServerPort = 0
 	config.RecoveryPolicy.MinConsecutiveFailures = 3 // Increase threshold
 	config.RecoveryPolicy.MaxConsecutiveFailures = 5 // Allow more attempts
-	watcher := hersh.NewWatcher(config, nil, nil)
+	watcher := hersh.NewWatcher(config, nil)
 
 	executionCount := 0
 
@@ -411,7 +411,7 @@ func TestWatchInitPanic_NormalPanicRecovery(t *testing.T) {
 		return nil // Continue running
 	}
 
-	watcher.Manage(managedFunc, "normal_panic_test")
+	watcher.Manage(managedFunc, "normal_panic_test", nil)
 
 	err := watcher.Start()
 	if err != nil {

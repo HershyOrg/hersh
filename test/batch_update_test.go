@@ -23,7 +23,7 @@ func TestBatchUpdate_LongExecution(t *testing.T) {
 	config := shared.DefaultWatcherConfig()
 	config.ServerPort = 0                    // Random port for test isolation
 	config.DefaultTimeout = 10 * time.Second // Long timeout for 3s execution
-	watcher := hersh.NewWatcher(config, nil, nil)
+	watcher := hersh.NewWatcher(config, nil)
 
 	// Ensure watcher is stopped after test (even if test fails)
 	t.Cleanup(func() {
@@ -143,7 +143,7 @@ func TestBatchUpdate_LongExecution(t *testing.T) {
 		return nil
 	}
 
-	watcher.Manage(managedFunc, "test").Cleanup(func(ctx shared.ManageContext) {
+	watcher.Manage(managedFunc, "test", nil).Cleanup(func(ctx shared.ManageContext) {
 		close(stopFeeding)
 		t.Log("Cleanup: stopped feeding channel")
 	})
@@ -226,7 +226,7 @@ func TestBatchUpdate_LongExecution(t *testing.T) {
 func TestBatchUpdate_RapidExecutions(t *testing.T) {
 	config := shared.DefaultWatcherConfig()
 	config.ServerPort = 0 // Random port for test isolation
-	watcher := hersh.NewWatcher(config, nil, nil)
+	watcher := hersh.NewWatcher(config, nil)
 
 	// Ensure watcher is stopped after test
 	t.Cleanup(func() {
@@ -272,7 +272,7 @@ func TestBatchUpdate_RapidExecutions(t *testing.T) {
 		return nil
 	}
 
-	watcher.Manage(managedFunc, "test")
+	watcher.Manage(managedFunc, "test", nil)
 
 	err := watcher.Start()
 	if err != nil {

@@ -17,7 +17,6 @@ import (
 type Watcher struct {
 	config  WatcherConfig
 	manager *manager.Manager
-	envVars map[string]string // Store until Manage is called
 
 	// State
 	isRunning atomic.Bool // watcher자체가 실행중인지의 값. (Run/ Stop)
@@ -30,16 +29,14 @@ type Watcher struct {
 	apiServer *WatcherAPIServer
 }
 
-// NewWatcher creates a new Watcher with the given configuration and environment variables.
+// NewWatcher creates a new Watcher with the given configuration.
 // The Manager is created later when Manage is called.
-// envVars are stored and injected into ManageContext when Manager is created.
-// If envVars is nil, an empty map is created.
 //
 // parentCtx (optional): Parent context for lifecycle management.
 //   - If provided: Watcher automatically stops when context is cancelled
 //   - If nil: Uses context.Background()
 //   - Auto-stop has 5-minute timeout, then forces shutdown
-func NewWatcher(config WatcherConfig, envVars map[string]string, parentCtx context.Context) *Watcher {
+func NewWatcher(config WatcherConfig, parentCtx context.Context) *Watcher {
 	if config.DefaultTimeout == 0 {
 		config = DefaultWatcherConfig()
 	}
@@ -55,7 +52,6 @@ func NewWatcher(config WatcherConfig, envVars map[string]string, parentCtx conte
 	w := &Watcher{
 		config:     config,
 		manager:    nil, // Manager created in Manage()
-		envVars:    envVars,
 		rootCtx:    rootCtx,
 		rootCancel: cancel,
 	}
@@ -94,9 +90,10 @@ func NewWatcher(config WatcherConfig, envVars map[string]string, parentCtx conte
 }
 
 // Manage registers a function to be managed by the Watcher.
-// Creates a new Manager with the managed function.
+// Creates a new Manager with the managed function and environment variables.
+// envVars are injected into ManageContext. If nil, an empty map is used.
 // Returns a manager.CleanupBuilder for optional cleanup registration.
-func (w *Watcher) Manage(fn manager.ManagedFunc, name string) *manager.CleanupBuilder {
+func (w *Watcher) Manage(fn manager.ManagedFunc, name string, envVars map[string]string) *manager.CleanupBuilder {
 	if w.isRunning.Load() {
 		panic("cannot call Manage after Watcher is already running")
 	}
@@ -106,12 +103,12 @@ func (w *Watcher) Manage(fn manager.ManagedFunc, name string) *manager.CleanupBu
 		return fn(msg, ctx)
 	}
 
-	// Create complete Manager with ManagedFunc
+	// Create complete Manager with ManagedFunc and envVars
 	w.manager = manager.NewManager(
 		w.config,
 		wrappedFn,
 		nil, // Cleaner set via CleanupBuilder
-		w.envVars,
+		envVars,
 	)
 
 	// Return CleanupBuilder from manager package

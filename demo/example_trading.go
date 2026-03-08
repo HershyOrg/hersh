@@ -232,7 +232,12 @@ func main() {
 	fmt.Println()
 	fmt.Println("Polymarket + Bitcoin Price Monitor.")
 
-	// Create environment variables for watcher
+	// Create watcher
+	watcherConfig := hersh.DefaultWatcherConfig()
+	watcherConfig.DefaultTimeout = 10 * time.Second
+	watcher := hersh.NewWatcher(watcherConfig, nil)
+
+	// Create environment variables for managed function
 	envVars := map[string]string{
 		"API_KEY":        "demo-api-key-12345",
 		"BUY_THRESHOLD":  "44500.00",
@@ -240,13 +245,8 @@ func main() {
 		"MAX_POSITION":   "10000.00",
 	}
 
-	// Create watcher with environment variables
-	watcherConfig := hersh.DefaultWatcherConfig()
-	watcherConfig.DefaultTimeout = 10 * time.Second
-	watcher := hersh.NewWatcher(watcherConfig, envVars, nil)
-
-	// Register global trading function with cleanup
-	watcher.Manage(tradingFunc, "tradingBot").Cleanup(cleanupFunc)
+	// Register global trading function with envVars and cleanup
+	watcher.Manage(tradingFunc, "tradingBot", envVars).Cleanup(cleanupFunc)
 
 	// Start watcher
 	fmt.Println("Starting trading bot...")

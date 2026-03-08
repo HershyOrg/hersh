@@ -24,7 +24,7 @@ func TestLightweightRetry_DelayVerification(t *testing.T) {
 		600 * time.Millisecond, // 3rd+ failures
 	}
 
-	watcher := hersh.NewWatcher(config, nil, nil)
+	watcher := hersh.NewWatcher(config, nil)
 
 	// Ensure watcher is stopped after test
 	t.Cleanup(func() {
@@ -61,7 +61,7 @@ func TestLightweightRetry_DelayVerification(t *testing.T) {
 		return nil
 	}
 
-	watcher.Manage(managedFunc, "delay_test")
+	watcher.Manage(managedFunc, "delay_test", nil)
 
 	// Start in background
 	startDone := make(chan error, 1)
@@ -119,7 +119,7 @@ func TestLightweightRetry_NoWatchCall(t *testing.T) {
 		300 * time.Millisecond,
 	}
 
-	watcher := hersh.NewWatcher(config, nil, nil)
+	watcher := hersh.NewWatcher(config, nil)
 
 	// Ensure watcher is stopped after test
 	t.Cleanup(func() {
@@ -144,7 +144,7 @@ func TestLightweightRetry_NoWatchCall(t *testing.T) {
 		return nil
 	}
 
-	watcher.Manage(managedFunc, "no_watch_test")
+	watcher.Manage(managedFunc, "no_watch_test", nil)
 
 	err := watcher.Start()
 	if err != nil {

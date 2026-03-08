@@ -14,7 +14,7 @@ import (
 // TestManagerLifecycleIsolation tests that Manager and Watch have independent lifecycles.
 func TestManagerLifecycleIsolation(t *testing.T) {
 	config := DefaultWatcherConfig()
-	w := NewWatcher(config, map[string]string{"ENV": "test"}, nil)
+	w := NewWatcher(config, nil)
 
 	flowChannels := make([]chan shared.FlowValue[int], 3)
 	var flowGoroutinesRunning atomic.Int32
@@ -44,7 +44,7 @@ func TestManagerLifecycleIsolation(t *testing.T) {
 		case <-ctx.Done():
 			return ctx.Err()
 		}
-	}, "test").Cleanup(func(ctx ManageContext) {
+	}, "test", nil).Cleanup(func(ctx ManageContext) {
 		t.Log("Cleanup called")
 	})
 
@@ -110,13 +110,15 @@ func TestWatcherContextCancellation(t *testing.T) {
 	config := DefaultWatcherConfig()
 	parentCtx, parentCancel := context.WithCancel(context.Background())
 
-	w := NewWatcher(config, map[string]string{"TEST": "value"}, parentCtx)
+	w := NewWatcher(config, parentCtx)
 
 	flowChannels := make([]chan shared.FlowValue[int], 3)
 	var flowGoroutinesRunning atomic.Int32
 	managerStarted := make(chan bool, 1)
 
-	// Single Manage call
+	envVars := map[string]string{"TEST": "value"}
+
+	// Single Manage call with envVars
 	w.Manage(func(msg *Message, ctx ManageContext) error {
 		// Create 3 WatchFlow instances
 		for i := 0; i < 3; i++ {
@@ -142,7 +144,7 @@ func TestWatcherContextCancellation(t *testing.T) {
 		// Keep running until context is cancelled
 		<-ctx.Done()
 		return ctx.Err()
-	}, "test").Cleanup(func(ctx ManageContext) {
+	}, "test", envVars).Cleanup(func(ctx ManageContext) {
 		t.Log("Cleanup called after context cancellation")
 	})
 
@@ -223,7 +225,7 @@ func TestWatchRegistrationWithManager(t *testing.T) {
 	config := DefaultWatcherConfig()
 	config.MaxWatches = 2 // Limit to 2 watches
 
-	w := NewWatcher(config, nil, nil)
+	w := NewWatcher(config, nil)
 
 	watchNames := []string{}
 	registerErr := make(chan error, 1)
@@ -264,7 +266,7 @@ func TestWatchRegistrationWithManager(t *testing.T) {
 
 		<-ctx.Done()
 		return ctx.Err()
-	}, "test")
+	}, "test", nil)
 
 	err := w.Start()
 	if err != nil {

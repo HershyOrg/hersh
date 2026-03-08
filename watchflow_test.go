@@ -14,7 +14,7 @@ func TestWatchFlowBasic(t *testing.T) {
 
 	// Create Watcher
 	config := DefaultWatcherConfig()
-	watcher := NewWatcher(config, nil, nil)
+	watcher := NewWatcher(config, nil)
 
 	executionCount := 0
 
@@ -56,7 +56,7 @@ func TestWatchFlowBasic(t *testing.T) {
 			fmt.Printf("[Reducer #%d] WatchFlow returned error or zero value\n", executionCount)
 		}
 		return nil
-	}, "TestFunc")
+	}, "TestFunc", nil)
 
 	// Start Watcher (will block until Ready)
 	if err := watcher.Start(); err != nil {

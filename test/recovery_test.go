@@ -25,7 +25,7 @@ func TestRecovery_SuppressPhase(t *testing.T) {
 		3000 * time.Millisecond, // 3rd+ failures
 	}
 
-	watcher := hersh.NewWatcher(config, nil, nil)
+	watcher := hersh.NewWatcher(config, nil)
 
 	// Ensure watcher is stopped after test
 	t.Cleanup(func() {
@@ -59,7 +59,7 @@ func TestRecovery_SuppressPhase(t *testing.T) {
 		return nil
 	}
 
-	watcher.Manage(managedFunc, "suppress_test")
+	watcher.Manage(managedFunc, "suppress_test", nil)
 
 	// Start in background
 	startDone := make(chan error, 1)
@@ -101,7 +101,7 @@ func TestRecovery_EnterRecoveryMode(t *testing.T) {
 		300 * time.Millisecond, // 3rd+ failures (though 3rd triggers WaitRecover)
 	}
 
-	watcher := hersh.NewWatcher(config, nil, nil)
+	watcher := hersh.NewWatcher(config, nil)
 
 	// Ensure watcher is stopped after test
 	t.Cleanup(func() {
@@ -135,7 +135,7 @@ func TestRecovery_EnterRecoveryMode(t *testing.T) {
 		return nil
 	}
 
-	watcher.Manage(managedFunc, "recovery_test")
+	watcher.Manage(managedFunc, "recovery_test", nil)
 
 	// Start in background
 	startDone := make(chan error, 1)
@@ -176,7 +176,7 @@ func TestRecovery_SuccessfulRecovery(t *testing.T) {
 		300 * time.Millisecond, // 3rd failure (triggers WaitRecover)
 	}
 
-	watcher := hersh.NewWatcher(config, nil, nil)
+	watcher := hersh.NewWatcher(config, nil)
 
 	// Ensure watcher is stopped after test
 	t.Cleanup(func() {
@@ -210,7 +210,7 @@ func TestRecovery_SuccessfulRecovery(t *testing.T) {
 		return nil
 	}
 
-	watcher.Manage(managedFunc, "successful_recovery_test")
+	watcher.Manage(managedFunc, "successful_recovery_test", nil)
 
 	// Start in background
 	startDone := make(chan error, 1)
@@ -251,7 +251,7 @@ func TestRecovery_MaxFailureCrash(t *testing.T) {
 		300 * time.Millisecond, // 3rd+ failures
 	}
 
-	watcher := hersh.NewWatcher(config, nil, nil)
+	watcher := hersh.NewWatcher(config, nil)
 
 	// Ensure watcher is stopped after test
 	t.Cleanup(func() {
@@ -281,7 +281,7 @@ func TestRecovery_MaxFailureCrash(t *testing.T) {
 		return fmt.Errorf("persistent error #%d", count)
 	}
 
-	watcher.Manage(managedFunc, "crash_test")
+	watcher.Manage(managedFunc, "crash_test", nil)
 
 	// Start in background
 	startDone := make(chan error, 1)
@@ -328,7 +328,7 @@ func TestRecovery_CounterReset(t *testing.T) {
 		300 * time.Millisecond, // 3rd+ failures
 	}
 
-	watcher := hersh.NewWatcher(config, nil, nil)
+	watcher := hersh.NewWatcher(config, nil)
 
 	// Ensure watcher is stopped after test
 	t.Cleanup(func() {
@@ -374,7 +374,7 @@ func TestRecovery_CounterReset(t *testing.T) {
 		return fmt.Errorf("simulated error #%d", count)
 	}
 
-	watcher.Manage(managedFunc, "counter_reset_test")
+	watcher.Manage(managedFunc, "counter_reset_test", nil)
 
 	// Start in background
 	startDone := make(chan error, 1)

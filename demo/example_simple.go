@@ -14,7 +14,7 @@ func main2() {
 	config := hersh.DefaultWatcherConfig()
 	config.DefaultTimeout = 5 * time.Second
 
-	watcher := hersh.NewWatcher(config, nil, nil)
+	watcher := hersh.NewWatcher(config, nil)
 
 	// Managed function with reactive state
 	counter := 0
@@ -52,8 +52,8 @@ func main2() {
 		return nil
 	}
 
-	// Register managed function with cleanup
-	watcher.Manage(managedFunc, "counterExample").Cleanup(func(ctx hersh.ManageContext) {
+	// Register managed function with cleanup (no envVars needed)
+	watcher.Manage(managedFunc, "counterExample", nil).Cleanup(func(ctx hersh.ManageContext) {
 		fmt.Println("\n[Cleanup] Watcher is shutting down")
 		fmt.Printf("[Cleanup] Final state - Counter: %d\n", counter)
 	})

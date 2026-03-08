@@ -14,7 +14,7 @@ import (
 func TestConcurrentWatch_MultipleWatchCall(t *testing.T) {
 	config := shared.DefaultWatcherConfig()
 	config.ServerPort = 0 // Random port for test isolation
-	watcher := hersh.NewWatcher(config, nil, nil)
+	watcher := hersh.NewWatcher(config, nil)
 
 	// Ensure watcher is stopped after test
 	t.Cleanup(func() {
@@ -70,7 +70,7 @@ func TestConcurrentWatch_MultipleWatchCall(t *testing.T) {
 		return nil
 	}
 
-	watcher.Manage(managedFunc, "test")
+	watcher.Manage(managedFunc, "test", nil)
 
 	err := watcher.Start()
 	if err != nil {
@@ -115,7 +115,7 @@ func TestConcurrentWatch_MultipleWatchCall(t *testing.T) {
 func TestConcurrentWatch_WatchPlusMessages(t *testing.T) {
 	config := shared.DefaultWatcherConfig()
 	config.ServerPort = 0 // Random port for test isolation
-	watcher := hersh.NewWatcher(config, nil, nil)
+	watcher := hersh.NewWatcher(config, nil)
 
 	// Ensure watcher is stopped after test
 	t.Cleanup(func() {
@@ -153,7 +153,7 @@ func TestConcurrentWatch_WatchPlusMessages(t *testing.T) {
 		return nil
 	}
 
-	watcher.Manage(managedFunc, "test")
+	watcher.Manage(managedFunc, "test", nil)
 
 	err := watcher.Start()
 	if err != nil {
@@ -197,7 +197,7 @@ func TestConcurrentWatch_WatchPlusMessages(t *testing.T) {
 func TestConcurrentWatch_ManyWatches(t *testing.T) {
 	config := shared.DefaultWatcherConfig()
 	config.ServerPort = 0 // Random port for test isolation
-	watcher := hersh.NewWatcher(config, nil, nil)
+	watcher := hersh.NewWatcher(config, nil)
 
 	// Ensure watcher is stopped after test
 	t.Cleanup(func() {
@@ -236,7 +236,7 @@ func TestConcurrentWatch_ManyWatches(t *testing.T) {
 		return nil
 	}
 
-	watcher.Manage(managedFunc, "test")
+	watcher.Manage(managedFunc, "test", nil)
 
 	// ORIGINAL: Start() with implicit 30s timeout expectation
 	startChan := make(chan error, 1)
@@ -279,7 +279,7 @@ func TestConcurrentWatch_ManyWatches(t *testing.T) {
 func TestConcurrentWatch_RapidStateChanges(t *testing.T) {
 	config := shared.DefaultWatcherConfig()
 	config.ServerPort = 0 // Random port for test isolation
-	watcher := hersh.NewWatcher(config, nil, nil)
+	watcher := hersh.NewWatcher(config, nil)
 
 	// Ensure watcher is stopped after test
 	t.Cleanup(func() {
@@ -310,7 +310,7 @@ func TestConcurrentWatch_RapidStateChanges(t *testing.T) {
 		return nil
 	}
 
-	watcher.Manage(managedFunc, "test")
+	watcher.Manage(managedFunc, "test", nil)
 
 	err := watcher.Start()
 	if err != nil {

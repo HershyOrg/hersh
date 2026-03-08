@@ -20,7 +20,7 @@ func TestHershValue_IsTriggered(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	watcher := hersh.NewWatcher(config, nil, ctx)
+	watcher := hersh.NewWatcher(config, ctx)
 
 	// Track which variables were triggered
 	var priceTriggered, volumeTriggered bool
@@ -67,7 +67,7 @@ func TestHershValue_IsTriggered(t *testing.T) {
 		}
 
 		return nil
-	}, "TestHershValue_IsTriggered")
+	}, "TestHershValue_IsTriggered", nil)
 
 	if err := watcher.Start(); err != nil {
 		t.Fatalf("Failed to start watcher: %v", err)
@@ -108,7 +108,7 @@ func TestHershTick_IsTriggered(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	watcher := hersh.NewWatcher(config, nil, ctx)
+	watcher := hersh.NewWatcher(config, ctx)
 
 	// Track which tickers were triggered
 	var ticker1Triggered, ticker2Triggered bool
@@ -136,7 +136,7 @@ func TestHershTick_IsTriggered(t *testing.T) {
 		}
 
 		return nil
-	}, "TestHershTick_IsTriggered")
+	}, "TestHershTick_IsTriggered", nil)
 
 	if err := watcher.Start(); err != nil {
 		t.Fatalf("Failed to start watcher: %v", err)
@@ -177,7 +177,7 @@ func TestIsTriggered_Convenience(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	watcher := hersh.NewWatcher(config, nil, ctx)
+	watcher := hersh.NewWatcher(config, ctx)
 
 	// Track calls to verify both methods work identically
 	var manualCheck, convenienceCheck bool
@@ -215,7 +215,7 @@ func TestIsTriggered_Convenience(t *testing.T) {
 		}
 
 		return nil
-	}, "TestIsTriggered_Convenience")
+	}, "TestIsTriggered_Convenience", nil)
 
 	if err := watcher.Start(); err != nil {
 		t.Fatalf("Failed to start watcher: %v", err)

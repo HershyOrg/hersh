@@ -18,7 +18,7 @@ func TestWatchTick_BasicFunctionality(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	watcher := hersh.NewWatcher(config, nil, ctx)
+	watcher := hersh.NewWatcher(config, ctx)
 
 	tickReceived := make([]shared.TickValue, 0, 3)
 
@@ -35,7 +35,7 @@ func TestWatchTick_BasicFunctionality(t *testing.T) {
 		}
 
 		return nil
-	}, "TestWatchTick")
+	}, "TestWatchTick", nil)
 
 	if err := watcher.Start(); err != nil {
 		t.Fatalf("Failed to start watcher: %v", err)
@@ -85,7 +85,7 @@ func TestWatchTick_ImmediateInitialTick(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	watcher := hersh.NewWatcher(config, nil, ctx)
+	watcher := hersh.NewWatcher(config, ctx)
 
 	startTime := time.Now()
 	var firstTick shared.TickValue
@@ -101,7 +101,7 @@ func TestWatchTick_ImmediateInitialTick(t *testing.T) {
 		}
 
 		return nil
-	}, "TestImmediateTick")
+	}, "TestImmediateTick", nil)
 
 	if err := watcher.Start(); err != nil {
 		t.Fatalf("Failed to start watcher: %v", err)
@@ -138,7 +138,7 @@ func TestWatchTick_TickCountIncrement(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	watcher := hersh.NewWatcher(config, nil, ctx)
+	watcher := hersh.NewWatcher(config, ctx)
 
 	tickCounts := make([]int, 0, 5)
 
@@ -155,7 +155,7 @@ func TestWatchTick_TickCountIncrement(t *testing.T) {
 		}
 
 		return nil
-	}, "TestTickCount")
+	}, "TestTickCount", nil)
 
 	if err := watcher.Start(); err != nil {
 		t.Fatalf("Failed to start watcher: %v", err)

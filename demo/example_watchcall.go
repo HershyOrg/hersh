@@ -14,7 +14,7 @@ func main1() {
 	fmt.Println()
 
 	config := hersh.DefaultWatcherConfig()
-	watcher := hersh.NewWatcher(config, nil, nil)
+	watcher := hersh.NewWatcher(config, nil)
 
 	// Simulated external data source
 	externalCounter := 0
@@ -68,7 +68,7 @@ func main1() {
 		return nil
 	}
 
-	watcher.Manage(managedFunc, "watchCallExample").Cleanup(func(ctx hersh.ManageContext) {
+	watcher.Manage(managedFunc, "watchCallExample", nil).Cleanup(func(ctx hersh.ManageContext) {
 		fmt.Println("\n[Cleanup] Shutting down watcher")
 	})
 
