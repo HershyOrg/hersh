@@ -370,22 +370,22 @@ func (r *Reducer) reduceManagerInnerSig(sig *ManagerInnerSig) *shared.TriggeredS
 
 // validateTransition checks if a state transition is valid.
 func (r *Reducer) validateTransition(from, to shared.ManagerInnerState) error {
-	// Crashed is terminal
-	if from == shared.StateCrashed {
-		return fmt.Errorf("cannot transition from Crashed state")
-	}
-
 	// Some basic validation - full FSM rules would go here
 	switch from {
 	case shared.StateStopped:
-		// From Stopped, only Running, Killed, Crashed, WaitRecover allowed
+		// From Stopped, allow Running (restart), Killed, Crashed, WaitRecover
 		if to != shared.StateRunning && to != shared.StateKilled && to != shared.StateCrashed && to != shared.StateWaitRecover {
 			return fmt.Errorf("invalid transition from Stopped to %s", to)
 		}
 	case shared.StateKilled:
-		// From Killed, only Crashed or WaitRecover allowed
-		if to != shared.StateCrashed && to != shared.StateWaitRecover {
+		// From Killed, allow Running (restart), Crashed, WaitRecover
+		if to != shared.StateRunning && to != shared.StateCrashed && to != shared.StateWaitRecover {
 			return fmt.Errorf("invalid transition from Killed to %s", to)
+		}
+	case shared.StateCrashed:
+		// From Crashed, allow Running (restart) - removed terminal constraint
+		if to != shared.StateRunning {
+			return fmt.Errorf("invalid transition from Crashed to %s", to)
 		}
 	}
 

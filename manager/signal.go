@@ -70,6 +70,7 @@ type ManagerInnerSig struct {
 	ReceivedTime time.Time
 	TargetState  shared.ManagerInnerState
 	Reason       string // Why this transition is happening
+	NeedInit     bool   // Whether initialization is needed (for restart scenarios)
 }
 
 func (s *ManagerInnerSig) Priority() shared.SignalPriority {

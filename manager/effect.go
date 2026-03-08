@@ -44,10 +44,16 @@ func (et EffectType) String() string {
 // RunScriptEffect executes the managed function.
 type RunScriptEffect struct {
 	TriggeredSignal *shared.TriggeredSignal // Information about which signals triggered this execution
+	NeedInit        bool                     // Whether initialization is needed before execution
 }
 
 func (e *RunScriptEffect) Type() EffectType { return EffectRunScript }
-func (e *RunScriptEffect) String() string   { return "RunScript" }
+func (e *RunScriptEffect) String() string {
+	if e.NeedInit {
+		return "RunScript{init=true}"
+	}
+	return "RunScript"
+}
 
 // ClearRunScriptEffect executes cleanup with hook information.
 type ClearRunScriptEffect struct {
@@ -113,7 +119,7 @@ func (ec *EffectCommander) determineEffect(prevState, nextState shared.ManagerIn
 	case shared.StateKilled:
 		return ec.fromKilled(nextState, action)
 	case shared.StateCrashed:
-		return nil // Terminal state, ignore
+		return ec.fromCrashed(nextState, action)
 	case shared.StateWaitRecover:
 		return ec.fromWaitRecover(nextState, action)
 	}
@@ -153,8 +159,16 @@ func (ec *EffectCommander) fromStopped(nextState shared.ManagerInnerState, actio
 	case shared.StateStopped:
 		return nil
 	case shared.StateRunning:
-		// Allow direct transition from Stopped to Running (for Start)
-		return &RunScriptEffect{TriggeredSignal: action.TriggeredSignal}
+		// Transition from Stopped to Running requires initialization
+		// Check if NeedInit flag is set in the signal
+		needInit := false
+		if sig, ok := action.Signal.(*ManagerInnerSig); ok {
+			needInit = sig.NeedInit
+		}
+		return &RunScriptEffect{
+			TriggeredSignal: action.TriggeredSignal,
+			NeedInit:        needInit,
+		}
 	case shared.StateKilled:
 		return &JustKillEffect{}
 	case shared.StateCrashed:
@@ -171,10 +185,39 @@ func (ec *EffectCommander) fromKilled(nextState shared.ManagerInnerState, action
 	switch nextState {
 	case shared.StateKilled:
 		return nil
+	case shared.StateRunning:
+		// Transition from Killed to Running requires initialization
+		needInit := false
+		if sig, ok := action.Signal.(*ManagerInnerSig); ok {
+			needInit = sig.NeedInit
+		}
+		return &RunScriptEffect{
+			TriggeredSignal: action.TriggeredSignal,
+			NeedInit:        needInit,
+		}
 	case shared.StateCrashed:
 		return &JustCrashEffect{}
 	case shared.StateWaitRecover:
 		return &RecoverEffect{}
+	default:
+		return nil // All other transitions ignored
+	}
+}
+
+func (ec *EffectCommander) fromCrashed(nextState shared.ManagerInnerState, action ReduceAction) EffectDefinition {
+	switch nextState {
+	case shared.StateCrashed:
+		return nil
+	case shared.StateRunning:
+		// Transition from Crashed to Running requires initialization
+		needInit := false
+		if sig, ok := action.Signal.(*ManagerInnerSig); ok {
+			needInit = sig.NeedInit
+		}
+		return &RunScriptEffect{
+			TriggeredSignal: action.TriggeredSignal,
+			NeedInit:        needInit,
+		}
 	default:
 		return nil // All other transitions ignored
 	}

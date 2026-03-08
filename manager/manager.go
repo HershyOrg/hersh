@@ -101,6 +101,9 @@ func NewManager(
 		watchRegistry: sync.Map{},
 	}
 
+	// Set Manager reference in EffectHandler for reinitialization
+	handler.SetManager(mgr)
+
 	// Get ManageContext from EffectHandler and set Manager reference
 	if manageCtx, ok := handler.GetManageContext().(*ManageContext); ok {
 		manageCtx.SetManager(mgr)
@@ -204,4 +207,37 @@ func (wm *Manager) RegisterWatch(varName string, handle WatchHandle) error {
 
 	wm.watchRegistry.Store(varName, handle)
 	return nil
+}
+
+// Reinitialize clears all Manager state for restart.
+// This is called when Manager transitions from terminal states (Stopped/Killed/Crashed) to Running.
+// Clears: VarState, WatchRegistry, MemoCache, VarSig channel.
+// Preserves: Logger, Config, UserState, ManagerInnerState, ManagedFunc.
+func (wm *Manager) Reinitialize() {
+	// 1. Clear VarState
+	wm.state.VarState.Clear()
+
+	// 2. Cancel and clear all Watch handles
+	wm.watchRegistry.Range(func(key, value any) bool {
+		handle := value.(WatchHandle)
+		if cancel := handle.GetCancelFunc(); cancel != nil {
+			cancel()
+		}
+		return true
+	})
+	// Create new empty registry
+	wm.watchRegistry = sync.Map{}
+
+	// 3. Clear MemoCache
+	wm.memoCache = sync.Map{}
+
+	// 4. Drain VarSig channel to prevent stale signals
+	for {
+		select {
+		case <-wm.signals.VarSigChan:
+			// Drain
+		default:
+			return
+		}
+	}
 }

@@ -41,6 +41,7 @@ type EffectHandler struct {
 	rootCtxCancel    context.CancelFunc
 	manageCtx        *ManageContext // Persistent ManageContext across executions
 	cleanupCompleted bool           // Tracks if cleanup has been completed
+	manager          *Manager       // Reference to Manager for reinitialization
 }
 
 // NewEffectHandler creates a new EffectHandler.
@@ -69,7 +70,16 @@ func NewEffectHandler(
 		rootCtxCancel:    cancel,
 		manageCtx:        manageCtx,
 		cleanupCompleted: false,
+		manager:          nil, // Set by Manager after creation
 	}
+}
+
+// SetManager sets the Manager reference for reinitialization.
+// This is called by NewManager after EffectHandler creation.
+func (eh *EffectHandler) SetManager(mgr *Manager) {
+	eh.mu.Lock()
+	defer eh.mu.Unlock()
+	eh.manager = mgr
 }
 
 // SetCleaner sets the cleaner function.
@@ -88,6 +98,36 @@ func (eh *EffectHandler) GetRootContext() context.Context {
 // GetManageContext returns the persistent HershContext.
 func (eh *EffectHandler) GetManageContext() shared.ManageContext {
 	return eh.manageCtx
+}
+
+// Reinitialize resets EffectHandler state for Manager restart.
+// This is called when Manager transitions from terminal states to Running.
+// - Cancels old rootCtx (stops all Watch goroutines)
+// - Creates new rootCtx
+// - Resets cleanup flag
+// - Updates ManageContext with new rootCtx
+// - Calls Manager.Reinitialize() to clear Manager state
+func (eh *EffectHandler) Reinitialize(mgr *Manager) {
+	eh.mu.Lock()
+	defer eh.mu.Unlock()
+
+	// 1. Cancel old rootCtx (stops all Watch goroutines)
+	if eh.rootCtxCancel != nil {
+		eh.rootCtxCancel()
+	}
+
+	// 2. Create new rootCtx
+	eh.rootCtx, eh.rootCtxCancel = context.WithCancel(context.Background())
+
+	// 3. Reset cleanup flag
+	eh.cleanupCompleted = false
+
+	// 4. Update ManageContext with new rootCtx
+	eh.manageCtx.UpdateContext(eh.rootCtx)
+
+	// 5. Call Manager.Reinitialize() to clear Manager state
+	// (VarState, WatchRegistry, MemoCache, VarSig channel)
+	mgr.Reinitialize()
 }
 
 // ExecuteEffect executes an effect and returns the resulting WatcherSig (if any).
@@ -137,6 +177,18 @@ func (eh *EffectHandler) runScript(effect *RunScriptEffect) (*EffectResult, *Man
 	result := &EffectResult{
 		Effect:    effect,
 		Timestamp: time.Now(),
+	}
+
+	// Check if initialization is needed (restart scenario)
+	if effect.NeedInit {
+		eh.mu.RLock()
+		mgr := eh.manager
+		eh.mu.RUnlock()
+
+		if mgr != nil {
+			// Perform reinitialization
+			eh.Reinitialize(mgr)
+		}
 	}
 
 	// Create execution context with timeout from rootCtx
