@@ -194,7 +194,8 @@ func (w *Watcher) Stop() error {
 		select {
 		case <-ticker.C:
 			// Check if cleanup is completed AND Manager reached Stopped state
-			if w.manager.GetState().GetManagerInnerState() == StateStopped {
+			if w.manager.GetState().GetManagerInnerState() == StateStopped &&
+				w.manager.GetEffectHandler().IsCleanupCompleted() {
 				// Both conditions met, exit polling loop
 				goto StopCompleted
 			}
