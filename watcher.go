@@ -95,8 +95,8 @@ func NewWatcher(config WatcherConfig, envVars map[string]string, parentCtx conte
 
 // Manage registers a function to be managed by the Watcher.
 // Creates a new Manager with the managed function.
-// Returns a CleanupBuilder for optional cleanup registration.
-func (w *Watcher) Manage(fn manager.ManagedFunc, name string) *CleanupBuilder {
+// Returns a manager.CleanupBuilder for optional cleanup registration.
+func (w *Watcher) Manage(fn manager.ManagedFunc, name string) *manager.CleanupBuilder {
 	if w.isRunning.Load() {
 		panic("cannot call Manage after Watcher is already running")
 	}
@@ -114,10 +114,8 @@ func (w *Watcher) Manage(fn manager.ManagedFunc, name string) *CleanupBuilder {
 		w.envVars,
 	)
 
-	return &CleanupBuilder{
-		watcher:     w,
-		managedFunc: wrappedFn,
-	}
+	// Return CleanupBuilder from manager package
+	return manager.NewCleanupBuilder(w.manager)
 }
 
 // Start begins the Watcher's execution.
@@ -325,62 +323,4 @@ func (w *Watcher) stopAllWatches() {
 	case <-time.After(1 * time.Minute):
 		fmt.Println("[Watcher] Warning: Some watches did not stop within 1min timeout")
 	}
-}
-
-// CleanupBuilder provides a fluent interface for registering cleanup.
-type CleanupBuilder struct {
-	watcher     *Watcher
-	managedFunc manager.ManagedFunc
-}
-
-// Cleanup registers a cleanup function to be called on Stop/Kill/Crash.
-func (cb *CleanupBuilder) Cleanup(cleanupFn func(ctx ManageContext)) *Watcher {
-	cleaner := &cleanupAdapter{
-		cleanupFn: cleanupFn,
-	}
-
-	// Set cleaner in the Manager's EffectHandler
-	cb.watcher.manager.GetEffectHandler().SetCleaner(cleaner)
-
-	return cb.watcher
-}
-
-// cleanupAdapter adapts the user's cleanup function to the Cleaner interface.
-type cleanupAdapter struct {
-	cleanupFn func(ctx ManageContext)
-}
-
-func (ca *cleanupAdapter) ClearRun(ctx ManageContext) error {
-	// Simply call the cleanup function with HershContext
-	ca.cleanupFn(ctx)
-	return nil
-}
-
-// hershContextImpl implements HershContext (simple fallback version).
-type hershContextImpl struct {
-	context.Context
-	watcherID string
-	message   *Message
-}
-
-func (hc *hershContextImpl) WatcherID() string {
-	return hc.watcherID
-}
-
-func (hc *hershContextImpl) Message() *Message {
-	return hc.message
-}
-
-func (hc *hershContextImpl) GetValue(key string) any {
-	// Fallback implementation returns nil
-	return nil
-}
-
-func (hc *hershContextImpl) SetValue(key string, value any) {
-	// Fallback implementation does nothing
-}
-
-func (hc *hershContextImpl) UpdateValue(key string, updateFn func(current any) any) any {
-	// Fallback implementation - call updateFn with nil and return result
-	return updateFn(nil)
 }
