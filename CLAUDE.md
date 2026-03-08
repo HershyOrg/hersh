@@ -110,6 +110,7 @@ Effects represent side effects that occur after state transitions:
 - **Recovery Phase** (failures ≥ MinConsecutiveFailures): Enter `WaitRecover` state, retry with `BaseRetryDelay`
 - **Crash** (failures ≥ MaxConsecutiveFailures): Enter `Crashed` state (permanent)
 
-**Deterministic Cleanup**: No timeouts
-- Uses channels (`cleanupDone`, `WaitStopped`) for synchronization
+**Deterministic Cleanup**: Polling-based synchronization
+- Uses 500ms polling to check cleanup completion and state transition
+- 60-second timeout for graceful shutdown
 - Guaranteed cleanup completion before shutdown

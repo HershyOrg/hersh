@@ -30,17 +30,17 @@ type EffectLogger interface {
 // EffectHandler executes effects and manages the lifecycle of managed functions.
 // This is now a synchronous component - effects are executed via direct function calls.
 type EffectHandler struct {
-	mu            sync.RWMutex
-	managedFunc   ManagedFunc
-	cleaner       Cleaner
-	state         *ManagerState
-	signals       *SignalChannels
-	logger        EffectLogger
-	config        shared.WatcherConfig
-	rootCtx       context.Context
-	rootCtxCancel context.CancelFunc
-	manageCtx      *mctx.ManageContext // Persistent HershContext across executions
-	cleanupDone   chan struct{}       // Signals when cleanup completes
+	mu               sync.RWMutex
+	managedFunc      ManagedFunc
+	cleaner          Cleaner
+	state            *ManagerState
+	signals          *SignalChannels
+	logger           EffectLogger
+	config           shared.WatcherConfig
+	rootCtx          context.Context
+	rootCtxCancel    context.CancelFunc
+	manageCtx        *mctx.ManageContext // Persistent HershContext across executions
+	cleanupCompleted bool                // Tracks if cleanup has been completed
 }
 
 // NewEffectHandler creates a new EffectHandler.
@@ -58,19 +58,18 @@ func NewEffectHandler(
 	manageCtx := mctx.New(bgCtx, logger.(mctx.Logger))
 
 	return &EffectHandler{
-		managedFunc:   managedFunc,
-		cleaner:       cleaner,
-		state:         state,
-		signals:       signals,
-		logger:        logger,
-		config:        config,
-		rootCtx:       bgCtx,
-		rootCtxCancel: cancel,
-		manageCtx:      manageCtx,
-		cleanupDone:   make(chan struct{}, 1), // Buffered to avoid blocking
+		managedFunc:      managedFunc,
+		cleaner:          cleaner,
+		state:            state,
+		signals:          signals,
+		logger:           logger,
+		config:           config,
+		rootCtx:          bgCtx,
+		rootCtxCancel:    cancel,
+		manageCtx:        manageCtx,
+		cleanupCompleted: false,
 	}
 }
-
 
 // SetWatcher sets the Watcher reference in the HershContext.
 // This must be called before running any effects.
@@ -278,7 +277,6 @@ func (eh *EffectHandler) handleScriptError(err error) *ManagerInnerSig {
 	}
 }
 
-
 // clearRunScript executes cleanup.
 // Returns (result, sig).
 func (eh *EffectHandler) clearRunScript(hookState shared.ManagerInnerState) (*EffectResult, *ManagerInnerSig) {
@@ -287,11 +285,8 @@ func (eh *EffectHandler) clearRunScript(hookState shared.ManagerInnerState) (*Ef
 		Timestamp: time.Now(),
 	}
 
-	// Cancel root context
+	//실행 전 root종료
 	eh.rootCtxCancel()
-
-	// Create new root context
-	eh.rootCtx, eh.rootCtxCancel = context.WithCancel(context.Background())
 
 	// Execute cleanup using persistent HershContext
 	if eh.cleaner != nil {
@@ -311,13 +306,15 @@ func (eh *EffectHandler) clearRunScript(hookState shared.ManagerInnerState) (*Ef
 		result.Success = true
 	}
 
-	// Signal cleanup completion
-	// This allows Stop() to wait for actual cleanup completion, not just state transition
-	select {
-	case eh.cleanupDone <- struct{}{}:
-	default:
-		// Channel already has a signal, skip
-	}
+	// Mark cleanup as completed
+	eh.mu.Lock()
+	// Create new root context
+	//! 추후 이 로직을 "초기화 로직"으로 묶기
+	//! 그래야 매니져 독립 및 생명주기 강화됨.
+	//Clean후 새 rootCtx부여
+	eh.rootCtx, eh.rootCtxCancel = context.WithCancel(context.Background())
+	eh.cleanupCompleted = true
+	eh.mu.Unlock()
 
 	// Return signal to transition to hook state
 	sig := &ManagerInnerSig{
@@ -329,10 +326,17 @@ func (eh *EffectHandler) clearRunScript(hookState shared.ManagerInnerState) (*Ef
 	return result, sig
 }
 
-// GetCleanupDone returns the cleanup completion channel.
-// This allows Watcher.Stop() to wait for cleanup to actually complete.
-func (eh *EffectHandler) GetCleanupDone() <-chan struct{} {
-	return eh.cleanupDone
+// IsCleanupCompleted returns whether cleanup has been completed.
+// This allows Watcher.Stop() to poll for cleanup completion.
+// Returns true if no cleaner is set (cleanup not needed) or if cleanup has been completed.
+func (eh *EffectHandler) IsCleanupCompleted() bool {
+	eh.mu.RLock()
+	defer eh.mu.RUnlock()
+	// If no cleaner is set, consider cleanup as "completed" (not needed)
+	if eh.cleaner == nil {
+		return true
+	}
+	return eh.cleanupCompleted
 }
 
 // justKill returns Kill signal without cleanup.

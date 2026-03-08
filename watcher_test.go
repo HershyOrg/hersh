@@ -712,7 +712,7 @@ func TestWatcher_ContextTimeout(t *testing.T) {
 	}
 
 	// Wait for context timeout + auto-stop
-	time.Sleep(400 * time.Millisecond)
+	time.Sleep(1000 * time.Millisecond)
 
 	if watcher.isRunning.Load() {
 		t.Error("Watcher still running after context timeout")

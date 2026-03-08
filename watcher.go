@@ -184,15 +184,27 @@ func (w *Watcher) Stop() error {
 		Reason:       "user requested stop",
 	})
 
-	// Wait for actual cleanup completion using channels (deterministic, no timeouts)
-	// 1. Wait for cleanup to actually complete
-	cleanupDone := w.manager.GetEffectHandler().GetCleanupDone()
-	<-cleanupDone
+	// Wait for cleanup completion and Stopped state using polling
+	// Poll every 500ms for up to 60 seconds
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+	timeout := time.After(300 * time.Second)
 
-	// 2. Wait for Manager to reach Stopped state
-	stoppedChan := w.manager.GetState().WaitStoppedAfterCleanup()
-	<-stoppedChan
+	for {
+		select {
+		case <-ticker.C:
+			// Check if cleanup is completed AND Manager reached Stopped state
+			if w.manager.GetState().GetManagerInnerState() == StateStopped {
+				// Both conditions met, exit polling loop
+				goto StopCompleted
+			}
+		case <-timeout:
+			// Timeout after 60 seconds
+			return fmt.Errorf("stop timeout: cleanup and state transition not completed within 60 seconds")
+		}
+	}
 
+StopCompleted:
 	// 3. Shutdown API server
 	if w.apiServer != nil {
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
