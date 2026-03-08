@@ -18,12 +18,12 @@ import "fmt"
 //	    return expensive.NewClient()
 //	}, "apiClient", ctx)
 func Memo[T any](computeValue func() T, memoName string, ctx ManageContext) T {
-	w := getWatcherFromContext(ctx)
-	if w == nil {
-		panic("Memo called with invalid HershContext")
+	mgr := getManagerFromContext(ctx)
+	if mgr == nil {
+		panic("Memo called with invalid ManageContext")
 	}
 
-	memoCache := w.manager.GetMemoCache()
+	memoCache := mgr.GetMemoCache()
 
 	cached, exists := memoCache.Load(memoName)
 	if exists {
@@ -41,20 +41,19 @@ func Memo[T any](computeValue func() T, memoName string, ctx ManageContext) T {
 	// Compute value
 	value := computeValue()
 
-	// Cache it (LoadOrStore handles race conditions)
-	actual, loaded := memoCache.LoadOrStore(memoName, value)
-	if loaded {
-		// Another goroutine computed it first, use that value
-		if typedValue, ok := actual.(T); ok {
-			return typedValue
+	// Cache it with size limit check
+	err := mgr.SetMemo(memoName, value)
+	if err != nil {
+		// Cache limit reached, but we still have the computed value
+		// Log warning but return the value
+		if logger := mgr.GetLogger(); logger != nil {
+			logger.LogEffect(fmt.Sprintf("Warning: %v", err))
 		}
-		var zero T
-		panic(fmt.Sprintf("Memo[%s]: concurrent type mismatch - cached type %T, expected %T",
-			memoName, actual, zero))
+		return value
 	}
 
 	// Log the memoization (only if we stored it)
-	if logger := w.GetLogger(); logger != nil {
+	if logger := mgr.GetLogger(); logger != nil {
 		logger.LogEffect(fmt.Sprintf("Memo[%s] = %v", memoName, value))
 	}
 
@@ -63,15 +62,15 @@ func Memo[T any](computeValue func() T, memoName string, ctx ManageContext) T {
 
 // ClearMemo removes a memoized value, forcing recomputation on next Memo call.
 func ClearMemo(memoName string, ctx ManageContext) {
-	w := getWatcherFromContext(ctx)
-	if w == nil {
-		panic("ClearMemo called with invalid HershContext")
+	mgr := getManagerFromContext(ctx)
+	if mgr == nil {
+		panic("ClearMemo called with invalid ManageContext")
 	}
 
-	memoCache := w.manager.GetMemoCache()
+	memoCache := mgr.GetMemoCache()
 	memoCache.Delete(memoName)
 
-	if logger := w.GetLogger(); logger != nil {
+	if logger := mgr.GetLogger(); logger != nil {
 		logger.LogEffect(fmt.Sprintf("Memo[%s] cleared", memoName))
 	}
 }

@@ -58,34 +58,38 @@ type Manager struct {
 	watchRegistry sync.Map // map[string]WatchHandle
 }
 
-// NewManager creates a new WatcherManager with core components initialized.
-// The Manager creates and owns its logger internally.
-// ManagedFunc should be set later via SetManagedFunc().
-func NewManager(config shared.WatcherConfig) *Manager {
+// NewManager creates a complete Manager with ManagedFunc.
+// The Manager is fully initialized and ready to start.
+func NewManager(
+	config shared.WatcherConfig,
+	managedFunc ManagedFunc,
+	cleaner Cleaner,
+	envVars map[string]string,
+) *Manager {
 	// Initialize logger with config limit
 	logger := NewLogger(config.MaxLogEntries)
 
-	// Initialize Manager components (start in Ready, will transition to InitRun on Start)
+	// Initialize Manager components (start in Ready)
 	state := NewManagerState(shared.StateReady)
 	signals := NewSignalChannels(config.SignalChanCapacity)
 
-	// Create reducer (no longer needs ActionChannel)
+	// Create reducer
 	reducer := NewReducer(state, signals, logger)
 
-	// Create commander (now synchronous, no channels)
+	// Create commander
 	commander := NewEffectCommander()
 
-	// Create handler (no longer needs effectCh)
+	// Create handler with ManagedFunc
 	handler := NewEffectHandler(
-		nil, // ManagedFunc to be set later
-		nil, // Cleaner to be set later
+		managedFunc, // Passed at creation
+		cleaner,
 		state,
 		signals,
 		logger,
 		config,
 	)
 
-	return &Manager{
+	mgr := &Manager{
 		config:        &config,
 		logger:        logger,
 		state:         state,
@@ -96,6 +100,14 @@ func NewManager(config shared.WatcherConfig) *Manager {
 		memoCache:     sync.Map{},
 		watchRegistry: sync.Map{},
 	}
+
+	// Get ManageContext from EffectHandler and set Manager reference
+	if manageCtx, ok := handler.GetManageContext().(*ManageContext); ok {
+		manageCtx.SetManager(mgr)
+		manageCtx.SetEnvVars(envVars)
+	}
+
+	return mgr
 }
 
 // Start starts the Reducer loop (synchronous architecture).
@@ -125,17 +137,6 @@ func (wm *Manager) GetLogger() *Logger {
 	return wm.logger
 }
 
-// SetManagedFunc sets the managed function and cleaner.
-// This should be called after Manager initialization, typically by Watcher.Manage().
-func (wm *Manager) SetManagedFunc(managedFunc ManagedFunc, cleaner Cleaner) {
-	wm.handler.SetManagedFunc(managedFunc)
-	wm.handler.SetCleaner(cleaner)
-}
-
-// HasManagedFunc returns whether a managed function has been registered.
-func (wm *Manager) HasManagedFunc() bool {
-	return wm.handler.HasManagedFunc()
-}
 
 // GetMemoCache returns a pointer to the memo cache.
 func (wm *Manager) GetMemoCache() *sync.Map {
@@ -177,4 +178,30 @@ func (wm *Manager) SetMemo(key string, value any) error {
 // GetMemo retrieves a value from the memo cache.
 func (wm *Manager) GetMemo(key string) (any, bool) {
 	return wm.memoCache.Load(key)
+}
+
+// RegisterWatch registers a Watch variable with limit enforcement.
+// Watch variables are immutable once registered.
+// This is called by WatchCall/WatchFlow functions.
+// Returns error if watch limit is reached or if watch already exists.
+func (wm *Manager) RegisterWatch(varName string, handle WatchHandle) error {
+	// Check if watch already exists
+	if _, exists := wm.watchRegistry.Load(varName); exists {
+		return fmt.Errorf("watch varName already exists: %s", varName)
+	}
+
+	// Check size limit
+	count := 0
+	wm.watchRegistry.Range(func(_, _ any) bool {
+		count++
+		return true
+	})
+
+	if count >= wm.config.MaxWatches {
+		return fmt.Errorf("watch registry limit reached: %d/%d (cannot register '%s')",
+			count, wm.config.MaxWatches, varName)
+	}
+
+	wm.watchRegistry.Store(varName, handle)
+	return nil
 }

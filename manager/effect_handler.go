@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/HershyOrg/hersh/mctx"
 	"github.com/HershyOrg/hersh/shared"
 )
 
@@ -21,9 +20,10 @@ type Cleaner interface {
 }
 
 // EffectLogger logs effect execution results.
+// It extends ContextLogger to include effect-specific logging.
 type EffectLogger interface {
+	ContextLogger // Embed ContextLogger interface
 	LogEffectResult(result *EffectResult)
-	LogEffect(msg string)
 	GetRecentResults(count int) []*EffectResult
 }
 
@@ -39,8 +39,8 @@ type EffectHandler struct {
 	config           shared.WatcherConfig
 	rootCtx          context.Context
 	rootCtxCancel    context.CancelFunc
-	manageCtx        *mctx.ManageContext // Persistent HershContext across executions
-	cleanupCompleted bool                // Tracks if cleanup has been completed
+	manageCtx        *ManageContext // Persistent ManageContext across executions
+	cleanupCompleted bool           // Tracks if cleanup has been completed
 }
 
 // NewEffectHandler creates a new EffectHandler.
@@ -54,8 +54,9 @@ func NewEffectHandler(
 ) *EffectHandler {
 	bgCtx, cancel := context.WithCancel(context.Background())
 
-	// Create persistent HershContext
-	manageCtx := mctx.New(bgCtx, logger.(mctx.Logger))
+	// Create persistent ManageContext
+	// EffectLogger extends ContextLogger, so we can use it directly
+	manageCtx := NewManageContext(bgCtx, logger)
 
 	return &EffectHandler{
 		managedFunc:      managedFunc,
@@ -71,36 +72,21 @@ func NewEffectHandler(
 	}
 }
 
-// SetWatcher sets the Watcher reference in the HershContext.
-// This must be called before running any effects.
-// The watcher parameter should be of type *Watcher from hersh package.
-func (eh *EffectHandler) SetWatcher(watcher any) {
-	eh.manageCtx.SetWatcher(watcher)
-}
-
-// SetManagedFunc sets the managed function.
-func (eh *EffectHandler) SetManagedFunc(managedFunc ManagedFunc) {
-	eh.mu.Lock()
-	defer eh.mu.Unlock()
-	eh.managedFunc = managedFunc
-}
-
 // SetCleaner sets the cleaner function.
+// This is used by CleanupBuilder to add cleanup logic after Manager creation.
 func (eh *EffectHandler) SetCleaner(cleaner Cleaner) {
 	eh.mu.Lock()
 	defer eh.mu.Unlock()
 	eh.cleaner = cleaner
 }
 
-// HasManagedFunc returns whether a managed function has been set.
-func (eh *EffectHandler) HasManagedFunc() bool {
-	eh.mu.RLock()
-	defer eh.mu.RUnlock()
-	return eh.managedFunc != nil
+// GetRootContext returns the rootCtx for Watch functions to use.
+func (eh *EffectHandler) GetRootContext() context.Context {
+	return eh.rootCtx
 }
 
-// GetHershContext returns the persistent HershContext.
-func (eh *EffectHandler) GetHershContext() shared.ManageContext {
+// GetManageContext returns the persistent HershContext.
+func (eh *EffectHandler) GetManageContext() shared.ManageContext {
 	return eh.manageCtx
 }
 
@@ -285,7 +271,7 @@ func (eh *EffectHandler) clearRunScript(hookState shared.ManagerInnerState) (*Ef
 		Timestamp: time.Now(),
 	}
 
-	//실행 전 root종료
+	// Cancel rootCtx before cleanup - this will stop all Watch goroutines
 	eh.rootCtxCancel()
 
 	// Execute cleanup using persistent HershContext
@@ -308,11 +294,8 @@ func (eh *EffectHandler) clearRunScript(hookState shared.ManagerInnerState) (*Ef
 
 	// Mark cleanup as completed
 	eh.mu.Lock()
-	// Create new root context
-	//! 추후 이 로직을 "초기화 로직"으로 묶기
-	//! 그래야 매니져 독립 및 생명주기 강화됨.
-	//Clean후 새 rootCtx부여
-	eh.rootCtx, eh.rootCtxCancel = context.WithCancel(context.Background())
+	// DO NOT create new rootCtx - Manager lifecycle is ending
+	// Only create new rootCtx if Manager will be reused (which it won't be)
 	eh.cleanupCompleted = true
 	eh.mu.Unlock()
 

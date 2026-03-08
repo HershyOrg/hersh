@@ -140,6 +140,8 @@ type ManageContext interface {
 	// The framework automatically tracks changes for monitoring
 	SetValue(key string, value any)
 
+	SetEnvVars(map[string]string)
+
 	// UpdateValue provides a safe way to update context values
 	// The updateFn receives a copy of the current value and returns the new value
 	// This ensures immutability and proper change tracking

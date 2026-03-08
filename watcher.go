@@ -17,6 +17,7 @@ import (
 type Watcher struct {
 	config  WatcherConfig
 	manager *manager.Manager
+	envVars map[string]string // Store until Manage is called
 
 	// State
 	isRunning atomic.Bool // watcher자체가 실행중인지의 값. (Run/ Stop)
@@ -30,13 +31,13 @@ type Watcher struct {
 }
 
 // NewWatcher creates a new Watcher with the given configuration and environment variables.
-// The Manager is initialized during Watcher construction.
-// envVars are injected into HershContext and are immutable after initialization.
+// The Manager is created later when Manage is called.
+// envVars are stored and injected into ManageContext when Manager is created.
 // If envVars is nil, an empty map is created.
 //
 // parentCtx (optional): Parent context for lifecycle management.
 //   - If provided: Watcher automatically stops when context is cancelled
-//   - If nil: Uses context.Background() (backward compatibility)
+//   - If nil: Uses context.Background()
 //   - Auto-stop has 5-minute timeout, then forces shutdown
 func NewWatcher(config WatcherConfig, envVars map[string]string, parentCtx context.Context) *Watcher {
 	if config.DefaultTimeout == 0 {
@@ -48,30 +49,16 @@ func NewWatcher(config WatcherConfig, envVars map[string]string, parentCtx conte
 		parentCtx = context.Background()
 	}
 
-	// Create independent context for Manager
-	// This ensures Manager continues running even when parentCtx is cancelled
-	// Only Stop() will cancel this context
+	// Create independent context for Watcher
 	rootCtx, cancel := context.WithCancel(context.Background())
-
-	// Initialize Manager with config (no managed function yet)
-	mgr := manager.NewManager(config)
-
-	// Inject environment variables into HershContext
-	// The HershContext is already created by EffectHandler during Manager initialization
-	hershCtx := mgr.GetEffectHandler().GetHershContext()
-	if hctxImpl, ok := hershCtx.(interface{ SetEnvVars(map[string]string) }); ok {
-		hctxImpl.SetEnvVars(envVars)
-	}
 
 	w := &Watcher{
 		config:     config,
-		manager:    mgr,
+		manager:    nil, // Manager created in Manage()
+		envVars:    envVars,
 		rootCtx:    rootCtx,
 		rootCancel: cancel,
 	}
-
-	// Set watcher reference in Manager's handler
-	mgr.GetEffectHandler().SetWatcher(w)
 
 	// 🎯 Auto-shutdown goroutine: monitors parent context
 	// When parent context is cancelled, automatically stops the watcher
@@ -107,14 +94,11 @@ func NewWatcher(config WatcherConfig, envVars map[string]string, parentCtx conte
 }
 
 // Manage registers a function to be managed by the Watcher.
+// Creates a new Manager with the managed function.
 // Returns a CleanupBuilder for optional cleanup registration.
 func (w *Watcher) Manage(fn manager.ManagedFunc, name string) *CleanupBuilder {
 	if w.isRunning.Load() {
 		panic("cannot call Manage after Watcher is already running")
-	}
-
-	if w.manager.HasManagedFunc() {
-		panic("managed function already registered")
 	}
 
 	// Wrap the managed function
@@ -122,9 +106,13 @@ func (w *Watcher) Manage(fn manager.ManagedFunc, name string) *CleanupBuilder {
 		return fn(msg, ctx)
 	}
 
-	// Register managed function with the Manager
-	// Cleaner will be set via CleanupBuilder
-	w.manager.SetManagedFunc(wrappedFn, nil)
+	// Create complete Manager with ManagedFunc
+	w.manager = manager.NewManager(
+		w.config,
+		wrappedFn,
+		nil, // Cleaner set via CleanupBuilder
+		w.envVars,
+	)
 
 	return &CleanupBuilder{
 		watcher:     w,
@@ -139,7 +127,7 @@ func (w *Watcher) Start() error {
 		return fmt.Errorf("watcher already running")
 	}
 
-	if !w.manager.HasManagedFunc() {
+	if w.manager == nil {
 		w.isRunning.Store(false) // Reset on error
 		return fmt.Errorf("no managed function registered")
 	}
@@ -166,15 +154,25 @@ func (w *Watcher) Start() error {
 
 // Stop gracefully stops the Watcher.
 func (w *Watcher) Stop() error {
+	if !w.isRunning.Load() {
+		return fmt.Errorf("watcher not running")
+	}
+
 	// Check if Manager is already in a terminal state
 	// This handles cases where StopError/KillError automatically stopped the Manager
 	currentState := w.manager.GetState().GetManagerInnerState()
 	if currentState == StateStopped || currentState == StateKilled || currentState == StateCrashed {
-		return fmt.Errorf("watcher already stopped (state: %s)", currentState)
-	}
-
-	if !w.isRunning.Load() {
-		return fmt.Errorf("watcher not running")
+		// Already stopped - just clean up Watcher resources including API server
+		if w.apiServer != nil {
+			shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer shutdownCancel()
+			w.apiServer.Shutdown(shutdownCtx)
+			w.apiServer = nil
+		}
+		w.stopAllWatches()
+		w.rootCancel()
+		w.isRunning.Store(false)
+		return nil
 	}
 
 	// Send Stop signal
@@ -194,7 +192,9 @@ func (w *Watcher) Stop() error {
 		select {
 		case <-ticker.C:
 			// Check if cleanup is completed AND Manager reached Stopped state
-			if w.manager.GetState().GetManagerInnerState() == StateStopped &&
+			if (w.manager.GetState().GetManagerInnerState() == StateStopped ||
+				w.manager.GetState().GetManagerInnerState() == StateCrashed ||
+				w.manager.GetState().GetManagerInnerState() == StateKilled) &&
 				w.manager.GetEffectHandler().IsCleanupCompleted() {
 				// Both conditions met, exit polling loop
 				goto StopCompleted
@@ -227,6 +227,7 @@ StopCompleted:
 		} else {
 			fmt.Println("[Watcher] API server stopped gracefully")
 		}
+		w.apiServer = nil // Clear reference
 	}
 
 	// 4. Finalize Watcher shutdown
@@ -292,37 +293,6 @@ func (w *Watcher) GetLogger() *manager.Logger {
 	return w.manager.GetLogger()
 }
 
-// registerWatch registers a Watch variable with limit enforcement.
-// Disallow duplicate watch registration.
-// Watch variables are immutable once registered.
-// This is called by Watch/WatchCall/WatchFlow functions.
-// Returns error if watch limit is reached.
-func (w *Watcher) registerWatch(varName string, handle manager.WatchHandle) error {
-	watchRegistry := w.manager.GetWatchRegistry()
-
-	// Check if updating existing watch
-	if _, exists := watchRegistry.Load(varName); !exists {
-		// New watch - check size limit
-		count := 0
-		watchRegistry.Range(func(_, _ any) bool {
-			count++
-			return true
-		})
-
-		if count >= w.config.MaxWatches {
-			return fmt.Errorf("watch registry limit reached: %d/%d (cannot register '%s')",
-				count, w.config.MaxWatches, varName)
-		}
-	} else {
-		return fmt.Errorf("watch varName already exist")
-	}
-
-	watchRegistry.Store(varName, handle)
-
-	// No longer need to register with EffectHandler (initialization tracking removed)
-	return nil
-}
-
 // stopAllWatches stops all Watch goroutines with 1 minute timeout.
 func (w *Watcher) stopAllWatches() {
 	var wg sync.WaitGroup
@@ -369,8 +339,8 @@ func (cb *CleanupBuilder) Cleanup(cleanupFn func(ctx ManageContext)) *Watcher {
 		cleanupFn: cleanupFn,
 	}
 
-	// Update cleaner in the Manager
-	cb.watcher.manager.SetManagedFunc(cb.managedFunc, cleaner)
+	// Set cleaner in the Manager's EffectHandler
+	cb.watcher.manager.GetEffectHandler().SetCleaner(cleaner)
 
 	return cb.watcher
 }

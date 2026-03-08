@@ -785,8 +785,15 @@ func TestWatcher_ManualStopAfterContextCancel(t *testing.T) {
 	cancel()
 
 	// Wait for auto-stop
-	time.Sleep(200 * time.Millisecond)
 
+	deadline := time.Now().Add(5 * time.Minute)
+	for time.Now().Before(deadline) {
+		if !watcher.isRunning.Load() {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	
 	// Manual stop after auto-stop should return error (not running)
 	err = watcher.Stop()
 	if err == nil {

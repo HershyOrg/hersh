@@ -9,13 +9,13 @@ import (
 	"github.com/HershyOrg/hersh/shared"
 )
 
-// getWatcherFromContext extracts the Watcher from ManageContext.
-func getWatcherFromContext(ctx shared.ManageContext) *Watcher {
-	w := ctx.GetWatcher()
-	if w == nil {
-		return nil
+// getManagerFromContext extracts the Manager from ManageContext.
+func getManagerFromContext(ctx shared.ManageContext) *manager.Manager {
+	// ManageContext is now *manager.ManageContext
+	if mc, ok := ctx.(*manager.ManageContext); ok {
+		return mc.GetManager()
 	}
-	return w.(*Watcher)
+	return nil
 }
 
 // WatchCall monitors a value by periodically generating computation functions (generic version).
@@ -41,8 +41,8 @@ func WatchCall[T any](
 	tick time.Duration,
 	runCtx shared.ManageContext,
 ) shared.WatchValue[T] {
-	w := getWatcherFromContext(runCtx)
-	if w == nil {
+	mgr := getManagerFromContext(runCtx)
+	if mgr == nil {
 		panic(shared.NewWatchInitPanic(
 			varName,
 			"WatchCall called with invalid ManageContext",
@@ -50,7 +50,7 @@ func WatchCall[T any](
 		))
 	}
 
-	watchRegistry := w.manager.GetWatchRegistry()
+	watchRegistry := mgr.GetWatchRegistry()
 	_, exists := watchRegistry.Load(varName)
 
 	if !exists {
@@ -61,10 +61,10 @@ func WatchCall[T any](
 			VarName:    varName,
 			NotUpdated: true, // Mark as initial value
 		}
-		w.manager.GetState().VarState.Set(varName, initialRaw)
+		mgr.GetState().VarState.Set(varName, initialRaw)
 
-		// Register and start watching
-		ctx, cancel := context.WithCancel(w.rootCtx)
+		// Register and start watching - use Manager's EffectHandler rootCtx
+		ctx, cancel := context.WithCancel(mgr.GetEffectHandler().GetRootContext())
 
 		// Wrap user's generic function into raw function for internal use
 		wrappedGetFunc := func() (manager.RawVarUpdateFunc, bool, error) {
@@ -114,7 +114,7 @@ func WatchCall[T any](
 			CancelFunc:         cancel,
 		}
 
-		if err := w.registerWatch(varName, tickHandle); err != nil {
+		if err := mgr.RegisterWatch(varName, tickHandle); err != nil {
 			cancel() // Clean up context
 			panic(shared.NewWatchInitPanic(
 				varName,
@@ -124,7 +124,7 @@ func WatchCall[T any](
 		}
 
 		// Start watching in background
-		go tickWatchLoop(w, tickHandle, ctx)
+		go tickWatchLoop(mgr, tickHandle, ctx)
 
 		// Return initial HershValue[T] on first call
 		return shared.WatchValue[T]{
@@ -135,8 +135,8 @@ func WatchCall[T any](
 	}
 
 	// Get current RawHershValue from VarState
-	if w.manager != nil {
-		rawHV, ok := w.manager.GetState().VarState.Get(varName)
+	if mgr != nil {
+		rawHV, ok := mgr.GetState().VarState.Get(varName)
 		if !ok {
 			// Not initialized yet - return zero value
 			var zero T
@@ -170,7 +170,7 @@ func WatchCall[T any](
 }
 
 // tickWatchLoop runs the tick-based Watch monitoring loop.
-func tickWatchLoop(w *Watcher, handle *manager.TickHandle, rootCtx context.Context) {
+func tickWatchLoop(mgr *manager.Manager, handle *manager.TickHandle, rootCtx context.Context) {
 	ticker := time.NewTicker(handle.Tick)
 	defer ticker.Stop()
 
@@ -184,15 +184,15 @@ func tickWatchLoop(w *Watcher, handle *manager.TickHandle, rootCtx context.Conte
 			varUpdateFunc, skipSignal, err := handle.GetComputationFunc()
 			if err != nil {
 				// Log error but continue watching
-				if logger := w.manager.GetLogger(); logger != nil {
+				if logger := mgr.GetLogger(); logger != nil {
 					logger.LogWatchError(handle.VarName, manager.ErrorPhaseGetComputeFunc, err)
 				}
 				continue
 			}
 
 			// Send VarSig unless user wants to skip
-			if !skipSignal && w.manager != nil {
-				w.manager.GetSignals().SendVarSig(&manager.VarSig{
+			if !skipSignal && mgr != nil {
+				mgr.GetSignals().SendVarSig(&manager.VarSig{
 					ReceivedTime:       time.Now(),
 					TargetVarName:      handle.VarName,
 					VarUpdateFunc:      varUpdateFunc,
@@ -215,8 +215,8 @@ func WatchFlow[T any](
 	varName string,
 	runCtx shared.ManageContext,
 ) shared.WatchValue[T] {
-	w := getWatcherFromContext(runCtx)
-	if w == nil {
+	mgr := getManagerFromContext(runCtx)
+	if mgr == nil {
 		panic(shared.NewWatchInitPanic(
 			varName,
 			"WatchFlow called with invalid ManageContext",
@@ -224,7 +224,7 @@ func WatchFlow[T any](
 		))
 	}
 
-	watchRegistry := w.manager.GetWatchRegistry()
+	watchRegistry := mgr.GetWatchRegistry()
 	_, exists := watchRegistry.Load(varName)
 
 	if !exists {
@@ -235,11 +235,11 @@ func WatchFlow[T any](
 			VarName:    varName,
 			NotUpdated: true, // Mark as initial value
 		}
-		w.manager.GetState().VarState.Set(varName, initialRaw)
+		mgr.GetState().VarState.Set(varName, initialRaw)
 
 		// Register and start watching
-		// Create channel lifecycle context
-		flowCtx, cancel := context.WithCancel(w.rootCtx)
+		// Create channel lifecycle context - use Manager's EffectHandler rootCtx
+		flowCtx, cancel := context.WithCancel(mgr.GetEffectHandler().GetRootContext())
 
 		// Wrap user's generic channel into raw channel for internal use
 		rawGetChanFunc := func(ctx context.Context) (<-chan shared.RawFlowValue, error) {
@@ -270,11 +270,11 @@ func WatchFlow[T any](
 		if err != nil {
 			cancel()
 			// Log error (recovery responsibility is separated)
-			w.GetLogger().LogWatchError(varName, manager.ErrorPhaseGetComputeFunc, err)
+			mgr.GetLogger().LogWatchError(varName, manager.ErrorPhaseGetComputeFunc, err)
 
 			// Register error RawHershValue with VarName
 			errorHV := shared.RawWatchValue{Value: nil, Error: err, VarName: varName}
-			w.manager.GetState().VarState.Set(varName, errorHV)
+			mgr.GetState().VarState.Set(varName, errorHV)
 
 			// Return error as HershValue[T]
 			return shared.WatchValue[T]{
@@ -291,7 +291,7 @@ func WatchFlow[T any](
 			CancelFunc:     cancel,
 		}
 
-		if err := w.registerWatch(varName, flowHandle); err != nil {
+		if err := mgr.RegisterWatch(varName, flowHandle); err != nil {
 			cancel() // Clean up context
 			panic(shared.NewWatchInitPanic(
 				varName,
@@ -301,7 +301,7 @@ func WatchFlow[T any](
 		}
 
 		// Start watching channel
-		go flowWatchLoop(w, flowHandle, flowCtx, sourceChan)
+		go flowWatchLoop(mgr, flowHandle, flowCtx, sourceChan)
 
 		// Return initial HershValue[T]
 		return shared.WatchValue[T]{
@@ -312,8 +312,8 @@ func WatchFlow[T any](
 	}
 
 	// Get current RawHershValue from VarState
-	if w.manager != nil {
-		rawHV, ok := w.manager.GetState().VarState.Get(varName)
+	if mgr != nil {
+		rawHV, ok := mgr.GetState().VarState.Get(varName)
 		if !ok {
 			var zero T
 			return shared.WatchValue[T]{Value: zero, VarName: varName}
@@ -347,19 +347,19 @@ func WatchFlow[T any](
 
 // flowWatchLoop monitors a channel and sends VarSig on updates.
 // Now propagates errors to user via RawHershValue instead of skipping them.
-func flowWatchLoop(w *Watcher, handle *manager.FlowHandle, ctx context.Context, sourceChan <-chan shared.RawFlowValue) {
+func flowWatchLoop(mgr *manager.Manager, handle *manager.FlowHandle, ctx context.Context, sourceChan <-chan shared.RawFlowValue) {
 	for {
 		select {
 		case <-ctx.Done():
 			msg := "FlowWatch stopped: " + handle.VarName
-			w.GetLogger().LogEffect(msg)
+			mgr.GetLogger().LogEffect(msg)
 			return
 
 		case flowValue, ok := <-sourceChan:
 			if !ok {
 				// Channel closed
 				msg := "Channel closed: " + handle.VarName
-				w.GetLogger().LogEffect(msg)
+				mgr.GetLogger().LogEffect(msg)
 				return
 			}
 
@@ -369,7 +369,7 @@ func flowWatchLoop(w *Watcher, handle *manager.FlowHandle, ctx context.Context, 
 				varUpdateFunc := func(prev shared.RawWatchValue) (shared.RawWatchValue, error) {
 					if flowValue.E != nil {
 						// Log error but still propagate to user
-						w.GetLogger().LogWatchError(handle.VarName, manager.ErrorPhaseExecuteComputeFunc, flowValue.E)
+						mgr.GetLogger().LogWatchError(handle.VarName, manager.ErrorPhaseExecuteComputeFunc, flowValue.E)
 						// Return RawHershValue with error
 						return shared.RawWatchValue{
 							Value:      nil,
@@ -388,8 +388,8 @@ func flowWatchLoop(w *Watcher, handle *manager.FlowHandle, ctx context.Context, 
 				}
 
 				// Send VarSig
-				if w.manager != nil {
-					w.manager.GetSignals().SendVarSig(&manager.VarSig{
+				if mgr != nil {
+					mgr.GetSignals().SendVarSig(&manager.VarSig{
 						ReceivedTime:       time.Now(),
 						TargetVarName:      handle.VarName,
 						VarUpdateFunc:      varUpdateFunc,

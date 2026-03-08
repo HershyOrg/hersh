@@ -1,5 +1,5 @@
-// Package ctx provides HershContext implementation for the hersh framework.
-package mctx
+// Package manager provides the core reactive execution engine.
+package manager
 
 import (
 	"context"
@@ -8,36 +8,46 @@ import (
 	"github.com/HershyOrg/hersh/shared"
 )
 
-// Logger interface for context value logging and effect logging.
-type Logger interface {
+// ContextLogger interface for context value logging and effect logging.
+type ContextLogger interface {
 	LogContextValue(key string, oldValue, newValue any, operation string)
 	LogEffect(msg string)
 }
 
-// ManageContext implements core.ManageContext interface.
+// ManageContext implements shared.ManageContext interface.
 // This is a concrete implementation that manages execution context,
-// messages, watcher reference, and user-defined values.
+// messages, manager reference, and user-defined values.
 type ManageContext struct {
 	context.Context
 	message         *shared.Message
 	triggeredSignal *shared.TriggeredSignal
-	watcher         any // Watcher reference (stored as any to avoid circular dependency with hersh package)
+	manager         *Manager // Manager reference (type-safe!)
 	valueStore      map[string]any
 	envVarMap       map[string]string // Environment variables (immutable after initialization)
 	valuesMutex     sync.RWMutex
-	logger          Logger
+	logger          ContextLogger
 }
 
-// New creates a new HershContext with the given parameters.
-func New(ctx context.Context, logger Logger) *ManageContext {
+// NewManageContext creates a new ManageContext with the given parameters.
+func NewManageContext(ctx context.Context, logger ContextLogger) *ManageContext {
 	return &ManageContext{
 		Context:    ctx,
 		message:    nil,
-		watcher:    nil,
+		manager:    nil,
 		valueStore: make(map[string]any),
 		envVarMap:  make(map[string]string),
 		logger:     logger,
 	}
+}
+
+// GetManager returns the Manager reference (type-safe!).
+func (mc *ManageContext) GetManager() *Manager {
+	return mc.manager
+}
+
+// SetManager sets the manager reference.
+func (mc *ManageContext) SetManager(manager *Manager) {
+	mc.manager = manager
 }
 
 func (mc *ManageContext) Message() *shared.Message {
@@ -101,18 +111,6 @@ func (mc *ManageContext) UpdateValue(key string, updateFn func(current any) any)
 	return newValue
 }
 
-// SetWatcher sets the watcher reference.
-// This is called internally by the framework.
-func (mc *ManageContext) SetWatcher(watcher any) {
-	mc.watcher = watcher
-}
-
-// GetWatcher returns the watcher reference as any.
-// Use this from manager package which doesn't know about hersh.Watcher type.
-func (mc *ManageContext) GetWatcher() any {
-	return mc.watcher
-}
-
 // SetMessage updates the current message.
 // This is called internally by the framework during execution.
 func (mc *ManageContext) SetMessage(msg *shared.Message) {
@@ -144,7 +142,7 @@ func (mc *ManageContext) GetEnv(key string) (string, bool) {
 }
 
 // SetEnvVars sets the environment variables for this context.
-// This should only be called during initialization (by Watcher.NewWatcher).
+// This should only be called during initialization (by Manager creation).
 // The envVars map is deep copied to ensure immutability.
 func (mc *ManageContext) SetEnvVars(envVars map[string]string) {
 	mc.valuesMutex.Lock()
@@ -160,7 +158,12 @@ func (mc *ManageContext) SetEnvVars(envVars map[string]string) {
 }
 
 // GetLogger returns the logger instance.
-// This is used by hersh.Log and hersh.PrintWithLog functions.
-func (mc *ManageContext) GetLogger() Logger {
+func (mc *ManageContext) GetLogger() ContextLogger {
 	return mc.logger
+}
+
+// GetWatcher returns the manager as any to implement shared.ManageContext interface.
+// This maintains compatibility with the interface while internally using Manager.
+func (mc *ManageContext) GetWatcher() any {
+	return mc.manager
 }
