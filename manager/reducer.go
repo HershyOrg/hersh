@@ -184,48 +184,6 @@ func (r *Reducer) reduceAndExecuteEffect(sig shared.Signal, commander *EffectCom
 	r.reduceAndExecuteEffect(resultSig, commander, handler)
 }
 
-// tryProcessNextSignal attempts to process one signal following priority rules.
-// Returns true if a signal was processed or skipped, false if no signals available.
-// Signals are NEVER dropped - they are either processed or left in channel.
-func (r *Reducer) tryProcessNextSignal() bool {
-	currentState := r.state.GetManagerInnerState()
-
-	// Priority 1: WatcherSig (highest)
-	select {
-	case sig := <-r.signals.ManagerInnerSigChan:
-		r.reduceManagerInnerSig(sig)
-		return true
-	default:
-	}
-
-	// Priority 2: UserSig
-	// Check if current state can process UserSig
-	if r.canProcessUserSig(currentState) {
-		select {
-		case sig := <-r.signals.UserSigChan:
-			r.reduceUserSig(sig)
-			return true
-		default:
-		}
-	}
-	// If cannot process, leave signal in channel (don't consume it)
-
-	// Priority 3: VarSig (lowest)
-	// Check if current state can process VarSig
-	if r.canProcessVarSig(currentState) {
-		select {
-		case sig := <-r.signals.VarSigChan:
-			r.reduceVarSig(sig)
-			return true
-		default:
-		}
-	}
-	// If cannot process, leave signal in channel (don't consume it)
-
-	// No signals available
-	return false
-}
-
 // canProcessUserSig checks if current state can process UserSig.
 func (r *Reducer) canProcessUserSig(state shared.ManagerInnerState) bool {
 	return state == shared.StateReady
