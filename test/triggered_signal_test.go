@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/HershyOrg/hersh"
-	"github.com/HershyOrg/hersh/manager"
 	"github.com/HershyOrg/hersh/shared"
 	"github.com/HershyOrg/hersh/util"
+	"github.com/HershyOrg/hersh/wmachine"
 )
 
 // Test 1: WatchCall trigger detection
@@ -27,7 +27,7 @@ func TestTriggeredSignal_WatchCall(t *testing.T) {
 
 	watcher.Manage(func(msg *shared.Message, runCtx shared.ManageContext) error {
 		// WatchCall: 100ms마다 카운터 증가
-		hersh.WatchCall[int](0, func() (manager.VarUpdateFunc[int], bool, error) {
+		hersh.WatchCall[int](0, func() (wmachine.VarUpdateFunc[int], bool, error) {
 			return func(prev int) (int, error) {
 				counter++
 				return counter, nil
@@ -246,7 +246,7 @@ func TestTriggeredSignal_Mixed(t *testing.T) {
 		tick := util.WatchTick("ticker", 300*time.Millisecond, runCtx)
 
 		// 3. WatchCall: 카운터
-		counterHV := hersh.WatchCall[int](0, func() (manager.VarUpdateFunc[int], bool, error) {
+		counterHV := hersh.WatchCall[int](0, func() (wmachine.VarUpdateFunc[int], bool, error) {
 			return func(prev int) (int, error) {
 				return prev + 1, nil
 			}, false, nil

@@ -9,8 +9,8 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/HershyOrg/hersh/manager"
 	"github.com/HershyOrg/hersh/shared"
+	"github.com/HershyOrg/hersh/wmachine"
 )
 
 // TestWatcherRestart_Enhanced verifies the internal mechanisms of Manager restart:
@@ -30,9 +30,9 @@ func TestWatcherRestart_Enhanced(t *testing.T) {
 
 	// Goroutine lifecycle tracking
 	var (
-		flowGoroutineStopped  atomic.Bool
-		tickComputationCount  atomic.Int32 // Counts how many times tick computation happened
-		flowGoroutineStarted  atomic.Int32 // Counts how many times WatchFlow goroutine started
+		flowGoroutineStopped atomic.Bool
+		tickComputationCount atomic.Int32 // Counts how many times tick computation happened
+		flowGoroutineStarted atomic.Int32 // Counts how many times WatchFlow goroutine started
 	)
 
 	// Channel recreation tracking
@@ -62,7 +62,7 @@ func TestWatcherRestart_Enhanced(t *testing.T) {
 		// We count computations to verify that ticks stop after StopManager
 		tickWatch := WatchCall(
 			0, // initial value
-			func() (manager.VarUpdateFunc[int], bool, error) {
+			func() (wmachine.VarUpdateFunc[int], bool, error) {
 				// Track each computation
 				tickComputationCount.Add(1)
 

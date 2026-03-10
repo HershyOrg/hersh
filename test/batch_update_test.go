@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/HershyOrg/hersh"
-	"github.com/HershyOrg/hersh/manager"
 	"github.com/HershyOrg/hersh/shared"
+	"github.com/HershyOrg/hersh/wmachine"
 )
 
 // TestBatchUpdate_LongExecution tests batch update behavior during a long manage execution.
@@ -83,7 +83,7 @@ func TestBatchUpdate_LongExecution(t *testing.T) {
 		// Variable A: Counter increment
 		valA := hersh.WatchCall[int32](
 			int32(0), // Initial value
-			func() (manager.VarUpdateFunc[int32], bool, error) {
+			func() (wmachine.VarUpdateFunc[int32], bool, error) {
 				return func(prev int32) (int32, error) {
 					next := prev + 1
 					atomic.AddInt32(&ticksA, 1)
@@ -98,7 +98,7 @@ func TestBatchUpdate_LongExecution(t *testing.T) {
 		// Variable B: String append
 		valB := hersh.WatchCall[string](
 			"", // Initial empty string
-			func() (manager.VarUpdateFunc[string], bool, error) {
+			func() (wmachine.VarUpdateFunc[string], bool, error) {
 				return func(prev string) (string, error) {
 					next := prev + "X"
 					atomic.AddInt32(&ticksB, 1)
@@ -244,7 +244,7 @@ func TestBatchUpdate_RapidExecutions(t *testing.T) {
 
 		valA := hersh.WatchCall[int32](
 			int32(0), // Initial value
-			func() (manager.VarUpdateFunc[int32], bool, error) {
+			func() (wmachine.VarUpdateFunc[int32], bool, error) {
 				return func(prev int32) (int32, error) {
 					atomic.AddInt32(&ticksA, 1)
 					return prev + 1, nil

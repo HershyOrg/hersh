@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/HershyOrg/hersh"
-	"github.com/HershyOrg/hersh/manager"
 	"github.com/HershyOrg/hersh/shared"
 	"github.com/HershyOrg/hersh/util"
+	"github.com/HershyOrg/hersh/wmachine"
 )
 
 // TestWatchInitPanic_NormalOperation verifies Watch functions work normally
@@ -43,7 +43,7 @@ func TestWatchInitPanic_NormalOperation(t *testing.T) {
 
 		call := hersh.WatchCall[int](
 			0,
-			func() (manager.VarUpdateFunc[int], bool, error) {
+			func() (wmachine.VarUpdateFunc[int], bool, error) {
 				return func(prev int) (int, error) {
 					return prev + 1, nil
 				}, false, nil
@@ -96,7 +96,7 @@ func TestWatchInitPanic_InvalidVarName(t *testing.T) {
 		// First watch should succeed
 		hersh.WatchCall[int](
 			0,
-			func() (manager.VarUpdateFunc[int], bool, error) {
+			func() (wmachine.VarUpdateFunc[int], bool, error) {
 				return func(prev int) (int, error) {
 					return prev + 1, nil
 				}, false, nil
@@ -109,7 +109,7 @@ func TestWatchInitPanic_InvalidVarName(t *testing.T) {
 		// Second watch will exceed limit and panic
 		hersh.WatchCall[int](
 			0,
-			func() (manager.VarUpdateFunc[int], bool, error) {
+			func() (wmachine.VarUpdateFunc[int], bool, error) {
 				return func(prev int) (int, error) {
 					return prev + 1, nil
 				}, false, nil
@@ -158,7 +158,7 @@ func TestWatchInitPanic_ExceedWatchLimit(t *testing.T) {
 		// Register first two watches (should succeed)
 		hersh.WatchCall[int](
 			0,
-			func() (manager.VarUpdateFunc[int], bool, error) {
+			func() (wmachine.VarUpdateFunc[int], bool, error) {
 				return func(prev int) (int, error) {
 					return prev + 1, nil
 				}, false, nil
@@ -170,7 +170,7 @@ func TestWatchInitPanic_ExceedWatchLimit(t *testing.T) {
 
 		hersh.WatchCall[int](
 			0,
-			func() (manager.VarUpdateFunc[int], bool, error) {
+			func() (wmachine.VarUpdateFunc[int], bool, error) {
 				return func(prev int) (int, error) {
 					return prev + 1, nil
 				}, false, nil
@@ -184,7 +184,7 @@ func TestWatchInitPanic_ExceedWatchLimit(t *testing.T) {
 		// Don't catch the panic here - let it propagate to the effect handler
 		hersh.WatchCall[int](
 			0,
-			func() (manager.VarUpdateFunc[int], bool, error) {
+			func() (wmachine.VarUpdateFunc[int], bool, error) {
 				return func(prev int) (int, error) {
 					return prev + 1, nil
 				}, false, nil
@@ -233,7 +233,7 @@ func TestWatchInitPanic_DuplicateVarName(t *testing.T) {
 		// First call should succeed
 		val1 := hersh.WatchCall[int](
 			0,
-			func() (manager.VarUpdateFunc[int], bool, error) {
+			func() (wmachine.VarUpdateFunc[int], bool, error) {
 				return func(prev int) (int, error) {
 					return prev + 1, nil
 				}, false, nil
@@ -252,7 +252,7 @@ func TestWatchInitPanic_DuplicateVarName(t *testing.T) {
 		// This is because Watch is idempotent after first registration
 		val2 := hersh.WatchCall[int](
 			0,
-			func() (manager.VarUpdateFunc[int], bool, error) {
+			func() (wmachine.VarUpdateFunc[int], bool, error) {
 				return func(prev int) (int, error) {
 					return prev + 2, nil // Different function
 				}, false, nil
@@ -309,7 +309,7 @@ func TestWatchInitPanic_RecoveryAfterCrash(t *testing.T) {
 		// This will exceed the limit and crash
 		hersh.WatchCall[int](
 			0,
-			func() (manager.VarUpdateFunc[int], bool, error) {
+			func() (wmachine.VarUpdateFunc[int], bool, error) {
 				return func(prev int) (int, error) {
 					return prev + 1, nil
 				}, false, nil
@@ -321,7 +321,7 @@ func TestWatchInitPanic_RecoveryAfterCrash(t *testing.T) {
 
 		hersh.WatchCall[int](
 			0,
-			func() (manager.VarUpdateFunc[int], bool, error) {
+			func() (wmachine.VarUpdateFunc[int], bool, error) {
 				return func(prev int) (int, error) {
 					return prev + 1, nil
 				}, false, nil
@@ -386,7 +386,7 @@ func TestWatchInitPanic_NormalPanicRecovery(t *testing.T) {
 		// Normal watch operation
 		hersh.WatchCall[int](
 			0,
-			func() (manager.VarUpdateFunc[int], bool, error) {
+			func() (wmachine.VarUpdateFunc[int], bool, error) {
 				return func(prev int) (int, error) {
 					return prev + 1, nil
 				}, false, nil

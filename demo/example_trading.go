@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/HershyOrg/hersh"
-	"github.com/HershyOrg/hersh/manager"
+	"github.com/HershyOrg/hersh/wmachine"
 )
 
 // Trading strategy configuration
@@ -76,7 +76,7 @@ func tradingFunc(msg *hersh.Message, ctx hersh.ManageContext) error {
 	// Watch Bitcoin price - always outside conditional logic (generic version)
 	priceHV := hersh.WatchCall[float64](
 		0.0, // Initial price value
-		func() (manager.VarUpdateFunc[float64], bool, error) {
+		func() (wmachine.VarUpdateFunc[float64], bool, error) {
 			// 네트워크 요청은 미리 해둔 후, func엔 가능한 계산만 남기는게 성능상 유리.
 			price, err := client.GetBitcoinPrice()
 			if err != nil {
@@ -105,7 +105,7 @@ func tradingFunc(msg *hersh.Message, ctx hersh.ManageContext) error {
 	)
 
 	// Process price data if monitoring is enabled
-	if monitoringEnabled && priceHV.Value > 0  {
+	if monitoringEnabled && priceHV.Value > 0 {
 		currentPrice := priceHV.Value // Type-safe, no assertion needed
 
 		fmt.Printf("\n📊 Current Bitcoin Price: $%.2f\n", currentPrice)

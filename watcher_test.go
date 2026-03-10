@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/HershyOrg/hersh/manager"
 	"github.com/HershyOrg/hersh/shared"
+	"github.com/HershyOrg/hersh/wmachine"
 )
 
 // TestWatchCall_BasicFunctionality tests basic WatchCall behavior
@@ -25,7 +25,7 @@ func TestWatchCall_BasicFunctionality(t *testing.T) {
 
 		// WatchCall with compute function
 		val := WatchCall[int32](int32(0),
-			func() (manager.VarUpdateFunc[int32], bool, error) {
+			func() (wmachine.VarUpdateFunc[int32], bool, error) {
 				return func(prev int32) (int32, error) {
 					newVal := atomic.AddInt32(&varValue, 1)
 					return newVal, nil
@@ -79,7 +79,7 @@ func TestWatchCall_ValuePersistence(t *testing.T) {
 		executionCount++
 
 		val := WatchCall[int](0,
-			func() (manager.VarUpdateFunc[int], bool, error) {
+			func() (wmachine.VarUpdateFunc[int], bool, error) {
 				return func(prev int) (int, error) {
 					return executionCount, nil
 				}, false, nil
@@ -370,7 +370,7 @@ func TestWatcher_MultipleWatchVariables(t *testing.T) {
 		atomic.AddInt32(&executeCount, 1)
 
 		val1 := WatchCall[int32](int32(0),
-			func() (manager.VarUpdateFunc[int32], bool, error) {
+			func() (wmachine.VarUpdateFunc[int32], bool, error) {
 				return func(prev int32) (int32, error) {
 					return atomic.AddInt32(&counter1, 1), nil
 				}, false, nil
@@ -381,7 +381,7 @@ func TestWatcher_MultipleWatchVariables(t *testing.T) {
 		)
 
 		val2 := WatchCall[int32](int32(0),
-			func() (manager.VarUpdateFunc[int32], bool, error) {
+			func() (wmachine.VarUpdateFunc[int32], bool, error) {
 				return func(prev int32) (int32, error) {
 					return atomic.AddInt32(&counter2, 2), nil
 				}, false, nil
@@ -436,7 +436,7 @@ func TestWatcher_WatchAndMemo(t *testing.T) {
 	managedFunc := func(msg *Message, ctx ManageContext) error {
 		// Watch value changes frequently
 		watchVal := WatchCall[int32](int32(0),
-			func() (manager.VarUpdateFunc[int32], bool, error) {
+			func() (wmachine.VarUpdateFunc[int32], bool, error) {
 				return func(prev int32) (int32, error) {
 					return atomic.AddInt32(&watchCounter, 1), nil
 				}, false, nil
@@ -502,7 +502,7 @@ func TestWatcher_HershContextAccess(t *testing.T) {
 
 		// Use Watch to verify context is working
 		val := WatchCall[int](0,
-			func() (manager.VarUpdateFunc[int], bool, error) {
+			func() (wmachine.VarUpdateFunc[int], bool, error) {
 				return func(prev int) (int, error) {
 					return 42, nil
 				}, false, nil
@@ -543,7 +543,7 @@ func TestWatcher_StopCancelsWatches(t *testing.T) {
 
 	managedFunc := func(msg *Message, ctx ManageContext) error {
 		WatchCall[int64](0,
-			func() (manager.VarUpdateFunc[int64], bool, error) {
+			func() (wmachine.VarUpdateFunc[int64], bool, error) {
 				return func(prev int64) (int64, error) {
 					atomic.AddInt32(&watchCallCount, 1)
 					return time.Now().Unix(), nil
@@ -597,7 +597,7 @@ func TestWatchCall_ErrorHandling(t *testing.T) {
 
 	managedFunc := func(msg *Message, ctx ManageContext) error {
 		val := WatchCall[int32](int32(0),
-			func() (manager.VarUpdateFunc[int32], bool, error) {
+			func() (wmachine.VarUpdateFunc[int32], bool, error) {
 				return func(prev int32) (int32, error) {
 					count := atomic.AddInt32(&errorCount, 1)
 					if count%2 == 0 {
@@ -793,7 +793,7 @@ func TestWatcher_ManualStopAfterContextCancel(t *testing.T) {
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	
+
 	// Manual stop after auto-stop should return error (not running)
 	err = watcher.Stop()
 	if err == nil {

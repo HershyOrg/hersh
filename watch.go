@@ -7,6 +7,7 @@ import (
 
 	"github.com/HershyOrg/hersh/manager"
 	"github.com/HershyOrg/hersh/shared"
+	"github.com/HershyOrg/hersh/wmachine"
 )
 
 // getManagerFromContext extracts the Manager from ManageContext.
@@ -36,7 +37,7 @@ func getManagerFromContext(ctx shared.ManageContext) *manager.Manager {
 // - error: any error that occurred during computation
 func WatchCall[T any](
 	init T,
-	getComputationFunc func() (manager.VarUpdateFunc[T], bool, error),
+	getComputationFunc func() (wmachine.VarUpdateFunc[T], bool, error),
 	varName string,
 	tick time.Duration,
 	runCtx shared.ManageContext,
@@ -67,14 +68,14 @@ func WatchCall[T any](
 		ctx, cancel := context.WithCancel(mgr.GetEffectHandler().GetRootContext())
 
 		// Wrap user's generic function into raw function for internal use
-		wrappedGetFunc := func() (manager.RawVarUpdateFunc, bool, error) {
+		wrappedGetFunc := func() (wmachine.RawVarUpdateFunc, bool, error) {
 			typedFunc, skip, err := getComputationFunc()
 			if err != nil {
 				return nil, skip, err
 			}
 
 			// Convert VarUpdateFunc[T] to rawVarUpdateFunc
-			rawFunc := func(prev shared.RawWatchValue) (shared.RawWatchValue, error) {
+			rawFunc := func(prev shared.RawWatchValue) shared.RawWatchValue {
 				// Extract previous value with type assertion
 				var prevT T
 				if prev.Value != nil {
@@ -101,7 +102,7 @@ func WatchCall[T any](
 					Error:      err,
 					VarName:    varName,
 					NotUpdated: false, // Mark as updated
-				}, nil
+				}
 			}
 
 			return rawFunc, skip, nil
@@ -187,16 +188,17 @@ func tickWatchLoop(mgr *manager.Manager, handle *manager.TickHandle, rootCtx con
 				if logger := mgr.GetLogger(); logger != nil {
 					logger.LogWatchError(handle.VarName, manager.ErrorPhaseGetComputeFunc, err)
 				}
-				continue
 			}
 
 			// Send VarSig unless user wants to skip
 			if !skipSignal && mgr != nil {
-				mgr.GetSignals().SendVarSig(&manager.VarSig{
-					ReceivedTime:       time.Now(),
-					TargetVarName:      handle.VarName,
-					VarUpdateFunc:      varUpdateFunc,
-					IsStateIndependent: false, // Tick is state-dependent (apply sequentially)
+				mgr.GetSignals().SendVarSig(&wmachine.VarSig{
+					ReceivedTime:                  time.Now(),
+					TargetVarName:                 handle.VarName,
+					GetComputeFuncErrOrGetChanErr: err,
+					SourceType:                    wmachine.WatchCallType,
+					VarUpdateFunc:                 varUpdateFunc,
+					IsStateIndependent:            false, // Tick is state-dependent (apply sequentially)
 				})
 			}
 		}
@@ -276,6 +278,15 @@ func WatchFlow[T any](
 			errorHV := shared.RawWatchValue{Value: nil, Error: err, VarName: varName}
 			mgr.GetState().VarState.Set(varName, errorHV)
 
+			mgr.GetSignals().SendVarSig(
+				&wmachine.VarSig{
+					ReceivedTime:                  time.Now(),
+					TargetVarName:                 varName,
+					GetComputeFuncErrOrGetChanErr: err,
+					SourceType:                    wmachine.WatchFlowType,
+					VarUpdateFunc:                 nil,
+					IsStateIndependent:            true,
+				})
 			// Return error as HershValue[T]
 			return shared.WatchValue[T]{
 				Value:      init,
@@ -366,7 +377,7 @@ func flowWatchLoop(mgr *manager.Manager, handle *manager.FlowHandle, ctx context
 			// Send signal unless SkipSignal is true
 			if !flowValue.SkipSignal {
 				// Wrap value or error in a RawVarUpdateFunc that returns RawHershValue
-				varUpdateFunc := func(prev shared.RawWatchValue) (shared.RawWatchValue, error) {
+				varUpdateFunc := func(prev shared.RawWatchValue) shared.RawWatchValue {
 					if flowValue.E != nil {
 						// Log error but still propagate to user
 						mgr.GetLogger().LogWatchError(handle.VarName, manager.ErrorPhaseExecuteComputeFunc, flowValue.E)
@@ -376,7 +387,7 @@ func flowWatchLoop(mgr *manager.Manager, handle *manager.FlowHandle, ctx context
 							Error:      flowValue.E,
 							VarName:    handle.VarName,
 							NotUpdated: false, // Error is still an update
-						}, nil
+						}
 					}
 					// Return RawHershValue with value
 					return shared.RawWatchValue{
@@ -384,16 +395,18 @@ func flowWatchLoop(mgr *manager.Manager, handle *manager.FlowHandle, ctx context
 						Error:      nil,
 						VarName:    handle.VarName,
 						NotUpdated: false, // Flow value is an update
-					}, nil
+					}
 				}
 
 				// Send VarSig
 				if mgr != nil {
-					mgr.GetSignals().SendVarSig(&manager.VarSig{
-						ReceivedTime:       time.Now(),
-						TargetVarName:      handle.VarName,
-						VarUpdateFunc:      varUpdateFunc,
-						IsStateIndependent: true, // Flow is state-independent (use last value only)
+					mgr.GetSignals().SendVarSig(&wmachine.VarSig{
+						ReceivedTime:                  time.Now(),
+						GetComputeFuncErrOrGetChanErr: nil,
+						SourceType:                    wmachine.WatchFlowType,
+						TargetVarName:                 handle.VarName,
+						VarUpdateFunc:                 varUpdateFunc,
+						IsStateIndependent:            true, // Flow is state-independent (use last value only)
 					})
 				}
 			}

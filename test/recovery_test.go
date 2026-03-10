@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/HershyOrg/hersh"
-	"github.com/HershyOrg/hersh/manager"
 	"github.com/HershyOrg/hersh/shared"
+	"github.com/HershyOrg/hersh/wmachine"
 )
 
 // TestRecovery_SuppressPhase tests that 1-2 consecutive failures are suppressed
@@ -43,7 +43,7 @@ func TestRecovery_SuppressPhase(t *testing.T) {
 
 		// Register a watch to trigger periodic re-execution
 		hersh.WatchCall[int64](int64(0),
-			func() (manager.VarUpdateFunc[int64], bool, error) {
+			func() (wmachine.VarUpdateFunc[int64], bool, error) {
 				return func(prev int64) (int64, error) {
 					return time.Now().Unix(), nil
 				}, false, nil
@@ -119,7 +119,7 @@ func TestRecovery_EnterRecoveryMode(t *testing.T) {
 
 		// Register a watch to trigger periodic re-execution
 		hersh.WatchCall[int64](int64(0),
-			func() (manager.VarUpdateFunc[int64], bool, error) {
+			func() (wmachine.VarUpdateFunc[int64], bool, error) {
 				return func(prev int64) (int64, error) {
 					return time.Now().Unix(), nil
 				}, false, nil
@@ -194,7 +194,7 @@ func TestRecovery_SuccessfulRecovery(t *testing.T) {
 
 		// Register a watch to trigger periodic re-execution
 		hersh.WatchCall[int64](int64(0),
-			func() (manager.VarUpdateFunc[int64], bool, error) {
+			func() (wmachine.VarUpdateFunc[int64], bool, error) {
 				return func(prev int64) (int64, error) {
 					return time.Now().Unix(), nil
 				}, false, nil
@@ -268,7 +268,7 @@ func TestRecovery_MaxFailureCrash(t *testing.T) {
 
 		// Register a watch to trigger periodic re-execution
 		hersh.WatchCall[int64](int64(0),
-			func() (manager.VarUpdateFunc[int64], bool, error) {
+			func() (wmachine.VarUpdateFunc[int64], bool, error) {
 				return func(prev int64) (int64, error) {
 					return time.Now().Unix(), nil
 				}, false, nil
@@ -351,7 +351,7 @@ func TestRecovery_CounterReset(t *testing.T) {
 
 		// Register a watch to trigger periodic re-execution
 		hersh.WatchCall[int64](int64(0),
-			func() (manager.VarUpdateFunc[int64], bool, error) {
+			func() (wmachine.VarUpdateFunc[int64], bool, error) {
 				return func(prev int64) (int64, error) {
 					return time.Now().Unix(), nil
 				}, false, nil

@@ -6,6 +6,7 @@ import (
 	"runtime"
 
 	"github.com/HershyOrg/hersh/shared"
+	"github.com/HershyOrg/hersh/wmachine"
 )
 
 // ReduceAction represents a state transition that occurred.
@@ -148,7 +149,7 @@ func (r *Reducer) reduceAndExecuteEffect(sig shared.Signal, commander *EffectCom
 		triggeredSig = r.reduceManagerInnerSig(s)
 	case *UserSig:
 		triggeredSig = r.reduceUserSig(s)
-	case *VarSig:
+	case *wmachine.VarSig:
 		triggeredSig = r.reduceVarSig(s)
 		// Note: InitRun completion check moved after effect execution for atomic processing
 	default:
@@ -198,7 +199,7 @@ func (r *Reducer) canProcessVarSig(state shared.ManagerInnerState) bool {
 // Only called when canProcessVarSig returns true.
 // Logging is handled by reduceAndExecuteEffect.
 // Returns TriggeredSignal with the names of variables that were triggered.
-func (r *Reducer) reduceVarSig(sig *VarSig) *shared.TriggeredSignal {
+func (r *Reducer) reduceVarSig(sig *wmachine.VarSig) *shared.TriggeredSignal {
 	currentState := r.state.GetManagerInnerState()
 
 	switch currentState {
@@ -230,8 +231,8 @@ func (r *Reducer) reduceVarSig(sig *VarSig) *shared.TriggeredSignal {
 // collectAndApplyVarSigs collects all VarSigs and applies them correctly.
 // For IsStateIndependent=true (Flow): only apply the last signal's function
 // For IsStateIndependent=false (Tick): apply all functions sequentially
-func (r *Reducer) collectAndApplyVarSigs(first *VarSig) map[string]shared.RawWatchValue {
-	sigs := []*VarSig{first}
+func (r *Reducer) collectAndApplyVarSigs(first *wmachine.VarSig) map[string]shared.RawWatchValue {
+	sigs := []*wmachine.VarSig{first}
 
 	// Collect all available VarSigs from the channel
 	for {
@@ -246,7 +247,7 @@ func (r *Reducer) collectAndApplyVarSigs(first *VarSig) map[string]shared.RawWat
 
 APPLY:
 	// Group signals by variable name
-	byVar := make(map[string][]*VarSig)
+	byVar := make(map[string][]*wmachine.VarSig)
 	for _, sig := range sigs {
 		byVar[sig.TargetVarName] = append(byVar[sig.TargetVarName], sig)
 	}
@@ -267,14 +268,13 @@ APPLY:
 				currentHV = shared.RawWatchValue{} // Empty RawHershValue if not exists
 			}
 
-			nextHV, err := lastSig.VarUpdateFunc(currentHV)
-			if err != nil {
-				// VarUpdateFunc execution error - log and store error in RawHershValue
+			nextHV := lastSig.VarUpdateFunc(currentHV)
+			
+			if nextHV.Error != nil {
 				if r.logger != nil {
-					r.logger.LogWatchError(varName, ErrorPhaseExecuteComputeFunc, err)
+					r.logger.LogWatchError(varName, ErrorPhaseExecuteComputeFunc, nextHV.Error)
 				}
-				// Store the error in RawHershValue
-				updates[varName] = shared.RawWatchValue{Value: nil, Error: err}
+				updates[varName] = shared.RawWatchValue{Value: nil, Error: nextHV.Error}
 				continue
 			}
 
@@ -289,14 +289,14 @@ APPLY:
 			}
 
 			for _, sig := range varSigs {
-				nextHV, err := sig.VarUpdateFunc(currentHV)
-				if err != nil {
+				nextHV := sig.VarUpdateFunc(currentHV)
+				if nextHV.Error != nil {
 					// VarUpdateFunc execution error - log and store error in RawHershValue
 					if r.logger != nil {
-						r.logger.LogWatchError(varName, ErrorPhaseExecuteComputeFunc, err)
+						r.logger.LogWatchError(varName, ErrorPhaseExecuteComputeFunc, nextHV.Error)
 					}
 					// Store the error
-					currentHV = shared.RawWatchValue{Value: nil, Error: err}
+					currentHV = shared.RawWatchValue{Value: nil, Error: nextHV.Error}
 					continue
 				}
 				currentHV = nextHV // Next function's input

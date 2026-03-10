@@ -169,9 +169,9 @@ func mainReducer(
 	commandHandler *CommandHandler,
 ) error {
 	// WatchFlow: BTC price (real-time from WebSocket)
-	btcHV := hersh.WatchFlow[float64](0.0, stream.GetBTCPriceStream(), "btc_price", ctx)
+	btcHV := hersh.WatchFlow(0.0, stream.GetBTCPriceStream(), "btc_price", ctx)
 	// WatchFlow: ETH price (real-time from WebSocket)
-	ethHV := hersh.WatchFlow[float64](0.0, stream.GetETHPriceStream(), "eth_price", ctx)
+	ethHV := hersh.WatchFlow(0.0, stream.GetETHPriceStream(), "eth_price", ctx)
 	// WatchTick: Stats ticker (1 minute interval)
 	statsTick := util.WatchTick("stats_ticker", StatsInterval, ctx)
 	// WatchTick: Rebalance ticker (1 hour interval)

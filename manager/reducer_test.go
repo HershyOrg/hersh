@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/HershyOrg/hersh/shared"
+	"github.com/HershyOrg/hersh/wmachine"
 )
 
 // Helper function to create a full logger for tests
@@ -37,11 +38,11 @@ func TestReducer_VarSigTransition(t *testing.T) {
 	go reducer.RunWithEffects(ctx, commander, handler)
 
 	// Send VarSig
-	sig := &VarSig{
+	sig := &wmachine.VarSig{
 		ReceivedTime:  time.Now(),
 		TargetVarName: "testVar",
-		VarUpdateFunc: func(prev shared.RawWatchValue) (shared.RawWatchValue, error) {
-			return shared.RawWatchValue{Value: 42, Error: nil}, nil
+		VarUpdateFunc: func(prev shared.RawWatchValue) shared.RawWatchValue {
+			return shared.RawWatchValue{Value: 42, Error: nil}
 		},
 		IsStateIndependent: false,
 	}
@@ -204,11 +205,11 @@ func TestReducer_PriorityOrdering(t *testing.T) {
 	defer cancel()
 
 	// Send signals in reverse priority order (Var, User, Watcher)
-	varSig := &VarSig{
+	varSig := &wmachine.VarSig{
 		ReceivedTime:  time.Now(),
 		TargetVarName: "var1",
-		VarUpdateFunc: func(prev shared.RawWatchValue) (shared.RawWatchValue, error) {
-			return shared.RawWatchValue{Value: 1, Error: nil}, nil
+		VarUpdateFunc: func(prev shared.RawWatchValue) shared.RawWatchValue {
+			return shared.RawWatchValue{Value: 1, Error: nil}
 		},
 		IsStateIndependent: false,
 	}
@@ -265,11 +266,11 @@ func TestReducer_BatchVarSigCollection(t *testing.T) {
 	// Send multiple VarSigs
 	for i := 1; i <= 5; i++ {
 		currentVal := i * 10
-		sig := &VarSig{
+		sig := &wmachine.VarSig{
 			ReceivedTime:  time.Now(),
 			TargetVarName: "var" + string(rune('0'+i)),
-			VarUpdateFunc: func(prev shared.RawWatchValue) (shared.RawWatchValue, error) {
-				return shared.RawWatchValue{Value: currentVal, Error: nil}, nil
+			VarUpdateFunc: func(prev shared.RawWatchValue) shared.RawWatchValue {
+				return shared.RawWatchValue{Value: currentVal, Error: nil}
 			},
 			IsStateIndependent: false,
 		}

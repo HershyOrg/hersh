@@ -3,8 +3,8 @@ package hersh
 import (
 	"time"
 
-	"github.com/HershyOrg/hersh/manager"
 	"github.com/HershyOrg/hersh/shared"
+	"github.com/HershyOrg/hersh/wmachine"
 )
 
 // WatchTick provides a convenient way to create a tick-based watcher.
@@ -25,7 +25,7 @@ func WatchTick(
 	// Use WatchCall with tick generation function
 	return WatchCall(
 		init,
-		func() (manager.VarUpdateFunc[shared.TickValue], bool, error) {
+		func() (wmachine.VarUpdateFunc[shared.TickValue], bool, error) {
 			return func(prev shared.TickValue) (shared.TickValue, error) {
 				return shared.TickValue{
 					Time:       time.Now(),

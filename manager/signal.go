@@ -7,40 +7,8 @@ import (
 	"time"
 
 	"github.com/HershyOrg/hersh/shared"
+	"github.com/HershyOrg/hersh/wmachine"
 )
-
-// VarUpdateFunc is a generic function that updates a variable's state.
-// It receives the previous value of type T and returns the next value and an error.
-type VarUpdateFunc[T any] func(prev T) (next T, err error)
-
-// RawVarUpdateFunc is the internal non-generic version used by VarSig.
-// It receives the previous RawHershValue and returns the next RawHershValue and an error.
-type RawVarUpdateFunc func(prev shared.RawWatchValue) (next shared.RawWatchValue, err error)
-
-// VarSig represents a change in a watched variable's state.
-type VarSig struct {
-	ReceivedTime       time.Time
-	TargetVarName      string
-	VarUpdateFunc      RawVarUpdateFunc // Function to compute the next state (internal raw version)
-	IsStateIndependent bool             // If true, only last signal matters; if false, apply sequentially
-}
-
-func (s *VarSig) Priority() shared.SignalPriority {
-	return shared.PriorityVar
-}
-
-func (s *VarSig) CreatedAt() time.Time {
-	return s.ReceivedTime
-}
-
-func (s *VarSig) String() string {
-	typeStr := "dependent"
-	if s.IsStateIndependent {
-		typeStr = "independent"
-	}
-	return fmt.Sprintf("VarSig{var=%s, type=%s, time=%s}",
-		s.TargetVarName, typeStr, s.ReceivedTime.Format(time.RFC3339))
-}
 
 // UserSig represents a change in the user message state.
 type UserSig struct {
@@ -88,7 +56,7 @@ func (s *ManagerInnerSig) String() string {
 
 // SignalChannels holds all signal channels for the Manager.
 type SignalChannels struct {
-	VarSigChan          chan *VarSig
+	VarSigChan          chan *wmachine.VarSig
 	UserSigChan         chan *UserSig
 	ManagerInnerSigChan chan *ManagerInnerSig
 	NewSigAppended      chan struct{} // Notifies when any signal is added
@@ -97,7 +65,7 @@ type SignalChannels struct {
 // NewSignalChannels creates a new SignalChannels with buffered channels.
 func NewSignalChannels(bufferSize int) *SignalChannels {
 	return &SignalChannels{
-		VarSigChan:          make(chan *VarSig, bufferSize),
+		VarSigChan:          make(chan *wmachine.VarSig, bufferSize),
 		UserSigChan:         make(chan *UserSig, bufferSize),
 		ManagerInnerSigChan: make(chan *ManagerInnerSig, bufferSize),
 		NewSigAppended:      make(chan struct{}, bufferSize*3), // Can hold all possible signals
@@ -105,7 +73,7 @@ func NewSignalChannels(bufferSize int) *SignalChannels {
 }
 
 // SendVarSig sends a VarSig and notifies of new signal.
-func (sc *SignalChannels) SendVarSig(sig *VarSig) {
+func (sc *SignalChannels) SendVarSig(sig *wmachine.VarSig) {
 	sc.VarSigChan <- sig
 	select {
 	case sc.NewSigAppended <- struct{}{}:

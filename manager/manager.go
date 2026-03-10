@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/HershyOrg/hersh/shared"
+	"github.com/HershyOrg/hersh/wmachine"
 )
 
 // WatchHandle is an interface for different types of watch mechanisms.
@@ -15,14 +16,10 @@ type WatchHandle interface {
 	GetCancelFunc() context.CancelFunc
 }
 
-// GetComputationFunc returns the RawVarUpdateFunc, a skipSignal flag
-// (false by default; set to true if you want to skip), and an error.
-type GetComputationFunc func() (varUpdateFunc RawVarUpdateFunc, skipSignal bool, err error)
-
 // TickHandle represents a tick-based watch variable.
 type TickHandle struct {
 	VarName            string
-	GetComputationFunc GetComputationFunc // Returns a function to compute next state and skipSignal flag
+	GetComputationFunc wmachine.GetComputationFunc // Returns a function to compute next state and skipSignal flag
 	Tick               time.Duration
 	CancelFunc         context.CancelFunc
 }
@@ -139,7 +136,6 @@ func (wm *Manager) GetEffectHandler() *EffectHandler {
 func (wm *Manager) GetLogger() *Logger {
 	return wm.logger
 }
-
 
 // GetMemoCache returns a pointer to the memo cache.
 func (wm *Manager) GetMemoCache() *sync.Map {

@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/HershyOrg/hersh/manager"
 	"github.com/HershyOrg/hersh/shared"
+	"github.com/HershyOrg/hersh/wmachine"
 )
 
 // TestWatcherRestart verifies that Watcher can stop and restart Manager multiple times
@@ -20,9 +20,9 @@ func TestWatcherRestart(t *testing.T) {
 
 	// Track execution counts
 	var (
-		executionCount  atomic.Int32
-		watchCallValue  atomic.Int32
-		watchFlowValue  atomic.Int32
+		executionCount   atomic.Int32
+		watchCallValue   atomic.Int32
+		watchFlowValue   atomic.Int32
 		memoComputeCount atomic.Int32
 	)
 
@@ -33,7 +33,7 @@ func TestWatcherRestart(t *testing.T) {
 		// WatchCall: tick-based with computation
 		tickWatch := WatchCall(
 			0, // initial value
-			func() (manager.VarUpdateFunc[int], bool, error) {
+			func() (wmachine.VarUpdateFunc[int], bool, error) {
 				// Return computation function
 				computeFunc := func(prev int) (int, error) {
 					memoComputeCount.Add(1)

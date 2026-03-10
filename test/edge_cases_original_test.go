@@ -5,10 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/HershyOrg/hersh/manager"
-
 	"github.com/HershyOrg/hersh"
 	"github.com/HershyOrg/hersh/shared"
+	"github.com/HershyOrg/hersh/wmachine"
 )
 
 // ORIGINAL TESTS - Testing actual framework behavior expectations
@@ -34,7 +33,7 @@ func TestEdgeCase_StopDuringInitRun_Original(t *testing.T) {
 
 		// Register a slow watch to keep in InitRun state
 		hersh.WatchCall[int64](int64(0),
-			func() (manager.VarUpdateFunc[int64], bool, error) {
+			func() (wmachine.VarUpdateFunc[int64], bool, error) {
 				return func(prev int64) (int64, error) {
 					time.Sleep(100 * time.Millisecond)
 					return time.Now().Unix(), nil
@@ -164,7 +163,7 @@ func TestEdgeCase_CleanupTimeout_Original(t *testing.T) {
 
 	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
 		hersh.WatchCall[int64](int64(0),
-			func() (manager.VarUpdateFunc[int64], bool, error) {
+			func() (wmachine.VarUpdateFunc[int64], bool, error) {
 				return func(prev int64) (int64, error) {
 					return time.Now().Unix(), nil
 				}, false, nil
@@ -248,7 +247,7 @@ func TestEdgeCase_PanicRecovery_Original(t *testing.T) {
 		}
 
 		hersh.WatchCall[int64](int64(0),
-			func() (manager.VarUpdateFunc[int64], bool, error) {
+			func() (wmachine.VarUpdateFunc[int64], bool, error) {
 				return func(prev int64) (int64, error) {
 					return time.Now().Unix(), nil
 				}, false, nil
@@ -329,7 +328,7 @@ func TestEdgeCase_ContextCancellation_Original(t *testing.T) {
 		}
 
 		hersh.WatchCall[int64](int64(0),
-			func() (manager.VarUpdateFunc[int64], bool, error) {
+			func() (wmachine.VarUpdateFunc[int64], bool, error) {
 				return func(prev int64) (int64, error) {
 					return time.Now().Unix(), nil
 				}, false, nil
