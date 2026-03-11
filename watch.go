@@ -19,7 +19,9 @@ func getManagerFromContext(ctx shared.ManageContext) *manager.Manager {
 	return nil
 }
 
-// WatchCall monitors a value by periodically generating computation functions (generic version).
+// ! Now, this DELETED_WatchCall won't be used any more
+// ! It Will REPLACED by new Func "WatchCall"
+// DELELTED_WatchCall monitors a value by periodically generating computation functions (generic version).
 // Returns the current HershValue[T] with the initial value on first call.
 //
 // The init parameter provides the initial value before any updates occur.
@@ -35,9 +37,9 @@ func getManagerFromContext(ctx shared.ManageContext) *manager.Manager {
 // The VarUpdateFunc[T] returns:
 // - next: the new value of type T
 // - error: any error that occurred during computation
-func WatchCall[T any](
+func DELELTED_WatchCall[T any](
 	init T,
-	getComputationFunc func() (wmachine.VarUpdateFunc[T], bool, error),
+	getComputationFunc func() (wmachine.DELETED_VarUpdateFunc[T], bool, error),
 	varName string,
 	tick time.Duration,
 	runCtx shared.ManageContext,
@@ -68,7 +70,7 @@ func WatchCall[T any](
 		ctx, cancel := context.WithCancel(mgr.GetEffectHandler().GetRootContext())
 
 		// Wrap user's generic function into raw function for internal use
-		wrappedGetFunc := func() (wmachine.RawVarUpdateFunc, bool, error) {
+		wrappedGetFunc := func() (wmachine.DELETED_RawVarUpdateFunc, bool, error) {
 			typedFunc, skip, err := getComputationFunc()
 			if err != nil {
 				return nil, skip, err
@@ -192,26 +194,28 @@ func tickWatchLoop(mgr *manager.Manager, handle *manager.TickHandle, rootCtx con
 
 			// Send VarSig unless user wants to skip
 			if !skipSignal && mgr != nil {
-				mgr.GetSignals().SendVarSig(&wmachine.VarSig{
+				mgr.GetSignals().SendVarSig(&wmachine.DELETED_VarSig{
 					ReceivedTime:                  time.Now(),
 					TargetVarName:                 handle.VarName,
 					GetComputeFuncErrOrGetChanErr: err,
 					SourceType:                    wmachine.WatchCallType,
-					VarUpdateFunc:                 varUpdateFunc,
-					IsStateIndependent:            false, // Tick is state-dependent (apply sequentially)
+					DELETED_VarUpdateFunc:         varUpdateFunc,
+					DELETED_ISStateIndependent:    false, // Tick is state-dependent (apply sequentially)
 				})
 			}
 		}
 	}
 }
 
-// WatchFlow monitors a channel and emits VarSig when values arrive (generic version).
+// ! Now, this DELETED_WatchFlow won't be used any more
+// ! It Will REPLACED by new Func "WatchFlow"
+// DELETED_WatchFlow monitors a channel and emits VarSig when values arrive (generic version).
 // This is for event-driven reactive programming.
 //
 // The init parameter provides the initial value before any channel values are received.
 //
 // Returns the latest HershValue[T] from the channel or the initial value if none received.
-func WatchFlow[T any](
+func DELETED_WatchFlow[T any](
 	init T,
 	getChannelFunc func(ctx context.Context) (<-chan shared.FlowValue[T], error),
 	varName string,
@@ -279,13 +283,13 @@ func WatchFlow[T any](
 			mgr.GetState().VarState.Set(varName, errorHV)
 
 			mgr.GetSignals().SendVarSig(
-				&wmachine.VarSig{
+				&wmachine.DELETED_VarSig{
 					ReceivedTime:                  time.Now(),
 					TargetVarName:                 varName,
 					GetComputeFuncErrOrGetChanErr: err,
 					SourceType:                    wmachine.WatchFlowType,
-					VarUpdateFunc:                 nil,
-					IsStateIndependent:            true,
+					DELETED_VarUpdateFunc:         nil,
+					DELETED_ISStateIndependent:    true,
 				})
 			// Return error as HershValue[T]
 			return shared.WatchValue[T]{
@@ -400,13 +404,13 @@ func flowWatchLoop(mgr *manager.Manager, handle *manager.FlowHandle, ctx context
 
 				// Send VarSig
 				if mgr != nil {
-					mgr.GetSignals().SendVarSig(&wmachine.VarSig{
+					mgr.GetSignals().SendVarSig(&wmachine.DELETED_VarSig{
 						ReceivedTime:                  time.Now(),
 						GetComputeFuncErrOrGetChanErr: nil,
 						SourceType:                    wmachine.WatchFlowType,
 						TargetVarName:                 handle.VarName,
-						VarUpdateFunc:                 varUpdateFunc,
-						IsStateIndependent:            true, // Flow is state-independent (use last value only)
+						DELETED_VarUpdateFunc:         varUpdateFunc,
+						DELETED_ISStateIndependent:    true, // Flow is state-independent (use last value only)
 					})
 				}
 			}

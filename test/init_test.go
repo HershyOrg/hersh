@@ -31,7 +31,7 @@ func TestWatchFlow_MultipleInitialization(t *testing.T) {
 		executionCount++
 
 		// Watch 5 different flow variables with initial values
-		flowA := hersh.WatchFlow[string](
+		flowA := hersh.DELETED_WatchFlow[string](
 			"init_a",
 			func(ctx context.Context) (<-chan shared.FlowValue[string], error) {
 				return chanA, nil
@@ -40,7 +40,7 @@ func TestWatchFlow_MultipleInitialization(t *testing.T) {
 			ctx,
 		)
 
-		flowB := hersh.WatchFlow[string](
+		flowB := hersh.DELETED_WatchFlow[string](
 			"init_b",
 			func(ctx context.Context) (<-chan shared.FlowValue[string], error) {
 				return chanB, nil
@@ -49,7 +49,7 @@ func TestWatchFlow_MultipleInitialization(t *testing.T) {
 			ctx,
 		)
 
-		flowC := hersh.WatchFlow[string](
+		flowC := hersh.DELETED_WatchFlow[string](
 			"init_c",
 			func(ctx context.Context) (<-chan shared.FlowValue[string], error) {
 				return chanC, nil
@@ -58,7 +58,7 @@ func TestWatchFlow_MultipleInitialization(t *testing.T) {
 			ctx,
 		)
 
-		flowD := hersh.WatchFlow[string](
+		flowD := hersh.DELETED_WatchFlow[string](
 			"init_d",
 			func(ctx context.Context) (<-chan shared.FlowValue[string], error) {
 				return chanD, nil
@@ -67,7 +67,7 @@ func TestWatchFlow_MultipleInitialization(t *testing.T) {
 			ctx,
 		)
 
-		flowE := hersh.WatchFlow[string](
+		flowE := hersh.DELETED_WatchFlow[string](
 			"init_e",
 			func(ctx context.Context) (<-chan shared.FlowValue[string], error) {
 				return chanE, nil
@@ -231,7 +231,7 @@ func TestWatchFlow_ImmediateExecution(t *testing.T) {
 
 		// Single WatchFlow with initial value
 		chanA := make(chan shared.FlowValue[int], 1)
-		flow := hersh.WatchFlow[int](
+		flow := hersh.DELETED_WatchFlow[int](
 			42, // Initial value
 			func(ctx context.Context) (<-chan shared.FlowValue[int], error) {
 				return chanA, nil

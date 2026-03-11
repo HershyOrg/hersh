@@ -309,8 +309,20 @@ func (wv WatchValue[T]) ToRaw() RawWatchValue {
 	}
 }
 
+// WatchLoopErr는 WatchLoop 상에서 발생 가능한 에러 종류이다.
+type WatchLoopErrKind int
+
+const (
+	GetCallHandleErr WatchLoopErrKind = iota
+	ComputeCallHookErr
+
+	GetFlowHandleErr
+	ComputeFlowHookErr
+)
+
 // RawWatchValue is the internal non-generic version used by VarState for storage.
 type RawWatchValue struct {
+	ErrorKind  WatchLoopErrKind
 	Value      any    // The actual value stored as any
 	Error      error  // Error that occurred during computation
 	VarName    string // Name of the watched variable

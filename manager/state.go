@@ -132,7 +132,6 @@ func (ms *ManagerState) SetManagerInnerState(state shared.ManagerInnerState) {
 	ms.ManagerInnerState = state
 }
 
-
 // Snapshot returns a complete state snapshot for logging.
 type StateSnapshot struct {
 	VarState          map[string]shared.RawWatchValue

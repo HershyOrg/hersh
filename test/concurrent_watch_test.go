@@ -29,9 +29,9 @@ func TestConcurrentWatch_MultipleWatchCall(t *testing.T) {
 
 	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
 		// Watch 1: 50ms interval
-		hersh.WatchCall[int32](
+		hersh.DELELTED_WatchCall[int32](
 			int32(0), // Initial value
-			func() (wmachine.VarUpdateFunc[int32], bool, error) {
+			func() (wmachine.DELETED_VarUpdateFunc[int32], bool, error) {
 				return func(prev int32) (int32, error) {
 					return atomic.AddInt32(&watch1Count, 1), nil
 				}, false, nil
@@ -42,9 +42,9 @@ func TestConcurrentWatch_MultipleWatchCall(t *testing.T) {
 		)
 
 		// Watch 2: 100ms interval (should be ~2x slower)
-		hersh.WatchCall[int32](
+		hersh.DELELTED_WatchCall[int32](
 			int32(0), // Initial value
-			func() (wmachine.VarUpdateFunc[int32], bool, error) {
+			func() (wmachine.DELETED_VarUpdateFunc[int32], bool, error) {
 				return func(prev int32) (int32, error) {
 					return atomic.AddInt32(&watch2Count, 1), nil
 				}, false, nil
@@ -55,9 +55,9 @@ func TestConcurrentWatch_MultipleWatchCall(t *testing.T) {
 		)
 
 		// Watch 3: 200ms interval (should be ~4x slower)
-		hersh.WatchCall[int32](
+		hersh.DELELTED_WatchCall[int32](
 			int32(0), // Initial value
-			func() (wmachine.VarUpdateFunc[int32], bool, error) {
+			func() (wmachine.DELETED_VarUpdateFunc[int32], bool, error) {
 				return func(prev int32) (int32, error) {
 					return atomic.AddInt32(&watch3Count, 1), nil
 				}, false, nil
@@ -132,9 +132,9 @@ func TestConcurrentWatch_WatchPlusMessages(t *testing.T) {
 		atomic.AddInt32(&executionCount, 1)
 
 		// Watch updates every 100ms
-		hersh.WatchCall[int32](
+		hersh.DELELTED_WatchCall[int32](
 			int32(0), // Initial value
-			func() (wmachine.VarUpdateFunc[int32], bool, error) {
+			func() (wmachine.DELETED_VarUpdateFunc[int32], bool, error) {
 				return func(prev int32) (int32, error) {
 					return atomic.AddInt32(&watchCounter, 1), nil
 				}, false, nil
@@ -216,9 +216,9 @@ func TestConcurrentWatch_ManyWatches(t *testing.T) {
 		// Register all watches
 		for i := 0; i < watchCount; i++ {
 			idx := i // Capture for closure
-			hersh.WatchCall[int32](
+			hersh.DELELTED_WatchCall[int32](
 				int32(0), // Initial value
-				func() (wmachine.VarUpdateFunc[int32], bool, error) {
+				func() (wmachine.DELETED_VarUpdateFunc[int32], bool, error) {
 					return func(prev int32) (int32, error) {
 						return atomic.AddInt32(&counters[idx], 1), nil
 					}, false, nil
@@ -295,9 +295,9 @@ func TestConcurrentWatch_RapidStateChanges(t *testing.T) {
 		atomic.AddInt32(&executionCount, 1)
 
 		// Very fast watch updates (20ms)
-		hersh.WatchCall[int32](
+		hersh.DELELTED_WatchCall[int32](
 			int32(0), // Initial value
-			func() (wmachine.VarUpdateFunc[int32], bool, error) {
+			func() (wmachine.DELETED_VarUpdateFunc[int32], bool, error) {
 				return func(prev int32) (int32, error) {
 					return atomic.AddInt32(&counter, 1), nil
 				}, false, nil

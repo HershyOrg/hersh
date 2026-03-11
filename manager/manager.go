@@ -19,7 +19,7 @@ type WatchHandle interface {
 // TickHandle represents a tick-based watch variable.
 type TickHandle struct {
 	VarName            string
-	GetComputationFunc wmachine.GetComputationFunc // Returns a function to compute next state and skipSignal flag
+	GetComputationFunc wmachine.DELETED_GetComputationFunc // Returns a function to compute next state and skipSignal flag
 	Tick               time.Duration
 	CancelFunc         context.CancelFunc
 }

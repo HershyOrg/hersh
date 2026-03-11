@@ -81,9 +81,9 @@ func TestBatchUpdate_LongExecution(t *testing.T) {
 		t.Logf("[Execution %d] Started", execNum)
 
 		// Variable A: Counter increment
-		valA := hersh.WatchCall[int32](
+		valA := hersh.DELELTED_WatchCall[int32](
 			int32(0), // Initial value
-			func() (wmachine.VarUpdateFunc[int32], bool, error) {
+			func() (wmachine.DELETED_VarUpdateFunc[int32], bool, error) {
 				return func(prev int32) (int32, error) {
 					next := prev + 1
 					atomic.AddInt32(&ticksA, 1)
@@ -96,9 +96,9 @@ func TestBatchUpdate_LongExecution(t *testing.T) {
 		)
 
 		// Variable B: String append
-		valB := hersh.WatchCall[string](
+		valB := hersh.DELELTED_WatchCall[string](
 			"", // Initial empty string
-			func() (wmachine.VarUpdateFunc[string], bool, error) {
+			func() (wmachine.DELETED_VarUpdateFunc[string], bool, error) {
 				return func(prev string) (string, error) {
 					next := prev + "X"
 					atomic.AddInt32(&ticksB, 1)
@@ -111,7 +111,7 @@ func TestBatchUpdate_LongExecution(t *testing.T) {
 		)
 
 		// Variable C: Timestamp flow
-		valC := hersh.WatchFlow[time.Time](
+		valC := hersh.DELETED_WatchFlow[time.Time](
 			time.Time{}, // Initial zero time
 			getTimeChannel,
 			"timestampC",
@@ -242,9 +242,9 @@ func TestBatchUpdate_RapidExecutions(t *testing.T) {
 	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
 		execNum := atomic.AddInt32(&executionCount, 1)
 
-		valA := hersh.WatchCall[int32](
+		valA := hersh.DELELTED_WatchCall[int32](
 			int32(0), // Initial value
-			func() (wmachine.VarUpdateFunc[int32], bool, error) {
+			func() (wmachine.DELETED_VarUpdateFunc[int32], bool, error) {
 				return func(prev int32) (int32, error) {
 					atomic.AddInt32(&ticksA, 1)
 					return prev + 1, nil

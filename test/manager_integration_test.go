@@ -48,13 +48,13 @@ func TestManager_BasicWorkflow(t *testing.T) {
 
 	// Test: Send a VarSig to trigger execution
 	t.Log("Sending VarSig...")
-	signals.SendVarSig(&wmachine.VarSig{
+	signals.SendVarSig(&wmachine.DELETED_VarSig{
 		ReceivedTime:  time.Now(),
 		TargetVarName: "testVar",
-		VarUpdateFunc: func(prev shared.RawWatchValue) shared.RawWatchValue {
+		DELETED_VarUpdateFunc: func(prev shared.RawWatchValue) shared.RawWatchValue {
 			return shared.RawWatchValue{Value: 42, Error: nil}
 		},
-		IsStateIndependent: false,
+		DELETED_ISStateIndependent: false,
 	})
 
 	// Wait for execution
@@ -164,13 +164,13 @@ func TestManager_ErrorHandling(t *testing.T) {
 
 	// Trigger execution
 	t.Log("Sending VarSig to trigger StopErr...")
-	signals.SendVarSig(&wmachine.VarSig{
+	signals.SendVarSig(&wmachine.DELETED_VarSig{
 		ReceivedTime:  time.Now(),
 		TargetVarName: "trigger",
-		VarUpdateFunc: func(prev shared.RawWatchValue) shared.RawWatchValue {
+		DELETED_VarUpdateFunc: func(prev shared.RawWatchValue) shared.RawWatchValue {
 			return shared.RawWatchValue{Value: 1, Error: nil}
 		},
-		IsStateIndependent: false,
+		DELETED_ISStateIndependent: false,
 	})
 
 	time.Sleep(200 * time.Millisecond)
@@ -207,13 +207,13 @@ func TestManager_PriorityProcessing(t *testing.T) {
 	)
 
 	// Send signals in reverse priority order
-	signals.SendVarSig(&wmachine.VarSig{
+	signals.SendVarSig(&wmachine.DELETED_VarSig{
 		ReceivedTime:  time.Now(),
 		TargetVarName: "var1",
-		VarUpdateFunc: func(prev shared.RawWatchValue) shared.RawWatchValue {
+		DELETED_VarUpdateFunc: func(prev shared.RawWatchValue) shared.RawWatchValue {
 			return shared.RawWatchValue{Value: 1, Error: nil}
 		},
-		IsStateIndependent: false,
+		DELETED_ISStateIndependent: false,
 	})
 
 	signals.SendUserSig(&manager.UserSig{
@@ -276,13 +276,13 @@ func TestManager_MultipleVarBatching(t *testing.T) {
 	// Send multiple VarSigs
 	for i := 1; i <= 10; i++ {
 		currentVal := i * 10
-		signals.SendVarSig(&wmachine.VarSig{
+		signals.SendVarSig(&wmachine.DELETED_VarSig{
 			ReceivedTime:  time.Now(),
 			TargetVarName: "var" + string(rune('0'+i)),
-			VarUpdateFunc: func(prev shared.RawWatchValue) shared.RawWatchValue {
+			DELETED_VarUpdateFunc: func(prev shared.RawWatchValue) shared.RawWatchValue {
 				return shared.RawWatchValue{Value: currentVal, Error: nil}
 			},
-			IsStateIndependent: false,
+			DELETED_ISStateIndependent: false,
 		})
 	}
 
@@ -343,13 +343,13 @@ func TestManager_FullCycle(t *testing.T) {
 
 	// Cycle 1: VarSig triggers execution
 	t.Log("Cycle 1: VarSig")
-	signals.SendVarSig(&wmachine.VarSig{
+	signals.SendVarSig(&wmachine.DELETED_VarSig{
 		ReceivedTime:  time.Now(),
 		TargetVarName: "trigger1",
-		VarUpdateFunc: func(prev shared.RawWatchValue) shared.RawWatchValue {
+		DELETED_VarUpdateFunc: func(prev shared.RawWatchValue) shared.RawWatchValue {
 			return shared.RawWatchValue{Value: 1, Error: nil}
 		},
-		IsStateIndependent: false,
+		DELETED_ISStateIndependent: false,
 	})
 	time.Sleep(200 * time.Millisecond)
 
@@ -363,13 +363,13 @@ func TestManager_FullCycle(t *testing.T) {
 
 	// Cycle 3: Another VarSig
 	t.Log("Cycle 3: VarSig again")
-	signals.SendVarSig(&wmachine.VarSig{
+	signals.SendVarSig(&wmachine.DELETED_VarSig{
 		ReceivedTime:  time.Now(),
 		TargetVarName: "trigger3",
-		VarUpdateFunc: func(prev shared.RawWatchValue) shared.RawWatchValue {
+		DELETED_VarUpdateFunc: func(prev shared.RawWatchValue) shared.RawWatchValue {
 			return shared.RawWatchValue{Value: 3, Error: nil}
 		},
-		IsStateIndependent: false,
+		DELETED_ISStateIndependent: false,
 	})
 	time.Sleep(200 * time.Millisecond)
 

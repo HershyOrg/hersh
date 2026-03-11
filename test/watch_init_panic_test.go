@@ -29,7 +29,7 @@ func TestWatchInitPanic_NormalOperation(t *testing.T) {
 		}
 
 		flowChan := make(chan shared.FlowValue[int], 1)
-		flow := hersh.WatchFlow[int](
+		flow := hersh.DELETED_WatchFlow[int](
 			0,
 			func(ctx context.Context) (<-chan shared.FlowValue[int], error) {
 				return flowChan, nil
@@ -41,9 +41,9 @@ func TestWatchInitPanic_NormalOperation(t *testing.T) {
 			flowCount++
 		}
 
-		call := hersh.WatchCall[int](
+		call := hersh.DELELTED_WatchCall[int](
 			0,
-			func() (wmachine.VarUpdateFunc[int], bool, error) {
+			func() (wmachine.DELETED_VarUpdateFunc[int], bool, error) {
 				return func(prev int) (int, error) {
 					return prev + 1, nil
 				}, false, nil
@@ -94,9 +94,9 @@ func TestWatchInitPanic_InvalidVarName(t *testing.T) {
 
 	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
 		// First watch should succeed
-		hersh.WatchCall[int](
+		hersh.DELELTED_WatchCall[int](
 			0,
-			func() (wmachine.VarUpdateFunc[int], bool, error) {
+			func() (wmachine.DELETED_VarUpdateFunc[int], bool, error) {
 				return func(prev int) (int, error) {
 					return prev + 1, nil
 				}, false, nil
@@ -107,9 +107,9 @@ func TestWatchInitPanic_InvalidVarName(t *testing.T) {
 		)
 
 		// Second watch will exceed limit and panic
-		hersh.WatchCall[int](
+		hersh.DELELTED_WatchCall[int](
 			0,
-			func() (wmachine.VarUpdateFunc[int], bool, error) {
+			func() (wmachine.DELETED_VarUpdateFunc[int], bool, error) {
 				return func(prev int) (int, error) {
 					return prev + 1, nil
 				}, false, nil
@@ -156,9 +156,9 @@ func TestWatchInitPanic_ExceedWatchLimit(t *testing.T) {
 		t.Logf("Execution %d started", executionCount)
 
 		// Register first two watches (should succeed)
-		hersh.WatchCall[int](
+		hersh.DELELTED_WatchCall[int](
 			0,
-			func() (wmachine.VarUpdateFunc[int], bool, error) {
+			func() (wmachine.DELETED_VarUpdateFunc[int], bool, error) {
 				return func(prev int) (int, error) {
 					return prev + 1, nil
 				}, false, nil
@@ -168,9 +168,9 @@ func TestWatchInitPanic_ExceedWatchLimit(t *testing.T) {
 			ctx,
 		)
 
-		hersh.WatchCall[int](
+		hersh.DELELTED_WatchCall[int](
 			0,
-			func() (wmachine.VarUpdateFunc[int], bool, error) {
+			func() (wmachine.DELETED_VarUpdateFunc[int], bool, error) {
 				return func(prev int) (int, error) {
 					return prev + 1, nil
 				}, false, nil
@@ -182,9 +182,9 @@ func TestWatchInitPanic_ExceedWatchLimit(t *testing.T) {
 
 		// This should panic due to limit exceeded
 		// Don't catch the panic here - let it propagate to the effect handler
-		hersh.WatchCall[int](
+		hersh.DELELTED_WatchCall[int](
 			0,
-			func() (wmachine.VarUpdateFunc[int], bool, error) {
+			func() (wmachine.DELETED_VarUpdateFunc[int], bool, error) {
 				return func(prev int) (int, error) {
 					return prev + 1, nil
 				}, false, nil
@@ -231,9 +231,9 @@ func TestWatchInitPanic_DuplicateVarName(t *testing.T) {
 
 	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
 		// First call should succeed
-		val1 := hersh.WatchCall[int](
+		val1 := hersh.DELELTED_WatchCall[int](
 			0,
-			func() (wmachine.VarUpdateFunc[int], bool, error) {
+			func() (wmachine.DELETED_VarUpdateFunc[int], bool, error) {
 				return func(prev int) (int, error) {
 					return prev + 1, nil
 				}, false, nil
@@ -250,9 +250,9 @@ func TestWatchInitPanic_DuplicateVarName(t *testing.T) {
 
 		// Second call with same name should get existing value (not panic)
 		// This is because Watch is idempotent after first registration
-		val2 := hersh.WatchCall[int](
+		val2 := hersh.DELELTED_WatchCall[int](
 			0,
-			func() (wmachine.VarUpdateFunc[int], bool, error) {
+			func() (wmachine.DELETED_VarUpdateFunc[int], bool, error) {
 				return func(prev int) (int, error) {
 					return prev + 2, nil // Different function
 				}, false, nil
@@ -307,9 +307,9 @@ func TestWatchInitPanic_RecoveryAfterCrash(t *testing.T) {
 
 	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
 		// This will exceed the limit and crash
-		hersh.WatchCall[int](
+		hersh.DELELTED_WatchCall[int](
 			0,
-			func() (wmachine.VarUpdateFunc[int], bool, error) {
+			func() (wmachine.DELETED_VarUpdateFunc[int], bool, error) {
 				return func(prev int) (int, error) {
 					return prev + 1, nil
 				}, false, nil
@@ -319,9 +319,9 @@ func TestWatchInitPanic_RecoveryAfterCrash(t *testing.T) {
 			ctx,
 		)
 
-		hersh.WatchCall[int](
+		hersh.DELELTED_WatchCall[int](
 			0,
-			func() (wmachine.VarUpdateFunc[int], bool, error) {
+			func() (wmachine.DELETED_VarUpdateFunc[int], bool, error) {
 				return func(prev int) (int, error) {
 					return prev + 1, nil
 				}, false, nil
@@ -384,9 +384,9 @@ func TestWatchInitPanic_NormalPanicRecovery(t *testing.T) {
 		t.Logf("Execution %d", executionCount)
 
 		// Normal watch operation
-		hersh.WatchCall[int](
+		hersh.DELELTED_WatchCall[int](
 			0,
-			func() (wmachine.VarUpdateFunc[int], bool, error) {
+			func() (wmachine.DELETED_VarUpdateFunc[int], bool, error) {
 				return func(prev int) (int, error) {
 					return prev + 1, nil
 				}, false, nil

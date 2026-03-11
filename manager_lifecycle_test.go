@@ -27,7 +27,7 @@ func TestManagerLifecycleIsolation(t *testing.T) {
 			idx := i
 			flowChannels[idx] = make(chan shared.FlowValue[int], 10)
 
-			WatchFlow(0, func(ctx context.Context) (<-chan shared.FlowValue[int], error) {
+			DELETED_WatchFlow(0, func(ctx context.Context) (<-chan shared.FlowValue[int], error) {
 				flowGoroutinesRunning.Add(1)
 				go func() {
 					defer flowGoroutinesRunning.Add(-1)
@@ -125,7 +125,7 @@ func TestWatcherContextCancellation(t *testing.T) {
 			idx := i
 			flowChannels[idx] = make(chan shared.FlowValue[int], 10)
 
-			WatchFlow(0, func(ctx context.Context) (<-chan shared.FlowValue[int], error) {
+			DELETED_WatchFlow(0, func(ctx context.Context) (<-chan shared.FlowValue[int], error) {
 				flowGoroutinesRunning.Add(1)
 				go func() {
 					defer flowGoroutinesRunning.Add(-1)
@@ -245,7 +245,7 @@ func TestWatchRegistrationWithManager(t *testing.T) {
 					}
 				}()
 
-				WatchCall(0, func() (wmachine.VarUpdateFunc[int], bool, error) {
+				DELELTED_WatchCall(0, func() (wmachine.DELETED_VarUpdateFunc[int], bool, error) {
 					return func(prev int) (int, error) {
 						return prev + 1, nil
 					}, false, nil

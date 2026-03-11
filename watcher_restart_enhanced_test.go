@@ -60,9 +60,9 @@ func TestWatcherRestart_Enhanced(t *testing.T) {
 
 		// WatchCall: tick-based with computation counting
 		// We count computations to verify that ticks stop after StopManager
-		tickWatch := WatchCall(
+		tickWatch := DELELTED_WatchCall(
 			0, // initial value
-			func() (wmachine.VarUpdateFunc[int], bool, error) {
+			func() (wmachine.DELETED_VarUpdateFunc[int], bool, error) {
 				// Track each computation
 				tickComputationCount.Add(1)
 
@@ -81,7 +81,7 @@ func TestWatcherRestart_Enhanced(t *testing.T) {
 		}
 
 		// WatchFlow: channel-based with lifecycle and recreation tracking
-		flowWatch := WatchFlow(
+		flowWatch := DELETED_WatchFlow(
 			0, // initial value
 			func(flowCtx context.Context) (<-chan shared.FlowValue[int], error) {
 				flowCh := make(chan shared.FlowValue[int], 10)

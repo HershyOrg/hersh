@@ -27,7 +27,7 @@ func TestTriggeredSignal_WatchCall(t *testing.T) {
 
 	watcher.Manage(func(msg *shared.Message, runCtx shared.ManageContext) error {
 		// WatchCall: 100ms마다 카운터 증가
-		hersh.WatchCall[int](0, func() (wmachine.VarUpdateFunc[int], bool, error) {
+		hersh.DELELTED_WatchCall[int](0, func() (wmachine.DELETED_VarUpdateFunc[int], bool, error) {
 			return func(prev int) (int, error) {
 				counter++
 				return counter, nil
@@ -124,7 +124,7 @@ func TestTriggeredSignal_WatchFlow(t *testing.T) {
 
 	watcher.Manage(func(msg *shared.Message, runCtx shared.ManageContext) error {
 		// WatchFlow: 채널에서 가격 스트림 감시
-		hersh.WatchFlow[float64](0.0, func(ctx context.Context) (<-chan shared.FlowValue[float64], error) {
+		hersh.DELETED_WatchFlow[float64](0.0, func(ctx context.Context) (<-chan shared.FlowValue[float64], error) {
 			return priceChan, nil
 		}, "price", runCtx)
 
@@ -238,7 +238,7 @@ func TestTriggeredSignal_Mixed(t *testing.T) {
 
 	watcher.Manage(func(msg *shared.Message, runCtx shared.ManageContext) error {
 		// 1. WatchFlow: 가격
-		priceHV := hersh.WatchFlow[float64](0.0, func(ctx context.Context) (<-chan shared.FlowValue[float64], error) {
+		priceHV := hersh.DELETED_WatchFlow[float64](0.0, func(ctx context.Context) (<-chan shared.FlowValue[float64], error) {
 			return priceChan, nil
 		}, "price", runCtx)
 
@@ -246,7 +246,7 @@ func TestTriggeredSignal_Mixed(t *testing.T) {
 		tick := util.WatchTick("ticker", 300*time.Millisecond, runCtx)
 
 		// 3. WatchCall: 카운터
-		counterHV := hersh.WatchCall[int](0, func() (wmachine.VarUpdateFunc[int], bool, error) {
+		counterHV := hersh.DELELTED_WatchCall[int](0, func() (wmachine.DELETED_VarUpdateFunc[int], bool, error) {
 			return func(prev int) (int, error) {
 				return prev + 1, nil
 			}, false, nil
@@ -358,13 +358,13 @@ func TestTriggeredSignal_BatchVarSigs(t *testing.T) {
 	watcher.Manage(func(msg *shared.Message, runCtx shared.ManageContext) error {
 		time.Sleep(100 * time.Microsecond)
 		// 3개 WatchFlow 동시 등록
-		hersh.WatchFlow[int](0, func(ctx context.Context) (<-chan shared.FlowValue[int], error) {
+		hersh.DELETED_WatchFlow[int](0, func(ctx context.Context) (<-chan shared.FlowValue[int], error) {
 			return ch1, nil
 		}, "var1", runCtx)
-		hersh.WatchFlow[int](0, func(ctx context.Context) (<-chan shared.FlowValue[int], error) {
+		hersh.DELETED_WatchFlow[int](0, func(ctx context.Context) (<-chan shared.FlowValue[int], error) {
 			return ch2, nil
 		}, "var2", runCtx)
-		hersh.WatchFlow[int](0, func(ctx context.Context) (<-chan shared.FlowValue[int], error) {
+		hersh.DELETED_WatchFlow[int](0, func(ctx context.Context) (<-chan shared.FlowValue[int], error) {
 			return ch3, nil
 		}, "var3", runCtx)
 

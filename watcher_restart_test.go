@@ -31,9 +31,9 @@ func TestWatcherRestart(t *testing.T) {
 		executionCount.Add(1)
 
 		// WatchCall: tick-based with computation
-		tickWatch := WatchCall(
+		tickWatch := DELELTED_WatchCall(
 			0, // initial value
-			func() (wmachine.VarUpdateFunc[int], bool, error) {
+			func() (wmachine.DELETED_VarUpdateFunc[int], bool, error) {
 				// Return computation function
 				computeFunc := func(prev int) (int, error) {
 					memoComputeCount.Add(1)
@@ -52,7 +52,7 @@ func TestWatcherRestart(t *testing.T) {
 		watchCallValue.Store(int32(tickWatch.Value))
 
 		// WatchFlow: channel-based
-		flowWatch := WatchFlow(
+		flowWatch := DELETED_WatchFlow(
 			0, // initial value
 			func(ctx context.Context) (<-chan shared.FlowValue[int], error) {
 				flowCh := make(chan shared.FlowValue[int], 10)

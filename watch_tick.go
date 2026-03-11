@@ -23,9 +23,9 @@ func WatchTick(
 	}
 
 	// Use WatchCall with tick generation function
-	return WatchCall(
+	return DELELTED_WatchCall(
 		init,
-		func() (wmachine.VarUpdateFunc[shared.TickValue], bool, error) {
+		func() (wmachine.DELETED_VarUpdateFunc[shared.TickValue], bool, error) {
 			return func(prev shared.TickValue) (shared.TickValue, error) {
 				return shared.TickValue{
 					Time:       time.Now(),

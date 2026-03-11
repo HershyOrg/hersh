@@ -149,7 +149,7 @@ func (r *Reducer) reduceAndExecuteEffect(sig shared.Signal, commander *EffectCom
 		triggeredSig = r.reduceManagerInnerSig(s)
 	case *UserSig:
 		triggeredSig = r.reduceUserSig(s)
-	case *wmachine.VarSig:
+	case *wmachine.DELETED_VarSig:
 		triggeredSig = r.reduceVarSig(s)
 		// Note: InitRun completion check moved after effect execution for atomic processing
 	default:
@@ -199,7 +199,7 @@ func (r *Reducer) canProcessVarSig(state shared.ManagerInnerState) bool {
 // Only called when canProcessVarSig returns true.
 // Logging is handled by reduceAndExecuteEffect.
 // Returns TriggeredSignal with the names of variables that were triggered.
-func (r *Reducer) reduceVarSig(sig *wmachine.VarSig) *shared.TriggeredSignal {
+func (r *Reducer) reduceVarSig(sig *wmachine.DELETED_VarSig) *shared.TriggeredSignal {
 	currentState := r.state.GetManagerInnerState()
 
 	switch currentState {
@@ -231,8 +231,8 @@ func (r *Reducer) reduceVarSig(sig *wmachine.VarSig) *shared.TriggeredSignal {
 // collectAndApplyVarSigs collects all VarSigs and applies them correctly.
 // For IsStateIndependent=true (Flow): only apply the last signal's function
 // For IsStateIndependent=false (Tick): apply all functions sequentially
-func (r *Reducer) collectAndApplyVarSigs(first *wmachine.VarSig) map[string]shared.RawWatchValue {
-	sigs := []*wmachine.VarSig{first}
+func (r *Reducer) collectAndApplyVarSigs(first *wmachine.DELETED_VarSig) map[string]shared.RawWatchValue {
+	sigs := []*wmachine.DELETED_VarSig{first}
 
 	// Collect all available VarSigs from the channel
 	for {
@@ -247,7 +247,7 @@ func (r *Reducer) collectAndApplyVarSigs(first *wmachine.VarSig) map[string]shar
 
 APPLY:
 	// Group signals by variable name
-	byVar := make(map[string][]*wmachine.VarSig)
+	byVar := make(map[string][]*wmachine.DELETED_VarSig)
 	for _, sig := range sigs {
 		byVar[sig.TargetVarName] = append(byVar[sig.TargetVarName], sig)
 	}
@@ -256,7 +256,7 @@ APPLY:
 
 	for varName, varSigs := range byVar {
 		// Check if this variable is state-independent (check first signal)
-		isIndependent := varSigs[0].IsStateIndependent
+		isIndependent := varSigs[0].DELETED_ISStateIndependent
 
 		if isIndependent {
 			// State-independent (Flow): only apply the last signal
@@ -268,8 +268,8 @@ APPLY:
 				currentHV = shared.RawWatchValue{} // Empty RawHershValue if not exists
 			}
 
-			nextHV := lastSig.VarUpdateFunc(currentHV)
-			
+			nextHV := lastSig.DELETED_VarUpdateFunc(currentHV)
+
 			if nextHV.Error != nil {
 				if r.logger != nil {
 					r.logger.LogWatchError(varName, ErrorPhaseExecuteComputeFunc, nextHV.Error)
@@ -289,7 +289,7 @@ APPLY:
 			}
 
 			for _, sig := range varSigs {
-				nextHV := sig.VarUpdateFunc(currentHV)
+				nextHV := sig.DELETED_VarUpdateFunc(currentHV)
 				if nextHV.Error != nil {
 					// VarUpdateFunc execution error - log and store error in RawHershValue
 					if r.logger != nil {

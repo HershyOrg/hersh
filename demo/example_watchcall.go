@@ -23,9 +23,9 @@ func main1() {
 		fmt.Printf("\n[Managed Function Execution]\n")
 
 		// WatchCall monitors external value and triggers re-execution on change (generic version)
-		hv := hersh.WatchCall[int](
+		hv := hersh.DELELTED_WatchCall[int](
 			0, // Initial counter value
-			func() (wmachine.VarUpdateFunc[int], bool, error) {
+			func() (wmachine.DELETED_VarUpdateFunc[int], bool, error) {
 				// Simulate polling external data source
 				currentValue := externalCounter
 				externalCounter++

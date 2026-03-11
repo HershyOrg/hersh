@@ -51,13 +51,13 @@ func TestHighFrequency_FastWatchSlowFunction(t *testing.T) {
 
 	for i := 1; i <= totalSignals; i++ {
 		currentI := int32(i)
-		signals.SendVarSig(&wmachine.VarSig{
+		signals.SendVarSig(&wmachine.DELETED_VarSig{
 			ReceivedTime:  time.Now(),
 			TargetVarName: "highFreqVar",
-			VarUpdateFunc: func(prev shared.RawWatchValue) shared.RawWatchValue {
+			DELETED_VarUpdateFunc: func(prev shared.RawWatchValue) shared.RawWatchValue {
 				return shared.RawWatchValue{Value: currentI, Error: nil}
 			},
-			IsStateIndependent: false,
+			DELETED_ISStateIndependent: false,
 		})
 		lastVarValue.Store(int32(i))
 		time.Sleep(10 * time.Millisecond)
@@ -132,13 +132,13 @@ func TestHighFrequency_ConcurrentSignalsAndMessages(t *testing.T) {
 		defer wg.Done()
 		for i := 1; i <= totalVarSigs; i++ {
 			currentI := i
-			signals.SendVarSig(&wmachine.VarSig{
+			signals.SendVarSig(&wmachine.DELETED_VarSig{
 				ReceivedTime:  time.Now(),
 				TargetVarName: "concurrentVar",
-				VarUpdateFunc: func(prev shared.RawWatchValue) shared.RawWatchValue {
+				DELETED_VarUpdateFunc: func(prev shared.RawWatchValue) shared.RawWatchValue {
 					return shared.RawWatchValue{Value: currentI, Error: nil}
 				},
-				IsStateIndependent: false,
+				DELETED_ISStateIndependent: false,
 			})
 			varSigCount.Add(1)
 			time.Sleep(20 * time.Millisecond)
@@ -227,13 +227,13 @@ func TestHighFrequency_SignalBurst(t *testing.T) {
 			defer wg.Done()
 			varName := "burstVar"
 			currentVal := val
-			signals.SendVarSig(&wmachine.VarSig{
+			signals.SendVarSig(&wmachine.DELETED_VarSig{
 				ReceivedTime:  time.Now(),
 				TargetVarName: varName,
-				VarUpdateFunc: func(prev shared.RawWatchValue) shared.RawWatchValue {
+				DELETED_VarUpdateFunc: func(prev shared.RawWatchValue) shared.RawWatchValue {
 					return shared.RawWatchValue{Value: currentVal, Error: nil}
 				},
-				IsStateIndependent: false,
+				DELETED_ISStateIndependent: false,
 			})
 			processedVars.Store(val, true)
 		}(i)
@@ -312,13 +312,13 @@ func TestHighFrequency_SignalsWithTimeout(t *testing.T) {
 
 	for i := 1; i <= totalSignals; i++ {
 		currentI := i
-		signals.SendVarSig(&wmachine.VarSig{
+		signals.SendVarSig(&wmachine.DELETED_VarSig{
 			ReceivedTime:  time.Now(),
 			TargetVarName: "timeoutVar",
-			VarUpdateFunc: func(prev shared.RawWatchValue) shared.RawWatchValue {
+			DELETED_VarUpdateFunc: func(prev shared.RawWatchValue) shared.RawWatchValue {
 				return shared.RawWatchValue{Value: currentI, Error: nil}
 			},
-			IsStateIndependent: false,
+			DELETED_ISStateIndependent: false,
 		})
 		time.Sleep(40 * time.Millisecond)
 	}
@@ -392,13 +392,13 @@ func TestHighFrequency_MultipleWatchVariables(t *testing.T) {
 			defer wg.Done()
 			for i := 1; i <= signalsPerVar; i++ {
 				currentI := i
-				signals.SendVarSig(&wmachine.VarSig{
+				signals.SendVarSig(&wmachine.DELETED_VarSig{
 					ReceivedTime:  time.Now(),
 					TargetVarName: vName,
-					VarUpdateFunc: func(prev shared.RawWatchValue) shared.RawWatchValue {
+					DELETED_VarUpdateFunc: func(prev shared.RawWatchValue) shared.RawWatchValue {
 						return shared.RawWatchValue{Value: currentI, Error: nil}
 					},
-					IsStateIndependent: false,
+					DELETED_ISStateIndependent: false,
 				})
 				counter.Add(1)
 				time.Sleep(15 * time.Millisecond)
@@ -484,13 +484,13 @@ func TestHighFrequency_PriorityUnderLoad(t *testing.T) {
 		defer wg.Done()
 		for i := 0; i < 50; i++ {
 			currentI := i
-			signals.SendVarSig(&wmachine.VarSig{
+			signals.SendVarSig(&wmachine.DELETED_VarSig{
 				ReceivedTime:  time.Now(),
 				TargetVarName: "priorityVar",
-				VarUpdateFunc: func(prev shared.RawWatchValue) shared.RawWatchValue {
+				DELETED_VarUpdateFunc: func(prev shared.RawWatchValue) shared.RawWatchValue {
 					return shared.RawWatchValue{Value: currentI, Error: nil}
 				},
-				IsStateIndependent: false,
+				DELETED_ISStateIndependent: false,
 			})
 			varSigProcessed.Add(1)
 			time.Sleep(30 * time.Millisecond)
@@ -603,13 +603,13 @@ func TestHighFrequency_StressTest(t *testing.T) {
 			defer wg.Done()
 			for i := 0; i < signalsPerSender; i++ {
 				currentVal := senderID*1000 + i
-				signals.SendVarSig(&wmachine.VarSig{
+				signals.SendVarSig(&wmachine.DELETED_VarSig{
 					ReceivedTime:  time.Now(),
 					TargetVarName: "stressVar",
-					VarUpdateFunc: func(prev shared.RawWatchValue) shared.RawWatchValue {
+					DELETED_VarUpdateFunc: func(prev shared.RawWatchValue) shared.RawWatchValue {
 						return shared.RawWatchValue{Value: currentVal, Error: nil}
 					},
-					IsStateIndependent: false,
+					DELETED_ISStateIndependent: false,
 				})
 				signalsSent.Add(1)
 				time.Sleep(5 * time.Millisecond)

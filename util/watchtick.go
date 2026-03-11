@@ -86,7 +86,7 @@ func WatchTick(varName string, tickInterval time.Duration, runCtx shared.ManageC
 	}
 
 	// Use WatchFlow with the ticker channel function (generic version)
-	hv := hersh.WatchFlow[shared.TickValue](init, getChannelFunc, varName, runCtx)
+	hv := hersh.DELETED_WatchFlow[shared.TickValue](init, getChannelFunc, varName, runCtx)
 
 	// Return HershTick (zero value if not initialized or error)
 	if hv.Error != nil {

@@ -32,8 +32,8 @@ func TestEdgeCase_StopDuringInitRun_Original(t *testing.T) {
 		atomic.AddInt32(&executionCount, 1)
 
 		// Register a slow watch to keep in InitRun state
-		hersh.WatchCall[int64](int64(0),
-			func() (wmachine.VarUpdateFunc[int64], bool, error) {
+		hersh.DELELTED_WatchCall[int64](int64(0),
+			func() (wmachine.DELETED_VarUpdateFunc[int64], bool, error) {
 				return func(prev int64) (int64, error) {
 					time.Sleep(100 * time.Millisecond)
 					return time.Now().Unix(), nil
@@ -162,8 +162,8 @@ func TestEdgeCase_CleanupTimeout_Original(t *testing.T) {
 	cleanupCompleted := int32(0)
 
 	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
-		hersh.WatchCall[int64](int64(0),
-			func() (wmachine.VarUpdateFunc[int64], bool, error) {
+		hersh.DELELTED_WatchCall[int64](int64(0),
+			func() (wmachine.DELETED_VarUpdateFunc[int64], bool, error) {
 				return func(prev int64) (int64, error) {
 					return time.Now().Unix(), nil
 				}, false, nil
@@ -246,8 +246,8 @@ func TestEdgeCase_PanicRecovery_Original(t *testing.T) {
 			panic("test panic")
 		}
 
-		hersh.WatchCall[int64](int64(0),
-			func() (wmachine.VarUpdateFunc[int64], bool, error) {
+		hersh.DELELTED_WatchCall[int64](int64(0),
+			func() (wmachine.DELETED_VarUpdateFunc[int64], bool, error) {
 				return func(prev int64) (int64, error) {
 					return time.Now().Unix(), nil
 				}, false, nil
@@ -327,8 +327,8 @@ func TestEdgeCase_ContextCancellation_Original(t *testing.T) {
 			return nil // This should not be reached if timeout works
 		}
 
-		hersh.WatchCall[int64](int64(0),
-			func() (wmachine.VarUpdateFunc[int64], bool, error) {
+		hersh.DELELTED_WatchCall[int64](int64(0),
+			func() (wmachine.DELETED_VarUpdateFunc[int64], bool, error) {
 				return func(prev int64) (int64, error) {
 					return time.Now().Unix(), nil
 				}, false, nil
