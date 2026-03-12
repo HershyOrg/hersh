@@ -6,7 +6,7 @@ import (
 	"runtime"
 
 	"github.com/HershyOrg/hersh/shared"
-	"github.com/HershyOrg/hersh/wmachine"
+	"github.com/HershyOrg/hersh/wm"
 )
 
 // ReduceAction represents a state transition that occurred.
@@ -149,7 +149,7 @@ func (r *Reducer) reduceAndExecuteEffect(sig shared.Signal, commander *EffectCom
 		triggeredSig = r.reduceManagerInnerSig(s)
 	case *UserSig:
 		triggeredSig = r.reduceUserSig(s)
-	case *wmachine.DELETED_VarSig:
+	case *wm.DELETED_VarSig:
 		triggeredSig = r.reduceVarSig(s)
 		// Note: InitRun completion check moved after effect execution for atomic processing
 	default:
@@ -199,7 +199,7 @@ func (r *Reducer) canProcessVarSig(state shared.ManagerInnerState) bool {
 // Only called when canProcessVarSig returns true.
 // Logging is handled by reduceAndExecuteEffect.
 // Returns TriggeredSignal with the names of variables that were triggered.
-func (r *Reducer) reduceVarSig(sig *wmachine.DELETED_VarSig) *shared.TriggeredSignal {
+func (r *Reducer) reduceVarSig(sig *wm.DELETED_VarSig) *shared.TriggeredSignal {
 	currentState := r.state.GetManagerInnerState()
 
 	switch currentState {
@@ -231,8 +231,8 @@ func (r *Reducer) reduceVarSig(sig *wmachine.DELETED_VarSig) *shared.TriggeredSi
 // collectAndApplyVarSigs collects all VarSigs and applies them correctly.
 // For IsStateIndependent=true (Flow): only apply the last signal's function
 // For IsStateIndependent=false (Tick): apply all functions sequentially
-func (r *Reducer) collectAndApplyVarSigs(first *wmachine.DELETED_VarSig) map[string]shared.RawWatchValue {
-	sigs := []*wmachine.DELETED_VarSig{first}
+func (r *Reducer) collectAndApplyVarSigs(first *wm.DELETED_VarSig) map[string]shared.RawWatchValue {
+	sigs := []*wm.DELETED_VarSig{first}
 
 	// Collect all available VarSigs from the channel
 	for {
@@ -247,7 +247,7 @@ func (r *Reducer) collectAndApplyVarSigs(first *wmachine.DELETED_VarSig) map[str
 
 APPLY:
 	// Group signals by variable name
-	byVar := make(map[string][]*wmachine.DELETED_VarSig)
+	byVar := make(map[string][]*wm.DELETED_VarSig)
 	for _, sig := range sigs {
 		byVar[sig.TargetVarName] = append(byVar[sig.TargetVarName], sig)
 	}

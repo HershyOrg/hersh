@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/HershyOrg/hersh/shared"
-	"github.com/HershyOrg/hersh/wmachine"
+	"github.com/HershyOrg/hersh/wm"
 )
 
 // TestManagerLifecycleIsolation tests that Manager and Watch have independent lifecycles.
@@ -245,7 +245,7 @@ func TestWatchRegistrationWithManager(t *testing.T) {
 					}
 				}()
 
-				DELELTED_WatchCall(0, func() (wmachine.DELETED_VarUpdateFunc[int], bool, error) {
+				DELELTED_WatchCall(0, func() (wm.DELETED_VarUpdateFunc[int], bool, error) {
 					return func(prev int) (int, error) {
 						return prev + 1, nil
 					}, false, nil

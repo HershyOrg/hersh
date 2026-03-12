@@ -1,4 +1,4 @@
-package wmachine
+package wm
 
 import "time"
 
@@ -14,10 +14,11 @@ type WatchMachine struct {
 	GetRawCallHandleOrNil GetRawCallHandleFunc
 	GetRawFlowHandleOrNil GetRawFlowHandleFunc
 
-	//reduce-effect엔진과 그 대상인 Loop
+	//reduce-effect엔진
 	reducer       WmReducerInterface
 	effectHandler WmEffectHandlerInferface
-	loop          WatchLoopInterface
+	//loop의 상태-조작을 reducer-effect가 담당-지시함.
+	loop WatchLoopInterface
 
 	//ctxConfig로 WatchMachine의 생명주기-타임아웃 결정
 	ctxConfig WatchContextConfig
@@ -32,6 +33,7 @@ type WatchMachine struct {
 	//PublisherOrNil는 Multi-Manager가 구현되었을 시,
 	//해당 WatchMachine을 Export한 Manager를 나타냄
 	//현재는 신경쓰지 않으며, 당장은 nil로 둚.
+	//Publisher는 있더라도 오직 하나임. SingleWriter-MultiReader모델.
 	PublisherOrNil Publisher
 
 	//GcChecker를 통해 WatchMachine의 구독자들을 체크하고,

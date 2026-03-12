@@ -10,7 +10,7 @@ import (
 	"unsafe"
 
 	"github.com/HershyOrg/hersh/shared"
-	"github.com/HershyOrg/hersh/wmachine"
+	"github.com/HershyOrg/hersh/wm"
 )
 
 // TestWatcherRestart_Enhanced verifies the internal mechanisms of Manager restart:
@@ -62,7 +62,7 @@ func TestWatcherRestart_Enhanced(t *testing.T) {
 		// We count computations to verify that ticks stop after StopManager
 		tickWatch := DELELTED_WatchCall(
 			0, // initial value
-			func() (wmachine.DELETED_VarUpdateFunc[int], bool, error) {
+			func() (wm.DELETED_VarUpdateFunc[int], bool, error) {
 				// Track each computation
 				tickComputationCount.Add(1)
 

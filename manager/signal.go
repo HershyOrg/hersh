@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/HershyOrg/hersh/shared"
-	"github.com/HershyOrg/hersh/wmachine"
+	"github.com/HershyOrg/hersh/wm"
 )
 
 // UserSig represents a change in the user message state.
@@ -56,7 +56,7 @@ func (s *ManagerInnerSig) String() string {
 
 // SignalChannels holds all signal channels for the Manager.
 type SignalChannels struct {
-	VarSigChan          chan *wmachine.DELETED_VarSig
+	VarSigChan          chan *wm.DELETED_VarSig
 	UserSigChan         chan *UserSig
 	ManagerInnerSigChan chan *ManagerInnerSig
 	NewSigAppended      chan struct{} // Notifies when any signal is added
@@ -65,7 +65,7 @@ type SignalChannels struct {
 // NewSignalChannels creates a new SignalChannels with buffered channels.
 func NewSignalChannels(bufferSize int) *SignalChannels {
 	return &SignalChannels{
-		VarSigChan:          make(chan *wmachine.DELETED_VarSig, bufferSize),
+		VarSigChan:          make(chan *wm.DELETED_VarSig, bufferSize),
 		UserSigChan:         make(chan *UserSig, bufferSize),
 		ManagerInnerSigChan: make(chan *ManagerInnerSig, bufferSize),
 		NewSigAppended:      make(chan struct{}, bufferSize*3), // Can hold all possible signals
@@ -73,7 +73,7 @@ func NewSignalChannels(bufferSize int) *SignalChannels {
 }
 
 // SendVarSig sends a VarSig and notifies of new signal.
-func (sc *SignalChannels) SendVarSig(sig *wmachine.DELETED_VarSig) {
+func (sc *SignalChannels) SendVarSig(sig *wm.DELETED_VarSig) {
 	sc.VarSigChan <- sig
 	select {
 	case sc.NewSigAppended <- struct{}{}:

@@ -9,7 +9,7 @@ import (
 
 	"github.com/HershyOrg/hersh/manager"
 	"github.com/HershyOrg/hersh/shared"
-	"github.com/HershyOrg/hersh/wmachine"
+	"github.com/HershyOrg/hersh/wm"
 )
 
 // TestHighFrequency_FastWatchSlowFunction tests when Watch signals arrive much faster than function execution.
@@ -51,7 +51,7 @@ func TestHighFrequency_FastWatchSlowFunction(t *testing.T) {
 
 	for i := 1; i <= totalSignals; i++ {
 		currentI := int32(i)
-		signals.SendVarSig(&wmachine.DELETED_VarSig{
+		signals.SendVarSig(&wm.DELETED_VarSig{
 			ReceivedTime:  time.Now(),
 			TargetVarName: "highFreqVar",
 			DELETED_VarUpdateFunc: func(prev shared.RawWatchValue) shared.RawWatchValue {
@@ -132,7 +132,7 @@ func TestHighFrequency_ConcurrentSignalsAndMessages(t *testing.T) {
 		defer wg.Done()
 		for i := 1; i <= totalVarSigs; i++ {
 			currentI := i
-			signals.SendVarSig(&wmachine.DELETED_VarSig{
+			signals.SendVarSig(&wm.DELETED_VarSig{
 				ReceivedTime:  time.Now(),
 				TargetVarName: "concurrentVar",
 				DELETED_VarUpdateFunc: func(prev shared.RawWatchValue) shared.RawWatchValue {
@@ -227,7 +227,7 @@ func TestHighFrequency_SignalBurst(t *testing.T) {
 			defer wg.Done()
 			varName := "burstVar"
 			currentVal := val
-			signals.SendVarSig(&wmachine.DELETED_VarSig{
+			signals.SendVarSig(&wm.DELETED_VarSig{
 				ReceivedTime:  time.Now(),
 				TargetVarName: varName,
 				DELETED_VarUpdateFunc: func(prev shared.RawWatchValue) shared.RawWatchValue {
@@ -312,7 +312,7 @@ func TestHighFrequency_SignalsWithTimeout(t *testing.T) {
 
 	for i := 1; i <= totalSignals; i++ {
 		currentI := i
-		signals.SendVarSig(&wmachine.DELETED_VarSig{
+		signals.SendVarSig(&wm.DELETED_VarSig{
 			ReceivedTime:  time.Now(),
 			TargetVarName: "timeoutVar",
 			DELETED_VarUpdateFunc: func(prev shared.RawWatchValue) shared.RawWatchValue {
@@ -392,7 +392,7 @@ func TestHighFrequency_MultipleWatchVariables(t *testing.T) {
 			defer wg.Done()
 			for i := 1; i <= signalsPerVar; i++ {
 				currentI := i
-				signals.SendVarSig(&wmachine.DELETED_VarSig{
+				signals.SendVarSig(&wm.DELETED_VarSig{
 					ReceivedTime:  time.Now(),
 					TargetVarName: vName,
 					DELETED_VarUpdateFunc: func(prev shared.RawWatchValue) shared.RawWatchValue {
@@ -484,7 +484,7 @@ func TestHighFrequency_PriorityUnderLoad(t *testing.T) {
 		defer wg.Done()
 		for i := 0; i < 50; i++ {
 			currentI := i
-			signals.SendVarSig(&wmachine.DELETED_VarSig{
+			signals.SendVarSig(&wm.DELETED_VarSig{
 				ReceivedTime:  time.Now(),
 				TargetVarName: "priorityVar",
 				DELETED_VarUpdateFunc: func(prev shared.RawWatchValue) shared.RawWatchValue {
@@ -603,7 +603,7 @@ func TestHighFrequency_StressTest(t *testing.T) {
 			defer wg.Done()
 			for i := 0; i < signalsPerSender; i++ {
 				currentVal := senderID*1000 + i
-				signals.SendVarSig(&wmachine.DELETED_VarSig{
+				signals.SendVarSig(&wm.DELETED_VarSig{
 					ReceivedTime:  time.Now(),
 					TargetVarName: "stressVar",
 					DELETED_VarUpdateFunc: func(prev shared.RawWatchValue) shared.RawWatchValue {

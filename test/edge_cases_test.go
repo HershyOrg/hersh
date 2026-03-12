@@ -7,7 +7,7 @@ import (
 
 	"github.com/HershyOrg/hersh"
 	"github.com/HershyOrg/hersh/shared"
-	"github.com/HershyOrg/hersh/wmachine"
+	"github.com/HershyOrg/hersh/wm"
 )
 
 // TestEdgeCase_StopDuringInitRun tests graceful handling of stop during initialization
@@ -32,7 +32,7 @@ func TestEdgeCase_StopDuringInitRun(t *testing.T) {
 
 		// Register a slow watch to keep in InitRun state
 		hersh.DELELTED_WatchCall[int64](int64(0),
-			func() (wmachine.DELETED_VarUpdateFunc[int64], bool, error) {
+			func() (wm.DELETED_VarUpdateFunc[int64], bool, error) {
 				return func(prev int64) (int64, error) {
 					time.Sleep(100 * time.Millisecond)
 					return time.Now().Unix(), nil
@@ -105,7 +105,7 @@ func TestEdgeCase_MultipleStops(t *testing.T) {
 
 	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
 		hersh.DELELTED_WatchCall[int64](int64(0),
-			func() (wmachine.DELETED_VarUpdateFunc[int64], bool, error) {
+			func() (wm.DELETED_VarUpdateFunc[int64], bool, error) {
 				return func(prev int64) (int64, error) {
 					return time.Now().Unix(), nil
 				}, false, nil
@@ -227,7 +227,7 @@ func TestEdgeCase_CleanupTimeout(t *testing.T) {
 
 	managedFunc := func(msg *shared.Message, ctx shared.ManageContext) error {
 		hersh.DELELTED_WatchCall[int64](int64(0),
-			func() (wmachine.DELETED_VarUpdateFunc[int64], bool, error) {
+			func() (wm.DELETED_VarUpdateFunc[int64], bool, error) {
 				return func(prev int64) (int64, error) {
 					return time.Now().Unix(), nil
 				}, false, nil
@@ -311,7 +311,7 @@ func TestEdgeCase_NilMessageHandling(t *testing.T) {
 		}
 
 		hersh.DELELTED_WatchCall[int64](int64(0),
-			func() (wmachine.DELETED_VarUpdateFunc[int64], bool, error) {
+			func() (wm.DELETED_VarUpdateFunc[int64], bool, error) {
 				return func(prev int64) (int64, error) {
 					return time.Now().Unix(), nil
 				}, false, nil
@@ -425,7 +425,7 @@ func TestEdgeCase_PanicRecovery(t *testing.T) {
 		}
 
 		hersh.DELELTED_WatchCall[int64](int64(0),
-			func() (wmachine.DELETED_VarUpdateFunc[int64], bool, error) {
+			func() (wm.DELETED_VarUpdateFunc[int64], bool, error) {
 				return func(prev int64) (int64, error) {
 					return time.Now().Unix(), nil
 				}, false, nil
@@ -509,7 +509,7 @@ func TestEdgeCase_ContextCancellation(t *testing.T) {
 		}
 
 		hersh.DELELTED_WatchCall[int64](int64(0),
-			func() (wmachine.DELETED_VarUpdateFunc[int64], bool, error) {
+			func() (wm.DELETED_VarUpdateFunc[int64], bool, error) {
 				return func(prev int64) (int64, error) {
 					return time.Now().Unix(), nil
 				}, false, nil

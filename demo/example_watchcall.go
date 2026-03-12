@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/HershyOrg/hersh"
-	"github.com/HershyOrg/hersh/wmachine"
+	"github.com/HershyOrg/hersh/wm"
 )
 
 // Advanced example demonstrating WatchCall reactive mechanism
@@ -25,7 +25,7 @@ func main1() {
 		// WatchCall monitors external value and triggers re-execution on change (generic version)
 		hv := hersh.DELELTED_WatchCall[int](
 			0, // Initial counter value
-			func() (wmachine.DELETED_VarUpdateFunc[int], bool, error) {
+			func() (wm.DELETED_VarUpdateFunc[int], bool, error) {
 				// Simulate polling external data source
 				currentValue := externalCounter
 				externalCounter++

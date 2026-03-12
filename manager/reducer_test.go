@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/HershyOrg/hersh/shared"
-	"github.com/HershyOrg/hersh/wmachine"
+	"github.com/HershyOrg/hersh/wm"
 )
 
 // Helper function to create a full logger for tests
@@ -38,7 +38,7 @@ func TestReducer_VarSigTransition(t *testing.T) {
 	go reducer.RunWithEffects(ctx, commander, handler)
 
 	// Send VarSig
-	sig := &wmachine.DELETED_VarSig{
+	sig := &wm.DELETED_VarSig{
 		ReceivedTime:  time.Now(),
 		TargetVarName: "testVar",
 		DELETED_VarUpdateFunc: func(prev shared.RawWatchValue) shared.RawWatchValue {
@@ -205,7 +205,7 @@ func TestReducer_PriorityOrdering(t *testing.T) {
 	defer cancel()
 
 	// Send signals in reverse priority order (Var, User, Watcher)
-	varSig := &wmachine.DELETED_VarSig{
+	varSig := &wm.DELETED_VarSig{
 		ReceivedTime:  time.Now(),
 		TargetVarName: "var1",
 		DELETED_VarUpdateFunc: func(prev shared.RawWatchValue) shared.RawWatchValue {
@@ -266,7 +266,7 @@ func TestReducer_BatchVarSigCollection(t *testing.T) {
 	// Send multiple VarSigs
 	for i := 1; i <= 5; i++ {
 		currentVal := i * 10
-		sig := &wmachine.DELETED_VarSig{
+		sig := &wm.DELETED_VarSig{
 			ReceivedTime:  time.Now(),
 			TargetVarName: "var" + string(rune('0'+i)),
 			DELETED_VarUpdateFunc: func(prev shared.RawWatchValue) shared.RawWatchValue {

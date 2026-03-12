@@ -1,4 +1,4 @@
-package wmachine
+package wm
 
 // WatchLoopInterface는 WatchLoop가 해야 할 일에 대한 디자인이다.
 type WatchLoopInterface interface {

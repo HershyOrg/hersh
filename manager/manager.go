@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/HershyOrg/hersh/shared"
-	"github.com/HershyOrg/hersh/wmachine"
+	"github.com/HershyOrg/hersh/wm"
 )
 
 // WatchHandle is an interface for different types of watch mechanisms.
@@ -19,7 +19,7 @@ type WatchHandle interface {
 // TickHandle represents a tick-based watch variable.
 type TickHandle struct {
 	VarName            string
-	GetComputationFunc wmachine.DELETED_GetComputationFunc // Returns a function to compute next state and skipSignal flag
+	GetComputationFunc wm.DELETED_GetComputationFunc // Returns a function to compute next state and skipSignal flag
 	Tick               time.Duration
 	CancelFunc         context.CancelFunc
 }

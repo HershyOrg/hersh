@@ -8,7 +8,7 @@ import (
 	"github.com/HershyOrg/hersh"
 	"github.com/HershyOrg/hersh/shared"
 	"github.com/HershyOrg/hersh/util"
-	"github.com/HershyOrg/hersh/wmachine"
+	"github.com/HershyOrg/hersh/wm"
 )
 
 // TestHershValue_IsTriggered tests the IsTriggered method on HershValue
@@ -29,7 +29,7 @@ func TestHershValue_IsTriggered(t *testing.T) {
 	watcher.Manage(func(msg *shared.Message, runCtx shared.ManageContext) error {
 		// Watch two variables with generic types
 		price := hersh.DELELTED_WatchCall[float64](0.0,
-			func() (wmachine.DELETED_VarUpdateFunc[float64], bool, error) {
+			func() (wm.DELETED_VarUpdateFunc[float64], bool, error) {
 				return func(prev float64) (float64, error) {
 					return 100.0, nil
 				}, false, nil
@@ -40,7 +40,7 @@ func TestHershValue_IsTriggered(t *testing.T) {
 		)
 
 		volume := hersh.DELELTED_WatchCall[float64](0.0,
-			func() (wmachine.DELETED_VarUpdateFunc[float64], bool, error) {
+			func() (wm.DELETED_VarUpdateFunc[float64], bool, error) {
 				return func(prev float64) (float64, error) {
 					return 50.0, nil
 				}, false, nil
@@ -184,7 +184,7 @@ func TestIsTriggered_Convenience(t *testing.T) {
 
 	watcher.Manage(func(msg *shared.Message, runCtx shared.ManageContext) error {
 		price := hersh.DELELTED_WatchCall[float64](0.0,
-			func() (wmachine.DELETED_VarUpdateFunc[float64], bool, error) {
+			func() (wm.DELETED_VarUpdateFunc[float64], bool, error) {
 				return func(prev float64) (float64, error) {
 					return 42.0, nil
 				}, false, nil

@@ -1,4 +1,4 @@
-package wmachine
+package wm
 
 // PublishCheckerInterface는 PublishChecker가 해야 할 일을 정의한 인터페이스임.
 // PublishChecker는 Publisher의 상태를 체크해서, WatchLoop의 종료 여부를 판단함.

@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/HershyOrg/hersh/shared"
-	"github.com/HershyOrg/hersh/wmachine"
+	"github.com/HershyOrg/hersh/wm"
 )
 
 // WatchTick provides a convenient way to create a tick-based watcher.
@@ -25,7 +25,7 @@ func WatchTick(
 	// Use WatchCall with tick generation function
 	return DELELTED_WatchCall(
 		init,
-		func() (wmachine.DELETED_VarUpdateFunc[shared.TickValue], bool, error) {
+		func() (wm.DELETED_VarUpdateFunc[shared.TickValue], bool, error) {
 			return func(prev shared.TickValue) (shared.TickValue, error) {
 				return shared.TickValue{
 					Time:       time.Now(),

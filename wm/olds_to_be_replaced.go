@@ -1,4 +1,4 @@
-package wmachine
+package wm
 
 import (
 	"fmt"

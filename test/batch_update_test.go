@@ -8,7 +8,7 @@ import (
 
 	"github.com/HershyOrg/hersh"
 	"github.com/HershyOrg/hersh/shared"
-	"github.com/HershyOrg/hersh/wmachine"
+	"github.com/HershyOrg/hersh/wm"
 )
 
 // TestBatchUpdate_LongExecution tests batch update behavior during a long manage execution.
@@ -83,7 +83,7 @@ func TestBatchUpdate_LongExecution(t *testing.T) {
 		// Variable A: Counter increment
 		valA := hersh.DELELTED_WatchCall[int32](
 			int32(0), // Initial value
-			func() (wmachine.DELETED_VarUpdateFunc[int32], bool, error) {
+			func() (wm.DELETED_VarUpdateFunc[int32], bool, error) {
 				return func(prev int32) (int32, error) {
 					next := prev + 1
 					atomic.AddInt32(&ticksA, 1)
@@ -98,7 +98,7 @@ func TestBatchUpdate_LongExecution(t *testing.T) {
 		// Variable B: String append
 		valB := hersh.DELELTED_WatchCall[string](
 			"", // Initial empty string
-			func() (wmachine.DELETED_VarUpdateFunc[string], bool, error) {
+			func() (wm.DELETED_VarUpdateFunc[string], bool, error) {
 				return func(prev string) (string, error) {
 					next := prev + "X"
 					atomic.AddInt32(&ticksB, 1)
@@ -244,7 +244,7 @@ func TestBatchUpdate_RapidExecutions(t *testing.T) {
 
 		valA := hersh.DELELTED_WatchCall[int32](
 			int32(0), // Initial value
-			func() (wmachine.DELETED_VarUpdateFunc[int32], bool, error) {
+			func() (wm.DELETED_VarUpdateFunc[int32], bool, error) {
 				return func(prev int32) (int32, error) {
 					atomic.AddInt32(&ticksA, 1)
 					return prev + 1, nil

@@ -7,7 +7,7 @@ import (
 
 	"github.com/HershyOrg/hersh/manager"
 	"github.com/HershyOrg/hersh/shared"
-	"github.com/HershyOrg/hersh/wmachine"
+	"github.com/HershyOrg/hersh/wm"
 )
 
 // getManagerFromContext extracts the Manager from ManageContext.
@@ -39,7 +39,7 @@ func getManagerFromContext(ctx shared.ManageContext) *manager.Manager {
 // - error: any error that occurred during computation
 func DELELTED_WatchCall[T any](
 	init T,
-	getComputationFunc func() (wmachine.DELETED_VarUpdateFunc[T], bool, error),
+	getComputationFunc func() (wm.DELETED_VarUpdateFunc[T], bool, error),
 	varName string,
 	tick time.Duration,
 	runCtx shared.ManageContext,
@@ -70,7 +70,7 @@ func DELELTED_WatchCall[T any](
 		ctx, cancel := context.WithCancel(mgr.GetEffectHandler().GetRootContext())
 
 		// Wrap user's generic function into raw function for internal use
-		wrappedGetFunc := func() (wmachine.DELETED_RawVarUpdateFunc, bool, error) {
+		wrappedGetFunc := func() (wm.DELETED_RawVarUpdateFunc, bool, error) {
 			typedFunc, skip, err := getComputationFunc()
 			if err != nil {
 				return nil, skip, err
@@ -194,11 +194,11 @@ func tickWatchLoop(mgr *manager.Manager, handle *manager.TickHandle, rootCtx con
 
 			// Send VarSig unless user wants to skip
 			if !skipSignal && mgr != nil {
-				mgr.GetSignals().SendVarSig(&wmachine.DELETED_VarSig{
+				mgr.GetSignals().SendVarSig(&wm.DELETED_VarSig{
 					ReceivedTime:                  time.Now(),
 					TargetVarName:                 handle.VarName,
 					GetComputeFuncErrOrGetChanErr: err,
-					SourceType:                    wmachine.WatchCallType,
+					SourceType:                    wm.WatchCallType,
 					DELETED_VarUpdateFunc:         varUpdateFunc,
 					DELETED_ISStateIndependent:    false, // Tick is state-dependent (apply sequentially)
 				})
@@ -283,11 +283,11 @@ func DELETED_WatchFlow[T any](
 			mgr.GetState().VarState.Set(varName, errorHV)
 
 			mgr.GetSignals().SendVarSig(
-				&wmachine.DELETED_VarSig{
+				&wm.DELETED_VarSig{
 					ReceivedTime:                  time.Now(),
 					TargetVarName:                 varName,
 					GetComputeFuncErrOrGetChanErr: err,
-					SourceType:                    wmachine.WatchFlowType,
+					SourceType:                    wm.WatchFlowType,
 					DELETED_VarUpdateFunc:         nil,
 					DELETED_ISStateIndependent:    true,
 				})
@@ -404,10 +404,10 @@ func flowWatchLoop(mgr *manager.Manager, handle *manager.FlowHandle, ctx context
 
 				// Send VarSig
 				if mgr != nil {
-					mgr.GetSignals().SendVarSig(&wmachine.DELETED_VarSig{
+					mgr.GetSignals().SendVarSig(&wm.DELETED_VarSig{
 						ReceivedTime:                  time.Now(),
 						GetComputeFuncErrOrGetChanErr: nil,
-						SourceType:                    wmachine.WatchFlowType,
+						SourceType:                    wm.WatchFlowType,
 						TargetVarName:                 handle.VarName,
 						DELETED_VarUpdateFunc:         varUpdateFunc,
 						DELETED_ISStateIndependent:    true, // Flow is state-independent (use last value only)
