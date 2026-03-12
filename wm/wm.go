@@ -26,9 +26,6 @@ type WatchMachine struct {
 	//Subscribers는 WatchMachine을 구독한 Manager들임.
 	//즉, WatchXXX를 varName으로 호출한 것들.
 	Subscribers []Subscriber
-	//marker를 이용해 WatchMachine은 Subscribers가
-	//Subscriber별로 어디까지 reducer의 VarHistory를 읽었는지 추적함.
-	marker MarkerInterface
 
 	//PublisherOrNil는 Multi-Manager가 구현되었을 시,
 	//해당 WatchMachine을 Export한 Manager를 나타냄
