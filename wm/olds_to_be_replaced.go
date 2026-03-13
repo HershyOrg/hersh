@@ -7,15 +7,14 @@ import (
 	"github.com/HershyOrg/hersh/shared"
 )
 
+//! 이 파일의 타입-구조체-함수들은 삭제 대상임
+//! 지금 당장은 다른 패키지에서 참조되고 있어 수정하지 않음
+
 // DELETED_GetComputationFunc returns the RawVarUpdateFunc, a skipSignal flag
 // (false by default; set to true if you want to skip), and an error.
 // ! 삭제 예정
 type DELETED_GetComputationFunc func() (varUpdateFunc DELETED_RawVarUpdateFunc, skipSignal bool, err error)
-type GetComputationFuncResult struct {
-	VarUpdateFunc DELETED_RawVarUpdateFunc
-	SkipSignal    bool
-	Err           error
-}
+
 
 // VarUpdateFunc is a generic function that updates a variable's state.
 // It receives the previous value of type T and returns the next value and an error.

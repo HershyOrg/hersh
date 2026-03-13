@@ -5,5 +5,5 @@ package wm
 // 예컨데, WatchMachine의 Subscribers가 모두 Crashed라면,
 // WatchLoop은 더이상 돌아갈 이유가 없으며,자신 역시 Stop함.
 type GcCheckerInterface interface {
-	CheckIfSubscribersBad() WlEffect
+	CheckIfSubscribersBad() LoopEvent
 }
